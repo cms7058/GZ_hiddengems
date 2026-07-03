@@ -1,6 +1,8 @@
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import inspect, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -19,7 +21,20 @@ from app.models.user import (
 from app.services.security import hash_password
 
 
+def wait_for_database(max_attempts: int = 30, delay_seconds: int = 2) -> None:
+    for attempt in range(1, max_attempts + 1):
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            return
+        except OperationalError:
+            if attempt == max_attempts:
+                raise
+            time.sleep(delay_seconds)
+
+
 def create_tables() -> None:
+    wait_for_database()
     Base.metadata.create_all(bind=engine)
     ensure_runtime_columns()
 
