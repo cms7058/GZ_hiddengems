@@ -62,6 +62,15 @@ nano .env
 - `INITIAL_ADMIN_PASSWORD`
 - `MAP_API_KEY`
 
+国内服务器构建镜像时默认使用腾讯云 Debian / PyPI 镜像源。如遇到包源不可用，可在 `.env` 中改成其他镜像：
+
+```env
+DEBIAN_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian
+DEBIAN_SECURITY_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian-security
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+```
+
 启动服务：
 
 ```bash
@@ -131,6 +140,22 @@ docker compose -f docker-compose.prod.yml restart nginx
 ```
 
 ## 常用排错
+
+如果构建时报：
+
+```text
+Could not find a version that satisfies the requirement fastapi==0.111.0
+```
+
+通常是容器内无法访问默认 PyPI。先拉取最新代码，然后重新构建：
+
+```bash
+cd ~/GZ_hiddengems
+git pull
+cd backend
+docker compose -f docker-compose.prod.yml build --no-cache api
+docker compose -f docker-compose.prod.yml up -d
+```
 
 查看 API 日志：
 

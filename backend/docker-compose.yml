@@ -1,6 +1,12 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-https://mirrors.cloud.tencent.com/debian}
+        DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR:-https://mirrors.cloud.tencent.com/debian-security}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.cloud.tencent.com/pypi/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.cloud.tencent.com}
     env_file:
       - .env
     ports:
