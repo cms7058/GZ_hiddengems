@@ -41,7 +41,10 @@ def create_app() -> FastAPI:
 
     @app.get("/admin", include_in_schema=False)
     def admin_page() -> FileResponse:
-        return FileResponse(static_dir / "index.html")
+        return FileResponse(
+            static_dir / "index.html",
+            media_type="text/html; charset=utf-8",
+        )
 
     @app.on_event("startup")
     def startup() -> None:
