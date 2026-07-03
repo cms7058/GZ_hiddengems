@@ -2,6 +2,7 @@ const API = "/api/v1";
 
 const state = {
   token: localStorage.getItem("gz_admin_token") || "",
+  lang: localStorage.getItem("gz_admin_lang") || "zh-CN",
   admin: null,
   tags: [],
   spots: [],
@@ -31,12 +32,258 @@ const PAGE_SIZE_BY_KEY = {
   tags: 100,
 };
 
+const I18N = {
+  "贵州秘境管理后台": "Guizhou Hidden Gems Admin",
+  "秘境点位、双语内容、标签和审核状态维护": "Manage hidden gem locations, bilingual content, tags, and review states",
+  "用户名": "Username",
+  "密码": "Password",
+  "登录": "Sign In",
+  "贵州秘境": "Guizhou Gems",
+  "秘境管理": "Hidden Gems",
+  "标签管理": "Tags",
+  "用户管理": "Users",
+  "通关设置": "Pass Settings",
+  "会员管理": "Memberships",
+  "打卡审核": "Check-ins",
+  "游记留言": "Notes & Comments",
+  "衣食住行": "Lifestyle",
+  "退出登录": "Sign Out",
+  "内容运营台": "Content Operations",
+  "刷新": "Refresh",
+  "新增秘境": "New Spot",
+  "秘境总数": "Total Spots",
+  "已审核": "Approved",
+  "标签数": "Tags",
+  "保护坐标": "Protected",
+  "注册用户": "Users",
+  "通关等级": "Pass Levels",
+  "会员套餐": "Plans",
+  "待审打卡": "Pending Check-ins",
+  "待审内容": "Pending Content",
+  "推荐条目": "Recommendations",
+  "维护中英文内容、坐标、标签、可见级别和审核状态。": "Maintain bilingual content, coordinates, tags, visibility levels, and review states.",
+  "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
+  "管理小程序注册用户、会员状态、探索等级和环保信用。": "Manage registered users, membership status, explorer levels, and eco credit.",
+  "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
+  "维护会员套餐、价格、周期、权益，并查看用户会员记录。": "Maintain membership plans, prices, periods, benefits, and user membership records.",
+  "审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。": "Review GPS and image check-ins; approvals increase user check-in counts.",
+  "审核用户游记和留言，支持推荐精选游记或隐藏违规内容。": "Review user notes and comments, feature good notes, or hide inappropriate content.",
+  "维护装备、美食、住宿和交通推荐，为秘境探索提供配套信息。": "Maintain gear, food, lodging, and transport recommendations.",
+  "新增标签": "New Tag",
+  "新增用户": "New User",
+  "新增游记": "New Note",
+  "新增留言": "New Comment",
+  "新增推荐": "New Recommendation",
+  "名称": "Name",
+  "地区": "Area",
+  "坐标": "Coordinates",
+  "标签": "Tags",
+  "可见级别": "Visibility",
+  "审核": "Review",
+  "打卡": "Check-ins",
+  "贡献": "Contributions",
+  "状态": "Status",
+  "操作": "Actions",
+  "中文": "Chinese",
+  "英文": "English",
+  "图标": "Icon",
+  "排序": "Sort",
+  "用户": "User",
+  "头像": "Avatar",
+  "语言": "Language",
+  "等级": "Level",
+  "数据": "Stats",
+  "会员": "Member",
+  "条件": "Rules",
+  "解锁权益": "Benefits",
+  "套餐": "Plan",
+  "周期": "Period",
+  "价格": "Price",
+  "权益": "Benefits",
+  "开始": "Start",
+  "到期": "Expires",
+  "定位": "Location",
+  "说明": "Note",
+  "游记": "Travel Note",
+  "图片": "Image",
+  "精选": "Featured",
+  "取消精选": "Unfeature",
+  "设为精选": "Feature",
+  "留言": "Comment",
+  "留言图片": "Comment Image",
+  "分类": "Category",
+  "推荐": "Level",
+  "秘境": "Spot",
+  "中文名称": "Chinese Name",
+  "英文名称": "English Name",
+  "中文简介": "Chinese Summary",
+  "英文简介": "English Summary",
+  "中文介绍": "Chinese Description",
+  "英文介绍": "English Description",
+  "市州": "City/Prefecture",
+  "区县": "County",
+  "纬度": "Latitude",
+  "经度": "Longitude",
+  "公开": "Public",
+  "保护": "Protected",
+  "守护者": "Guardian",
+  "草稿": "Draft",
+  "待审核": "Pending",
+  "已通过": "Approved",
+  "已拒绝": "Rejected",
+  "推荐等级": "Recommendation Level",
+  "打卡半径米": "Check-in Radius (m)",
+  "启用": "Active",
+  "秘境图片": "Spot Images",
+  "支持 JPG、PNG、WebP、GIF，上传后可设为封面。": "Supports JPG, PNG, WebP, and GIF. Uploaded images can be set as cover.",
+  "上传图片": "Upload Image",
+  "图片说明": "Caption",
+  "设为封面": "Set as Cover",
+  "取消": "Cancel",
+  "保存": "Save",
+  "中文标签": "Chinese Tag",
+  "英文标签": "English Tag",
+  "昵称": "Nickname",
+  "手机号": "Phone",
+  "微信头像 URL": "WeChat Avatar URL",
+  "上传头像": "Upload Avatar",
+  "中文权益": "Chinese Benefits",
+  "英文权益": "English Benefits",
+  "所需打卡": "Required Check-ins",
+  "所需贡献": "Required Contributions",
+  "环保信用": "Eco Credit",
+  "需要会员": "Requires Membership",
+  "周期天数": "Duration Days",
+  "价格分": "Price Cents",
+  "审核状态": "Review Status",
+  "通过": "Approve",
+  "拒绝": "Reject",
+  "审核备注": "Review Note",
+  "用户 ID": "User ID",
+  "秘境 ID": "Spot ID",
+  "标题": "Title",
+  "内容": "Content",
+  "图片 URL": "Image URL",
+  "隐藏": "Hide",
+  "留言内容": "Comment",
+  "衣": "Clothing",
+  "食": "Food",
+  "住": "Lodging",
+  "行": "Transport",
+  "地址": "Address",
+  "联系方式": "Contact",
+  "价格级别": "Price Level",
+  "低": "Low",
+  "中": "Mid",
+  "高": "High",
+  "编辑": "Edit",
+  "停用": "Disable",
+  "删除": "Delete",
+  "普通": "Regular",
+  "有效": "Active",
+  "非有效": "Inactive",
+  "需要": "Required",
+  "不需要": "Not Required",
+  "已隐藏": "Hidden",
+  "未上传": "Not Uploaded",
+  "未绑定手机": "No phone",
+  "未设置": "Not Set",
+  "暂无图片": "No Images",
+  "未填写说明": "No Caption",
+  "封面": "Cover",
+  "上一页": "Previous",
+  "下一页": "Next",
+  "编辑秘境": "Edit Spot",
+  "编辑标签": "Edit Tag",
+  "编辑用户": "Edit User",
+  "编辑通关设置": "Edit Pass Setting",
+  "编辑会员套餐": "Edit Membership Plan",
+  "编辑游记": "Edit Note",
+  "编辑留言": "Edit Comment",
+  "编辑推荐": "Edit Recommendation",
+  "推荐已保存": "Recommendation saved",
+  "游记已保存": "Note saved",
+  "留言已保存": "Comment saved",
+  "用户已保存": "User saved",
+  "秘境已保存": "Spot saved",
+  "标签已保存": "Tag saved",
+  "审核状态已更新": "Review status updated",
+  "秘境已停用": "Spot disabled",
+  "标签已停用": "Tag disabled",
+  "用户状态已更新": "User status updated",
+  "用户已删除": "User deleted",
+  "打卡审核已更新": "Check-in review updated",
+  "游记状态已更新": "Note status updated",
+  "游记精选状态已更新": "Featured status updated",
+  "游记已删除": "Note deleted",
+  "留言状态已更新": "Comment status updated",
+  "留言已删除": "Comment deleted",
+  "推荐已删除": "Recommendation deleted",
+  "封面已更新": "Cover updated",
+  "图片已停用": "Image disabled",
+  "图片已上传": "Image uploaded",
+  "请选择图片": "Please choose an image",
+  "请先保存秘境，再上传图片": "Save the spot before uploading images",
+  "通关设置已保存": "Pass setting saved",
+  "会员套餐已保存": "Membership plan saved",
+  "打卡审核已保存": "Check-in review saved",
+  "已刷新": "Refreshed",
+};
+
+const I18N_REVERSE = Object.fromEntries(Object.entries(I18N).map(([zh, en]) => [en, zh]));
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+function t(text) {
+  return state.lang === "en-US" ? I18N[text] || text : text;
+}
+
+function applyLanguage(root = document.body) {
+  document.documentElement.lang = state.lang;
+  document.title = t("贵州秘境管理后台");
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    const trimmed = node.nodeValue.trim();
+    if (!trimmed) return;
+    const leading = node.nodeValue.match(/^\s*/)[0];
+    const trailing = node.nodeValue.match(/\s*$/)[0];
+    const original = I18N_REVERSE[trimmed] || trimmed;
+    const translated = state.lang === "en-US" ? I18N[original] || original : original;
+    node.nodeValue = `${leading}${translated}${trailing}`;
+  });
+  const toggleText = state.lang === "en-US" ? "中文" : "English";
+  ["#langToggleBtn", "#loginLangToggleBtn"].forEach((selector) => {
+    const button = $(selector);
+    if (button) button.textContent = toggleText;
+  });
+}
+
+function setLanguage(lang) {
+  state.lang = lang;
+  localStorage.setItem("gz_admin_lang", lang);
+  applyLanguage();
+  renderAll();
+}
+
+function renderAll() {
+  renderMetrics();
+  renderTags();
+  renderSpots();
+  renderUsers();
+  renderPassSettings();
+  renderMemberships();
+  renderCheckins();
+  renderCommunity();
+  renderRecommendations();
+  applyLanguage();
+}
+
 function showToast(message) {
   const toast = $("#toast");
-  toast.textContent = message;
+  toast.textContent = t(message);
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2400);
@@ -68,11 +315,11 @@ function setAuthenticated(isAuthenticated) {
 
 function statusPill(status) {
   const labels = {
-    draft: "草稿",
-    pending: "待审核",
-    approved: "已通过",
-    rejected: "已拒绝",
-    hidden: "已隐藏",
+    draft: t("草稿"),
+    pending: t("待审核"),
+    approved: t("已通过"),
+    rejected: t("已拒绝"),
+    hidden: t("已隐藏"),
   };
   const tone = status === "approved" ? "" : status === "rejected" ? "danger" : "warning";
   return `<span class="pill ${tone}">${labels[status] || status}</span>`;
@@ -80,15 +327,15 @@ function statusPill(status) {
 
 function visibilityText(level) {
   return {
-    public: "公开",
-    member: "会员",
-    protected: "保护",
-    secret: "守护者",
+    public: t("公开"),
+    member: t("会员"),
+    protected: t("保护"),
+    secret: t("守护者"),
   }[level] || level;
 }
 
 function activePill(active) {
-  return active ? '<span class="pill">启用</span>' : '<span class="pill danger">停用</span>';
+  return active ? `<span class="pill">${t("启用")}</span>` : `<span class="pill danger">${t("停用")}</span>`;
 }
 
 function escapeHtml(value) {
@@ -116,13 +363,13 @@ function renderMetrics() {
 }
 
 function memberPill(isMember) {
-  return isMember ? '<span class="pill">会员</span>' : '<span class="pill warning">普通</span>';
+  return isMember ? `<span class="pill">${t("会员")}</span>` : `<span class="pill warning">${t("普通")}</span>`;
 }
 
 function imageCell(url, alt = "图片") {
   return url
     ? `<img class="image-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
-    : '<span class="muted">未上传</span>';
+    : `<span class="muted">${t("未上传")}</span>`;
 }
 
 function renderTags() {
@@ -153,7 +400,7 @@ function renderSpots() {
     .map((spot) => {
       const tags = spot.tags.length
         ? spot.tags.map((tag) => `<span class="pill">${escapeHtml(tag.name)}</span>`).join("")
-        : '<span class="muted">未设置</span>';
+        : `<span class="muted">${t("未设置")}</span>`;
       return `
         <tr>
           <td>
@@ -191,7 +438,7 @@ function renderUsers() {
           <td>
             <div class="cell-title">
               <strong>${escapeHtml(user.nickname)}</strong>
-              <span class="muted">${escapeHtml(user.phone || "未绑定手机")}</span>
+              <span class="muted">${escapeHtml(user.phone || t("未绑定手机"))}</span>
             </div>
           </td>
           <td>${imageCell(user.avatar_url, user.nickname)}</td>
@@ -200,17 +447,17 @@ function renderUsers() {
           <td>L${user.explorer_level}</td>
           <td>
             <div class="cell-title">
-              <span>打卡 ${user.checkin_count} / 贡献 ${user.contribution_count}</span>
-              <span class="muted">环保信用 ${user.eco_credit}</span>
+              <span>${t("打卡")} ${user.checkin_count} / ${t("贡献")} ${user.contribution_count}</span>
+              <span class="muted">${t("环保信用")} ${user.eco_credit}</span>
             </div>
           </td>
           <td>${memberPill(user.is_member)}</td>
           <td>${activePill(user.is_active)}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-edit-user="${user.id}">编辑</button>
-              <button class="small-btn danger" data-toggle-user="${user.id}">${user.is_active ? "停用" : "启用"}</button>
-              <button class="small-btn danger" data-delete-user="${user.id}">删除</button>
+              <button class="small-btn" data-edit-user="${user.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-toggle-user="${user.id}">${user.is_active ? t("停用") : t("启用")}</button>
+              <button class="small-btn danger" data-delete-user="${user.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -234,11 +481,11 @@ function renderPassSettings() {
           </td>
           <td>
             <div class="cell-title">
-              <span>打卡 ${setting.required_checkins} / 贡献 ${setting.required_contributions}</span>
-              <span class="muted">环保信用 ${setting.required_eco_credit}</span>
+              <span>${t("打卡")} ${setting.required_checkins} / ${t("贡献")} ${setting.required_contributions}</span>
+              <span class="muted">${t("环保信用")} ${setting.required_eco_credit}</span>
             </div>
           </td>
-          <td>${setting.requires_membership ? '<span class="pill warning">需要</span>' : '<span class="pill">不需要</span>'}</td>
+          <td>${setting.requires_membership ? `<span class="pill warning">${t("需要")}</span>` : `<span class="pill">${t("不需要")}</span>`}</td>
           <td>
             <div class="cell-title">
               <span>${escapeHtml(setting.unlock_benefit_zh)}</span>
@@ -246,7 +493,7 @@ function renderPassSettings() {
             </div>
           </td>
           <td>${activePill(setting.is_active)}</td>
-          <td><button class="small-btn" data-edit-pass="${setting.id}">编辑</button></td>
+          <td><button class="small-btn" data-edit-pass="${setting.id}">${t("编辑")}</button></td>
         </tr>
       `,
     )
@@ -265,7 +512,7 @@ function renderMemberships() {
               <span class="muted">${escapeHtml(plan.name_en)}</span>
             </div>
           </td>
-          <td>${plan.duration_days} 天</td>
+          <td>${plan.duration_days} ${state.lang === "en-US" ? "days" : "天"}</td>
           <td>¥${(plan.price_cents / 100).toFixed(2)}</td>
           <td>
             <div class="cell-title">
@@ -274,7 +521,7 @@ function renderMemberships() {
             </div>
           </td>
           <td>${activePill(plan.is_active)}</td>
-          <td><button class="small-btn" data-edit-plan="${plan.id}">编辑</button></td>
+          <td><button class="small-btn" data-edit-plan="${plan.id}">${t("编辑")}</button></td>
         </tr>
       `,
     )
@@ -287,7 +534,7 @@ function renderMemberships() {
         <tr>
           <td>${escapeHtml(record.nickname)}</td>
           <td>${escapeHtml(record.plan_name_zh)}</td>
-          <td>${record.status === "active" ? '<span class="pill">有效</span>' : '<span class="pill warning">非有效</span>'}</td>
+          <td>${record.status === "active" ? `<span class="pill">${t("有效")}</span>` : `<span class="pill warning">${t("非有效")}</span>`}</td>
           <td>${escapeHtml(record.started_at || "-")}</td>
           <td>${escapeHtml(record.expires_at || "-")}</td>
         </tr>
@@ -314,9 +561,9 @@ function renderCheckins() {
           <td>${statusPill(checkin.status)}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-edit-checkin="${checkin.id}">审核</button>
-              <button class="small-btn" data-quick-checkin="${checkin.id}" data-checkin-status="approved">通过</button>
-              <button class="small-btn danger" data-quick-checkin="${checkin.id}" data-checkin-status="rejected">拒绝</button>
+              <button class="small-btn" data-edit-checkin="${checkin.id}">${t("审核")}</button>
+              <button class="small-btn" data-quick-checkin="${checkin.id}" data-checkin-status="approved">${t("通过")}</button>
+              <button class="small-btn danger" data-quick-checkin="${checkin.id}" data-checkin-status="rejected">${t("拒绝")}</button>
             </div>
           </td>
         </tr>
@@ -328,10 +575,10 @@ function renderCheckins() {
 
 function categoryText(category) {
   return {
-    clothing: "衣",
-    food: "食",
-    hotel: "住",
-    transport: "行",
+    clothing: t("衣"),
+    food: t("食"),
+    hotel: t("住"),
+    transport: t("行"),
   }[category] || category;
 }
 
@@ -350,14 +597,14 @@ function renderCommunity() {
           <td>${escapeHtml(note.nickname)}</td>
           <td>${escapeHtml(note.spot_name_zh || "-")}</td>
           <td>${statusPill(note.status)}</td>
-          <td>${note.is_featured ? '<span class="pill">精选</span>' : '<span class="pill warning">普通</span>'}</td>
+          <td>${note.is_featured ? `<span class="pill">${t("精选")}</span>` : `<span class="pill warning">${t("普通")}</span>`}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-note-status="${note.id}" data-status="approved">通过</button>
-              <button class="small-btn" data-note-status="${note.id}" data-status="hidden">隐藏</button>
-              <button class="small-btn" data-note-feature="${note.id}">${note.is_featured ? "取消精选" : "设为精选"}</button>
-              <button class="small-btn" data-edit-note="${note.id}">编辑</button>
-              <button class="small-btn danger" data-delete-note="${note.id}">删除</button>
+              <button class="small-btn" data-note-status="${note.id}" data-status="approved">${t("通过")}</button>
+              <button class="small-btn" data-note-status="${note.id}" data-status="hidden">${t("隐藏")}</button>
+              <button class="small-btn" data-note-feature="${note.id}">${note.is_featured ? t("取消精选") : t("设为精选")}</button>
+              <button class="small-btn" data-edit-note="${note.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-delete-note="${note.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -371,16 +618,16 @@ function renderCommunity() {
       (comment) => `
         <tr>
           <td>${escapeHtml(comment.content)}</td>
-          <td>${imageCell(comment.image_url, "留言图片")}</td>
+          <td>${imageCell(comment.image_url, t("留言图片"))}</td>
           <td>${escapeHtml(comment.nickname)}</td>
           <td>${escapeHtml(comment.spot_name_zh || "-")}</td>
           <td>${statusPill(comment.status)}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-comment-status="${comment.id}" data-status="approved">通过</button>
-              <button class="small-btn danger" data-comment-status="${comment.id}" data-status="hidden">隐藏</button>
-              <button class="small-btn" data-edit-comment="${comment.id}">编辑</button>
-              <button class="small-btn danger" data-delete-comment="${comment.id}">删除</button>
+              <button class="small-btn" data-comment-status="${comment.id}" data-status="approved">${t("通过")}</button>
+              <button class="small-btn danger" data-comment-status="${comment.id}" data-status="hidden">${t("隐藏")}</button>
+              <button class="small-btn" data-edit-comment="${comment.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-delete-comment="${comment.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -409,8 +656,8 @@ function renderRecommendations() {
           <td>${activePill(item.is_active)}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-edit-recommendation="${item.id}">编辑</button>
-              <button class="small-btn danger" data-delete-recommendation="${item.id}">删除</button>
+              <button class="small-btn" data-edit-recommendation="${item.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-delete-recommendation="${item.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -426,20 +673,20 @@ function renderSpotImages() {
         .map(
           (image) => `
             <article class="image-item">
-              <img class="image-thumb" src="${escapeHtml(image.image_url)}" alt="${escapeHtml(image.caption || "秘境图片")}" />
+              <img class="image-thumb" src="${escapeHtml(image.image_url)}" alt="${escapeHtml(image.caption || t("秘境图片"))}" />
               <div class="cell-title">
-                <strong>${escapeHtml(image.caption || "未填写说明")}</strong>
-                <span class="muted">排序 ${image.sort_order} ${image.is_cover ? " / 封面" : ""}</span>
+                <strong>${escapeHtml(image.caption || t("未填写说明"))}</strong>
+                <span class="muted">${t("排序")} ${image.sort_order} ${image.is_cover ? ` / ${t("封面")}` : ""}</span>
               </div>
               <div class="row-actions">
-                <button class="small-btn" data-cover-image="${image.id}">设封面</button>
-                <button class="small-btn danger" data-disable-image="${image.id}">停用</button>
+                <button class="small-btn" data-cover-image="${image.id}">${t("设为封面")}</button>
+                <button class="small-btn danger" data-disable-image="${image.id}">${t("停用")}</button>
               </div>
             </article>
           `,
         )
         .join("")
-    : '<p class="muted">暂无图片</p>';
+    : `<p class="muted">${t("暂无图片")}</p>`;
   renderPagination("spotImagesList", "spotImages");
 }
 
@@ -457,10 +704,10 @@ function renderPagination(anchorId, key) {
   }
   const totalPages = Math.max(meta.pages || 0, 1);
   pager.innerHTML = `
-    <span>第 ${meta.page || 1} / ${totalPages} 页，共 ${meta.total || 0} 条</span>
+    <span>${state.lang === "en-US" ? `Page ${meta.page || 1} / ${totalPages}, ${meta.total || 0} total` : `第 ${meta.page || 1} / ${totalPages} 页，共 ${meta.total || 0} 条`}</span>
     <div class="row-actions">
-      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.max((meta.page || 1) - 1, 1)}" ${(meta.page || 1) <= 1 ? "disabled" : ""}>上一页</button>
-      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.min((meta.page || 1) + 1, totalPages)}" ${(meta.page || 1) >= totalPages ? "disabled" : ""}>下一页</button>
+      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.max((meta.page || 1) - 1, 1)}" ${(meta.page || 1) <= 1 ? "disabled" : ""}>${t("上一页")}</button>
+      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.min((meta.page || 1) + 1, totalPages)}" ${(meta.page || 1) >= totalPages ? "disabled" : ""}>${t("下一页")}</button>
     </div>
   `;
 }
@@ -514,15 +761,7 @@ async function loadData() {
   state.travelNotes = travelNotes;
   state.comments = comments;
   state.recommendations = recommendations;
-  renderMetrics();
-  renderTags();
-  renderSpots();
-  renderUsers();
-  renderPassSettings();
-  renderMemberships();
-  renderCheckins();
-  renderCommunity();
-  renderRecommendations();
+  renderAll();
 }
 
 async function requestPage(key, path) {
@@ -547,6 +786,7 @@ async function requestPage(key, path) {
 async function bootstrap() {
   if (!state.token) {
     setAuthenticated(false);
+    applyLanguage();
     return;
   }
   try {
@@ -554,10 +794,12 @@ async function bootstrap() {
     $("#adminInfo").textContent = `${state.admin.username} / ${state.admin.role}`;
     setAuthenticated(true);
     await loadData();
+    applyLanguage();
   } catch (error) {
     localStorage.removeItem("gz_admin_token");
     state.token = "";
     setAuthenticated(false);
+    applyLanguage();
   }
 }
 
@@ -574,7 +816,7 @@ function fillSpotForm(spot = null) {
   const form = $("#spotForm");
   form.reset();
   state.editingSpotId = spot?.id || null;
-  $("#spotDialogTitle").textContent = spot ? "编辑秘境" : "新增秘境";
+  $("#spotDialogTitle").textContent = spot ? t("编辑秘境") : t("新增秘境");
   renderTagChecks(spot?.tag_ids || []);
 
   if (!spot) {
@@ -613,7 +855,7 @@ function fillTagForm(tag = null) {
   const form = $("#tagForm");
   form.reset();
   state.editingTagId = tag?.id || null;
-  $("#tagDialogTitle").textContent = tag ? "编辑标签" : "新增标签";
+  $("#tagDialogTitle").textContent = tag ? t("编辑标签") : t("新增标签");
   if (!tag) {
     form.elements.sort_order.value = 0;
     form.elements.is_active.checked = true;
@@ -629,7 +871,7 @@ function fillUserForm(user) {
   const form = $("#userForm");
   form.reset();
   state.editingUserId = user?.id || null;
-  $("#userDialogTitle").textContent = user ? `编辑用户：${user.nickname}` : "新增用户";
+  $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
   if (!user) {
     form.elements.language.value = "zh-CN";
     form.elements.explorer_level.value = 0;
@@ -661,7 +903,7 @@ function fillTravelNoteForm(note = null) {
   const form = $("#travelNoteForm");
   form.reset();
   state.editingTravelNoteId = note?.id || null;
-  $("#travelNoteDialogTitle").textContent = note ? `编辑游记：${note.title}` : "新增游记";
+  $("#travelNoteDialogTitle").textContent = note ? `${t("编辑游记")}：${note.title}` : t("新增游记");
   if (!note) {
     form.elements.status.value = "pending";
     form.elements.is_featured.checked = false;
@@ -677,7 +919,7 @@ function fillCommentForm(comment = null) {
   const form = $("#commentForm");
   form.reset();
   state.editingCommentId = comment?.id || null;
-  $("#commentDialogTitle").textContent = comment ? `编辑留言：${comment.nickname}` : "新增留言";
+  $("#commentDialogTitle").textContent = comment ? `${t("编辑留言")}：${comment.nickname}` : t("新增留言");
   if (!comment) {
     form.elements.status.value = "pending";
     return;
@@ -691,7 +933,7 @@ function fillPassSettingForm(setting) {
   const form = $("#passSettingForm");
   form.reset();
   state.editingPassSettingId = setting.id;
-  $("#passSettingDialogTitle").textContent = `编辑通关设置：L${setting.level}`;
+  $("#passSettingDialogTitle").textContent = `${t("编辑通关设置")}：L${setting.level}`;
   [
     "name_zh",
     "name_en",
@@ -711,7 +953,7 @@ function fillMembershipPlanForm(plan) {
   const form = $("#membershipPlanForm");
   form.reset();
   state.editingMembershipPlanId = plan.id;
-  $("#membershipPlanDialogTitle").textContent = `编辑会员套餐：${plan.name_zh}`;
+  $("#membershipPlanDialogTitle").textContent = `${t("编辑会员套餐")}：${plan.name_zh}`;
   ["name_zh", "name_en", "duration_days", "price_cents", "benefits_zh", "benefits_en"].forEach((field) => {
     form.elements[field].value = plan[field] ?? "";
   });
@@ -722,7 +964,7 @@ function fillCheckinForm(checkin) {
   const form = $("#checkinForm");
   form.reset();
   state.editingCheckinId = checkin.id;
-  $("#checkinDialogTitle").textContent = `审核：${checkin.nickname} / ${checkin.spot_name_zh}`;
+  $("#checkinDialogTitle").textContent = `${t("审核")}：${checkin.nickname} / ${checkin.spot_name_zh}`;
   form.elements.status.value = checkin.status;
   form.elements.review_note.value = checkin.review_note || "";
 }
@@ -731,7 +973,7 @@ function fillRecommendationForm(item = null) {
   const form = $("#recommendationForm");
   form.reset();
   state.editingRecommendationId = item?.id || null;
-  $("#recommendationDialogTitle").textContent = item ? `编辑推荐：${item.name_zh}` : "新增推荐";
+  $("#recommendationDialogTitle").textContent = item ? `${t("编辑推荐")}：${item.name_zh}` : t("新增推荐");
   if (!item) {
     form.elements.category.value = "food";
     form.elements.price_level.value = "mid";
@@ -820,6 +1062,13 @@ $("#logoutBtn").addEventListener("click", () => {
   localStorage.removeItem("gz_admin_token");
   state.token = "";
   setAuthenticated(false);
+  applyLanguage();
+});
+
+["#langToggleBtn", "#loginLangToggleBtn"].forEach((selector) => {
+  $(selector).addEventListener("click", () => {
+    setLanguage(state.lang === "en-US" ? "zh-CN" : "en-US");
+  });
 });
 
 $("#refreshBtn").addEventListener("click", async () => {
