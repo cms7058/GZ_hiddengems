@@ -1,0 +1,1 @@
+"""Guizhou Hidden Gems API."""

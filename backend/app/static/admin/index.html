@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>贵州秘境管理后台</title>
+    <link rel="stylesheet" href="/admin/static/styles.css" />
+  </head>
+  <body>
+    <main id="loginView" class="login-shell">
+      <section class="login-panel">
+        <div>
+          <p class="eyebrow">Guizhou Hidden Gems</p>
+          <h1>贵州秘境管理后台</h1>
+          <p class="muted">秘境点位、双语内容、标签和审核状态维护</p>
+        </div>
+        <form id="loginForm" class="form-stack">
+          <label>
+            <span>用户名</span>
+            <input id="loginUsername" autocomplete="username" value="admin" />
+          </label>
+          <label>
+            <span>密码</span>
+            <input id="loginPassword" type="password" autocomplete="current-password" value="admin123456" />
+          </label>
+          <button type="submit" class="primary-btn">登录</button>
+          <p id="loginError" class="error-text"></p>
+        </form>
+      </section>
+    </main>
+
+    <main id="appView" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">Explorer Admin</p>
+          <h2>贵州秘境</h2>
+        </div>
+        <nav>
+          <button class="nav-btn active" data-section="spotsSection">秘境管理</button>
+          <button class="nav-btn" data-section="tagsSection">标签管理</button>
+          <button class="nav-btn" data-section="usersSection">用户管理</button>
+          <button class="nav-btn" data-section="passSettingsSection">通关设置</button>
+          <button class="nav-btn" data-section="membershipsSection">会员管理</button>
+          <button class="nav-btn" data-section="checkinsSection">打卡审核</button>
+          <button class="nav-btn" data-section="communitySection">游记留言</button>
+          <button class="nav-btn" data-section="recommendationsSection">衣食住行</button>
+        </nav>
+        <button id="logoutBtn" class="ghost-btn">退出登录</button>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>内容运营台</h1>
+            <p id="adminInfo" class="muted">-</p>
+          </div>
+          <div class="topbar-actions">
+            <button id="refreshBtn" class="secondary-btn">刷新</button>
+            <button id="newSpotBtn" class="primary-btn">新增秘境</button>
+          </div>
+        </header>
+
+        <section class="metrics-grid" aria-label="运营概览">
+          <article>
+            <span>秘境总数</span>
+            <strong id="spotCount">0</strong>
+          </article>
+          <article>
+            <span>已审核</span>
+            <strong id="approvedCount">0</strong>
+          </article>
+          <article>
+            <span>标签数</span>
+            <strong id="tagCount">0</strong>
+          </article>
+          <article>
+            <span>保护坐标</span>
+            <strong id="protectedCount">0</strong>
+          </article>
+          <article>
+            <span>注册用户</span>
+            <strong id="userCount">0</strong>
+          </article>
+          <article>
+            <span>通关等级</span>
+            <strong id="passLevelCount">0</strong>
+          </article>
+          <article>
+            <span>会员套餐</span>
+            <strong id="membershipPlanCount">0</strong>
+          </article>
+          <article>
+            <span>待审打卡</span>
+            <strong id="pendingCheckinCount">0</strong>
+          </article>
+          <article>
+            <span>待审内容</span>
+            <strong id="pendingCommunityCount">0</strong>
+          </article>
+          <article>
+            <span>推荐条目</span>
+            <strong id="recommendationCount">0</strong>
+          </article>
+        </section>
+
+        <section id="spotsSection" class="panel-section">
+          <div class="section-head">
+            <div>
+              <h2>秘境管理</h2>
+              <p class="muted">维护中英文内容、坐标、标签、可见级别和审核状态。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>地区</th>
+                  <th>坐标</th>
+                  <th>标签</th>
+                  <th>可见级别</th>
+                  <th>审核</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="spotsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tagsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>标签管理</h2>
+              <p class="muted">标签会用于小程序首页地图筛选和秘境推荐。</p>
+            </div>
+            <button id="newTagBtn" class="primary-btn">新增标签</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>中文</th>
+                  <th>英文</th>
+                  <th>图标</th>
+                  <th>排序</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="tagsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="usersSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>用户管理</h2>
+              <p class="muted">管理小程序注册用户、会员状态、探索等级和环保信用。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>OpenID</th>
+                  <th>语言</th>
+                  <th>等级</th>
+                  <th>数据</th>
+                  <th>会员</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="usersTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="passSettingsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>通关设置</h2>
+              <p class="muted">配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>等级</th>
+                  <th>名称</th>
+                  <th>条件</th>
+                  <th>会员</th>
+                  <th>解锁权益</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="passSettingsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="membershipsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>会员管理</h2>
+              <p class="muted">维护会员套餐、价格、周期、权益，并查看用户会员记录。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>套餐</th>
+                  <th>周期</th>
+                  <th>价格</th>
+                  <th>权益</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="membershipPlansTable"></tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>套餐</th>
+                  <th>状态</th>
+                  <th>开始</th>
+                  <th>到期</th>
+                </tr>
+              </thead>
+              <tbody id="membershipRecordsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="checkinsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>打卡审核</h2>
+              <p class="muted">审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>秘境</th>
+                  <th>定位</th>
+                  <th>说明</th>
+                  <th>审核</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="checkinsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="communitySection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>游记留言</h2>
+              <p class="muted">审核用户游记和留言，支持推荐精选游记或隐藏违规内容。</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>游记</th>
+                  <th>用户</th>
+                  <th>秘境</th>
+                  <th>状态</th>
+                  <th>精选</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="travelNotesTable"></tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>留言</th>
+                  <th>用户</th>
+                  <th>秘境</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="commentsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="recommendationsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>衣食住行推荐</h2>
+              <p class="muted">维护装备、美食、住宿和交通推荐，为秘境探索提供配套信息。</p>
+            </div>
+            <button id="newRecommendationBtn" class="primary-btn">新增推荐</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>分类</th>
+                  <th>名称</th>
+                  <th>地区</th>
+                  <th>价格</th>
+                  <th>推荐</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="recommendationsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="spotDialog" class="dialog wide-dialog">
+      <form id="spotForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="spotDialogTitle">秘境</h2>
+          <button type="button" class="icon-btn" data-close-dialog="spotDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>中文名称</span><input name="name_zh" required maxlength="128" /></label>
+          <label><span>英文名称</span><input name="name_en" required maxlength="128" /></label>
+          <label class="full"><span>中文简介</span><input name="summary_zh" required maxlength="512" /></label>
+          <label class="full"><span>英文简介</span><input name="summary_en" required maxlength="512" /></label>
+          <label class="full"><span>中文介绍</span><textarea name="description_zh" rows="3"></textarea></label>
+          <label class="full"><span>英文介绍</span><textarea name="description_en" rows="3"></textarea></label>
+          <label><span>市州</span><input name="city" required maxlength="64" /></label>
+          <label><span>区县</span><input name="county" required maxlength="64" /></label>
+          <label><span>纬度</span><input name="latitude" required type="number" step="0.000001" /></label>
+          <label><span>经度</span><input name="longitude" required type="number" step="0.000001" /></label>
+          <label>
+            <span>可见级别</span>
+            <select name="visibility_level">
+              <option value="public">公开</option>
+              <option value="member">会员</option>
+              <option value="protected">保护</option>
+              <option value="secret">守护者</option>
+            </select>
+          </label>
+          <label>
+            <span>审核状态</span>
+            <select name="review_status">
+              <option value="draft">草稿</option>
+              <option value="pending">待审核</option>
+              <option value="approved">已通过</option>
+              <option value="rejected">已拒绝</option>
+            </select>
+          </label>
+          <label><span>推荐等级</span><input name="recommendation_level" type="number" min="1" max="5" value="1" /></label>
+          <label><span>打卡半径米</span><input name="checkin_radius_meters" type="number" min="50" value="300" /></label>
+          <label class="full"><span>标签</span><div id="spotTagChecks" class="checks"></div></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+          <div class="full upload-panel">
+            <div class="section-head compact-head">
+              <div>
+                <h3>秘境图片</h3>
+                <p class="muted">支持 JPG、PNG、WebP、GIF，上传后可设为封面。</p>
+              </div>
+            </div>
+            <label><span>上传图片</span><input id="spotImageFile" type="file" accept="image/*" /></label>
+            <div class="form-grid">
+              <label><span>图片说明</span><input id="spotImageCaption" maxlength="256" /></label>
+              <label><span>排序</span><input id="spotImageSort" type="number" value="0" /></label>
+              <label class="switch-line"><input id="spotImageCover" type="checkbox" /> <span>设为封面</span></label>
+            </div>
+            <button id="uploadSpotImageBtn" type="button" class="secondary-btn">上传图片</button>
+            <div id="spotImagesList" class="image-list"></div>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="spotDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="tagDialog" class="dialog">
+      <form id="tagForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="tagDialogTitle">标签</h2>
+          <button type="button" class="icon-btn" data-close-dialog="tagDialog">×</button>
+        </header>
+        <div class="form-stack">
+          <label><span>中文标签</span><input name="name_zh" required maxlength="64" /></label>
+          <label><span>英文标签</span><input name="name_en" required maxlength="64" /></label>
+          <label><span>图标</span><input name="icon" maxlength="64" placeholder="camera" /></label>
+          <label><span>排序</span><input name="sort_order" type="number" value="0" /></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="tagDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="userDialog" class="dialog">
+      <form id="userForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="userDialogTitle">用户</h2>
+          <button type="button" class="icon-btn" data-close-dialog="userDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>昵称</span><input name="nickname" required maxlength="64" /></label>
+          <label><span>手机号</span><input name="phone" maxlength="32" /></label>
+          <label>
+            <span>语言</span>
+            <select name="language">
+              <option value="zh-CN">中文</option>
+              <option value="en-US">English</option>
+            </select>
+          </label>
+          <label><span>探索等级</span><input name="explorer_level" type="number" min="0" max="5" /></label>
+          <label><span>打卡数</span><input name="checkin_count" type="number" min="0" /></label>
+          <label><span>贡献数</span><input name="contribution_count" type="number" min="0" /></label>
+          <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" /></label>
+          <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="userDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="passSettingDialog" class="dialog wide-dialog">
+      <form id="passSettingForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="passSettingDialogTitle">通关设置</h2>
+          <button type="button" class="icon-btn" data-close-dialog="passSettingDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>中文名称</span><input name="name_zh" required maxlength="64" /></label>
+          <label><span>英文名称</span><input name="name_en" required maxlength="64" /></label>
+          <label><span>所需打卡</span><input name="required_checkins" type="number" min="0" /></label>
+          <label><span>所需贡献</span><input name="required_contributions" type="number" min="0" /></label>
+          <label><span>环保信用</span><input name="required_eco_credit" type="number" min="0" max="100" /></label>
+          <label class="switch-line"><input name="requires_membership" type="checkbox" /> <span>需要会员</span></label>
+          <label class="full"><span>中文权益</span><input name="unlock_benefit_zh" required maxlength="512" /></label>
+          <label class="full"><span>英文权益</span><input name="unlock_benefit_en" required maxlength="512" /></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="passSettingDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="membershipPlanDialog" class="dialog wide-dialog">
+      <form id="membershipPlanForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="membershipPlanDialogTitle">会员套餐</h2>
+          <button type="button" class="icon-btn" data-close-dialog="membershipPlanDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>中文名称</span><input name="name_zh" required maxlength="64" /></label>
+          <label><span>英文名称</span><input name="name_en" required maxlength="64" /></label>
+          <label><span>周期天数</span><input name="duration_days" type="number" min="1" /></label>
+          <label><span>价格分</span><input name="price_cents" type="number" min="0" /></label>
+          <label class="full"><span>中文权益</span><input name="benefits_zh" required maxlength="512" /></label>
+          <label class="full"><span>英文权益</span><input name="benefits_en" required maxlength="512" /></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="membershipPlanDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="checkinDialog" class="dialog">
+      <form id="checkinForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="checkinDialogTitle">打卡审核</h2>
+          <button type="button" class="icon-btn" data-close-dialog="checkinDialog">×</button>
+        </header>
+        <div class="form-stack">
+          <label>
+            <span>审核状态</span>
+            <select name="status">
+              <option value="pending">待审核</option>
+              <option value="approved">通过</option>
+              <option value="rejected">拒绝</option>
+            </select>
+          </label>
+          <label><span>审核备注</span><textarea name="review_note" rows="4" maxlength="512"></textarea></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="checkinDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="recommendationDialog" class="dialog wide-dialog">
+      <form id="recommendationForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="recommendationDialogTitle">推荐</h2>
+          <button type="button" class="icon-btn" data-close-dialog="recommendationDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label>
+            <span>分类</span>
+            <select name="category">
+              <option value="clothing">衣</option>
+              <option value="food">食</option>
+              <option value="hotel">住</option>
+              <option value="transport">行</option>
+            </select>
+          </label>
+          <label><span>推荐等级</span><input name="recommendation_level" type="number" min="1" max="5" value="1" /></label>
+          <label><span>中文名称</span><input name="name_zh" required maxlength="128" /></label>
+          <label><span>英文名称</span><input name="name_en" required maxlength="128" /></label>
+          <label class="full"><span>中文简介</span><input name="summary_zh" required maxlength="512" /></label>
+          <label class="full"><span>英文简介</span><input name="summary_en" required maxlength="512" /></label>
+          <label><span>市州</span><input name="city" required maxlength="64" /></label>
+          <label><span>区县</span><input name="county" required maxlength="64" /></label>
+          <label><span>地址</span><input name="address" maxlength="256" /></label>
+          <label><span>联系方式</span><input name="contact" maxlength="128" /></label>
+          <label>
+            <span>价格级别</span>
+            <select name="price_level">
+              <option value="low">低</option>
+              <option value="mid">中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="recommendationDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/admin/static/app.js"></script>
+  </body>
+</html>

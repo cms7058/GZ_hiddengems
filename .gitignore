@@ -1,0 +1,13 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.db
+.pytest_cache/
+
+backend/.venv/
+backend/.env
+backend/*.db
+backend/app/static/uploads/spots/*
+!backend/app/static/uploads/spots/.gitkeep
+
+mysql_data/
