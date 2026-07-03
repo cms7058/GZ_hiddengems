@@ -286,18 +286,6 @@ INSERT IGNORE INTO spot_tags (spot_id, tag_id) VALUES
     (2, 2),
     (2, 3);
 
-INSERT INTO admin_users (id, username, password_hash, role, is_active) VALUES
-    (
-        1,
-        'admin',
-        '$pbkdf2-sha256$29000$PWcsJaT0HmNsTQnBuBcixA$FV5sl9NKCxx8lZNSRYgDcd/vVqU.egPnGhFV0pjfH44',
-        'super_admin',
-        TRUE
-    )
-ON DUPLICATE KEY UPDATE
-    role = VALUES(role),
-    is_active = VALUES(is_active);
-
 INSERT INTO mini_program_users (
     id,
     openid,
