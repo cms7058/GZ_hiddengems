@@ -35,6 +35,12 @@ docker compose up -d --build
 
 MySQL 首次启动会自动执行 `sql/001_init.sql`，创建标签、秘境和关联表，并写入少量演示数据。
 
+腾讯云 Ubuntu + Docker 生产部署见：
+
+```text
+../docs/tencent-cloud-deployment.md
+```
+
 默认管理员：
 
 - 用户名：`admin`
