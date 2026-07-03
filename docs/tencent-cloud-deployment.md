@@ -6,7 +6,7 @@
 
 - `22`：SSH
 - `80`：HTTP
-- `443`：HTTPS，后续配置证书时使用
+- `443`：HTTPS，后续配置证书时再放行
 
 服务器建议配置：
 
@@ -127,13 +127,14 @@ docker compose -f docker-compose.prod.yml exec mysql \
 
 ## HTTPS
 
-当前 Nginx 配置默认开放 HTTP。生产推荐绑定域名后配置 HTTPS：
+当前 Nginx 配置默认只开放 HTTP，并且 `docker-compose.prod.yml` 只映射 `80:80`。生产推荐绑定域名后配置 HTTPS：
 
 1. 将域名解析到腾讯云服务器公网 IP。
 2. 申请证书。
 3. 将证书放到 `backend/certs/`。
 4. 修改 `deploy/nginx/default.conf`，增加 `listen 443 ssl;` 和证书路径。
-5. 重启 Nginx：
+5. 在 `backend/docker-compose.prod.yml` 的 `nginx.ports` 下增加 `443:443`。
+6. 重启 Nginx：
 
 ```bash
 docker compose -f docker-compose.prod.yml restart nginx
