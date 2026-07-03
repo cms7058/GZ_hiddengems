@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,19 +7,28 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.spot import Tag
 from app.schemas.spot import TagAdminOut, TagCreate, TagUpdate
+from app.schemas.pagination import Page
+from app.services.pagination import build_page, paginated_scalars
 from app.services.spot_mapper import tag_to_admin_out
 
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[TagAdminOut])
+@router.get("", response_model=Page[TagAdminOut])
 def list_admin_tags(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
-) -> list[TagAdminOut]:
-    tags = db.scalars(select(Tag).order_by(Tag.sort_order.asc(), Tag.id.asc())).all()
-    return [tag_to_admin_out(tag) for tag in tags]
+) -> Page[TagAdminOut]:
+    result = paginated_scalars(db, select(Tag).order_by(Tag.sort_order.asc(), Tag.id.asc()), page, page_size)
+    return build_page(
+        [tag_to_admin_out(tag) for tag in result.items],
+        result.total,
+        result.page,
+        result.page_size,
+    )
 
 
 @router.post("", response_model=TagAdminOut, status_code=201)

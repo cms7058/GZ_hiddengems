@@ -257,6 +257,7 @@ textarea:focus {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+  padding-bottom: 12px;
 }
 
 table {
@@ -337,6 +338,22 @@ tr:last-child td {
 .small-btn.danger {
   border-color: #f0b8b2;
   color: var(--danger);
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-width: 320px;
+  padding: 12px 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .dialog {
@@ -424,6 +441,21 @@ tr:last-child td {
   background: #f8fbf8;
 }
 
+.upload-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fbf8;
+}
+
+.upload-inline input {
+  width: auto;
+}
+
 .image-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -445,6 +477,10 @@ tr:last-child td {
   object-fit: cover;
   border-radius: 6px;
   background: #eef4ef;
+}
+
+td .image-thumb {
+  width: 86px;
 }
 
 .error-text {

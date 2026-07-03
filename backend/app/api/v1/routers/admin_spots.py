@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -7,6 +7,8 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.spot import ScenicSpot, Tag
 from app.schemas.spot import ReviewStatusUpdate, SpotAdminOut, SpotCreate, SpotUpdate
+from app.schemas.pagination import Page
+from app.services.pagination import build_page, paginated_scalars
 from app.services.spot_mapper import spot_to_admin_out
 
 
@@ -22,17 +24,27 @@ def load_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
     return tags
 
 
-@router.get("", response_model=list[SpotAdminOut])
+@router.get("", response_model=Page[SpotAdminOut])
 def list_admin_spots(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
-) -> list[SpotAdminOut]:
-    spots = db.scalars(
+) -> Page[SpotAdminOut]:
+    result = paginated_scalars(
+        db,
         select(ScenicSpot)
         .options(selectinload(ScenicSpot.tags))
-        .order_by(ScenicSpot.id.desc())
-    ).all()
-    return [spot_to_admin_out(spot) for spot in spots]
+        .order_by(ScenicSpot.id.desc()),
+        page,
+        page_size,
+    )
+    return build_page(
+        [spot_to_admin_out(spot) for spot in result.items],
+        result.total,
+        result.page,
+        result.page_size,
+    )
 
 
 @router.post("", response_model=SpotAdminOut, status_code=201)

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -21,6 +21,26 @@ from app.services.security import hash_password
 
 def create_tables() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_columns()
+
+
+def ensure_runtime_columns() -> None:
+    column_specs = {
+        "travel_notes": {"image_url": "VARCHAR(512) NULL"},
+        "user_comments": {"image_url": "VARCHAR(512) NULL"},
+        "lifestyle_recommendations": {"image_url": "VARCHAR(512) NULL"},
+        "mini_program_users": {"avatar_url": "VARCHAR(512) NULL"},
+    }
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    with engine.begin() as connection:
+        for table, specs in column_specs.items():
+            if table not in table_names:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table)}
+            for column_name, column_type in specs.items():
+                if column_name not in existing_columns:
+                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
 
 
 def seed_initial_data() -> None:
@@ -299,6 +319,7 @@ def seed_content(db: Session) -> None:
                 spot_id=1,
                 title="加榜梯田清晨路线记录",
                 content="日出前抵达观景点，路面湿滑但视野很好，建议带防滑鞋。",
+                image_url="/media/travel-notes/demo-note.jpg",
                 status="pending",
             )
         )
@@ -310,6 +331,7 @@ def seed_content(db: Session) -> None:
                     user_id=1,
                     spot_id=1,
                     content="适合摄影，但不要踩进梯田。",
+                    image_url="/media/comments/demo-comment.jpg",
                     status="approved",
                 ),
                 UserComment(
@@ -336,6 +358,7 @@ def seed_content(db: Session) -> None:
                 county="从江县",
                 price_level="mid",
                 recommendation_level=4,
+                image_url="/media/recommendations/demo-gear.jpg",
             ),
             LifestyleRecommendation(
                 category="food",
@@ -348,6 +371,7 @@ def seed_content(db: Session) -> None:
                 address="从江县城区",
                 price_level="mid",
                 recommendation_level=4,
+                image_url="/media/recommendations/demo-food.jpg",
             ),
             LifestyleRecommendation(
                 category="hotel",

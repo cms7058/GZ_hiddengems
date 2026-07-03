@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS travel_notes (
     spot_id INT NULL,
     title VARCHAR(128) NOT NULL,
     content TEXT NOT NULL,
+    image_url VARCHAR(512) NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'pending',
     is_featured BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -176,6 +177,7 @@ CREATE TABLE IF NOT EXISTS user_comments (
     user_id INT NOT NULL,
     spot_id INT NULL,
     content VARCHAR(512) NOT NULL,
+    image_url VARCHAR(512) NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -197,6 +199,7 @@ CREATE TABLE IF NOT EXISTS lifestyle_recommendations (
     county VARCHAR(64) NOT NULL,
     address VARCHAR(256) NULL,
     contact VARCHAR(128) NULL,
+    image_url VARCHAR(512) NULL,
     price_level VARCHAR(32) NOT NULL DEFAULT 'mid',
     recommendation_level INT NOT NULL DEFAULT 1,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -383,12 +386,12 @@ INSERT IGNORE INTO spot_images (id, spot_id, image_url, caption, sort_order, is_
     (1, 1, '/media/spots/demo-jiabang.jpg', '加榜梯田晨雾示意图', 1, TRUE, TRUE),
     (2, 2, '/media/spots/demo-wumeng.jpg', '乌蒙山露营地示意图', 1, TRUE, TRUE);
 
-INSERT IGNORE INTO travel_notes (id, user_id, spot_id, title, content, status, is_featured) VALUES
-    (1, 1, 1, '加榜梯田清晨路线记录', '日出前抵达观景点，路面湿滑但视野很好，建议带防滑鞋。', 'pending', FALSE);
+INSERT IGNORE INTO travel_notes (id, user_id, spot_id, title, content, image_url, status, is_featured) VALUES
+    (1, 1, 1, '加榜梯田清晨路线记录', '日出前抵达观景点，路面湿滑但视野很好，建议带防滑鞋。', '/media/travel-notes/demo-note.jpg', 'pending', FALSE);
 
-INSERT IGNORE INTO user_comments (id, user_id, spot_id, content, status) VALUES
-    (1, 1, 1, '适合摄影，但不要踩进梯田。', 'approved'),
-    (2, 2, 2, '想知道夜间是否安全露营？', 'pending');
+INSERT IGNORE INTO user_comments (id, user_id, spot_id, content, image_url, status) VALUES
+    (1, 1, 1, '适合摄影，但不要踩进梯田。', '/media/comments/demo-comment.jpg', 'approved'),
+    (2, 2, 2, '想知道夜间是否安全露营？', NULL, 'pending');
 
 INSERT IGNORE INTO lifestyle_recommendations (
     id,
@@ -401,11 +404,12 @@ INSERT IGNORE INTO lifestyle_recommendations (
     county,
     address,
     contact,
+    image_url,
     price_level,
     recommendation_level,
     is_active
 ) VALUES
-    (1, 'clothing', '山地速干防滑装备', 'Mountain Quick-Dry Gear', '适合梯田、瀑布和雨后徒步场景，建议搭配防滑鞋。', 'For terraces, waterfalls, and wet trails. Anti-slip shoes are recommended.', '黔东南州', '从江县', NULL, NULL, 'mid', 4, TRUE),
-    (2, 'food', '从江酸汤鱼本地小馆', 'Congjiang Sour Soup Fish', '适合加榜梯田返程用餐，口味偏酸辣。', 'A sour and spicy local meal after visiting Jiabang terraces.', '黔东南州', '从江县', '从江县城区', NULL, 'mid', 4, TRUE),
-    (3, 'hotel', '梯田观景民宿', 'Terrace View Homestay', '靠近观景点，适合日出摄影用户。', 'Near the viewpoint and suitable for sunrise photographers.', '黔东南州', '从江县', NULL, NULL, 'mid', 3, TRUE),
-    (4, 'transport', '从江包车向导', 'Congjiang Local Driver Guide', '适合山路不熟的新用户，建议提前一天预约。', 'Useful for first-time visitors unfamiliar with mountain roads. Book one day ahead.', '黔东南州', '从江县', NULL, '提前预约', 'high', 4, TRUE);
+    (1, 'clothing', '山地速干防滑装备', 'Mountain Quick-Dry Gear', '适合梯田、瀑布和雨后徒步场景，建议搭配防滑鞋。', 'For terraces, waterfalls, and wet trails. Anti-slip shoes are recommended.', '黔东南州', '从江县', NULL, NULL, '/media/recommendations/demo-gear.jpg', 'mid', 4, TRUE),
+    (2, 'food', '从江酸汤鱼本地小馆', 'Congjiang Sour Soup Fish', '适合加榜梯田返程用餐，口味偏酸辣。', 'A sour and spicy local meal after visiting Jiabang terraces.', '黔东南州', '从江县', '从江县城区', NULL, '/media/recommendations/demo-food.jpg', 'mid', 4, TRUE),
+    (3, 'hotel', '梯田观景民宿', 'Terrace View Homestay', '靠近观景点，适合日出摄影用户。', 'Near the viewpoint and suitable for sunrise photographers.', '黔东南州', '从江县', NULL, NULL, NULL, 'mid', 3, TRUE),
+    (4, 'transport', '从江包车向导', 'Congjiang Local Driver Guide', '适合山路不熟的新用户，建议提前一天预约。', 'Useful for first-time visitors unfamiliar with mountain roads. Book one day ahead.', '黔东南州', '从江县', NULL, '提前预约', NULL, 'high', 4, TRUE);

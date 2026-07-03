@@ -14,13 +14,21 @@ const state = {
   comments: [],
   recommendations: [],
   currentSpotImages: [],
+  pagination: {},
   editingSpotId: null,
   editingTagId: null,
   editingUserId: null,
   editingPassSettingId: null,
   editingMembershipPlanId: null,
   editingCheckinId: null,
+  editingTravelNoteId: null,
+  editingCommentId: null,
   editingRecommendationId: null,
+};
+
+const PAGE_SIZE = 10;
+const PAGE_SIZE_BY_KEY = {
+  tags: 100,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -93,22 +101,28 @@ function escapeHtml(value) {
 }
 
 function renderMetrics() {
-  $("#spotCount").textContent = state.spots.length;
+  $("#spotCount").textContent = state.pagination.spots?.total ?? state.spots.length;
   $("#approvedCount").textContent = state.spots.filter((spot) => spot.review_status === "approved").length;
-  $("#tagCount").textContent = state.tags.length;
+  $("#tagCount").textContent = state.pagination.tags?.total ?? state.tags.length;
   $("#protectedCount").textContent = state.spots.filter((spot) => spot.visibility_level !== "public").length;
-  $("#userCount").textContent = state.users.length;
-  $("#passLevelCount").textContent = state.passSettings.length;
-  $("#membershipPlanCount").textContent = state.membershipPlans.length;
+  $("#userCount").textContent = state.pagination.users?.total ?? state.users.length;
+  $("#passLevelCount").textContent = state.pagination.passSettings?.total ?? state.passSettings.length;
+  $("#membershipPlanCount").textContent = state.pagination.membershipPlans?.total ?? state.membershipPlans.length;
   $("#pendingCheckinCount").textContent = state.checkins.filter((checkin) => checkin.status === "pending").length;
   $("#pendingCommunityCount").textContent =
     state.travelNotes.filter((note) => note.status === "pending").length +
     state.comments.filter((comment) => comment.status === "pending").length;
-  $("#recommendationCount").textContent = state.recommendations.length;
+  $("#recommendationCount").textContent = state.pagination.recommendations?.total ?? state.recommendations.length;
 }
 
 function memberPill(isMember) {
   return isMember ? '<span class="pill">会员</span>' : '<span class="pill warning">普通</span>';
+}
+
+function imageCell(url, alt = "图片") {
+  return url
+    ? `<img class="image-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
+    : '<span class="muted">未上传</span>';
 }
 
 function renderTags() {
@@ -131,6 +145,7 @@ function renderTags() {
       `,
     )
     .join("");
+  renderPagination("tagsTable", "tags");
 }
 
 function renderSpots() {
@@ -165,6 +180,7 @@ function renderSpots() {
       `;
     })
     .join("");
+  renderPagination("spotsTable", "spots");
 }
 
 function renderUsers() {
@@ -178,6 +194,7 @@ function renderUsers() {
               <span class="muted">${escapeHtml(user.phone || "未绑定手机")}</span>
             </div>
           </td>
+          <td>${imageCell(user.avatar_url, user.nickname)}</td>
           <td>${escapeHtml(user.openid)}</td>
           <td>${escapeHtml(user.language)}</td>
           <td>L${user.explorer_level}</td>
@@ -193,12 +210,14 @@ function renderUsers() {
             <div class="row-actions">
               <button class="small-btn" data-edit-user="${user.id}">编辑</button>
               <button class="small-btn danger" data-toggle-user="${user.id}">${user.is_active ? "停用" : "启用"}</button>
+              <button class="small-btn danger" data-delete-user="${user.id}">删除</button>
             </div>
           </td>
         </tr>
       `,
     )
     .join("");
+  renderPagination("usersTable", "users");
 }
 
 function renderPassSettings() {
@@ -232,6 +251,7 @@ function renderPassSettings() {
       `,
     )
     .join("");
+  renderPagination("passSettingsTable", "passSettings");
 }
 
 function renderMemberships() {
@@ -259,6 +279,7 @@ function renderMemberships() {
       `,
     )
     .join("");
+  renderPagination("membershipPlansTable", "membershipPlans");
 
   $("#membershipRecordsTable").innerHTML = state.membershipRecords
     .map(
@@ -273,6 +294,7 @@ function renderMemberships() {
       `,
     )
     .join("");
+  renderPagination("membershipRecordsTable", "membershipRecords");
 }
 
 function renderCheckins() {
@@ -301,6 +323,7 @@ function renderCheckins() {
       `,
     )
     .join("");
+  renderPagination("checkinsTable", "checkins");
 }
 
 function categoryText(category) {
@@ -323,6 +346,7 @@ function renderCommunity() {
               <span class="muted">${escapeHtml(note.content)}</span>
             </div>
           </td>
+          <td>${imageCell(note.image_url, note.title)}</td>
           <td>${escapeHtml(note.nickname)}</td>
           <td>${escapeHtml(note.spot_name_zh || "-")}</td>
           <td>${statusPill(note.status)}</td>
@@ -332,18 +356,22 @@ function renderCommunity() {
               <button class="small-btn" data-note-status="${note.id}" data-status="approved">通过</button>
               <button class="small-btn" data-note-status="${note.id}" data-status="hidden">隐藏</button>
               <button class="small-btn" data-note-feature="${note.id}">${note.is_featured ? "取消精选" : "设为精选"}</button>
+              <button class="small-btn" data-edit-note="${note.id}">编辑</button>
+              <button class="small-btn danger" data-delete-note="${note.id}">删除</button>
             </div>
           </td>
         </tr>
       `,
     )
     .join("");
+  renderPagination("travelNotesTable", "travelNotes");
 
   $("#commentsTable").innerHTML = state.comments
     .map(
       (comment) => `
         <tr>
           <td>${escapeHtml(comment.content)}</td>
+          <td>${imageCell(comment.image_url, "留言图片")}</td>
           <td>${escapeHtml(comment.nickname)}</td>
           <td>${escapeHtml(comment.spot_name_zh || "-")}</td>
           <td>${statusPill(comment.status)}</td>
@@ -351,12 +379,15 @@ function renderCommunity() {
             <div class="row-actions">
               <button class="small-btn" data-comment-status="${comment.id}" data-status="approved">通过</button>
               <button class="small-btn danger" data-comment-status="${comment.id}" data-status="hidden">隐藏</button>
+              <button class="small-btn" data-edit-comment="${comment.id}">编辑</button>
+              <button class="small-btn danger" data-delete-comment="${comment.id}">删除</button>
             </div>
           </td>
         </tr>
       `,
     )
     .join("");
+  renderPagination("commentsTable", "comments");
 }
 
 function renderRecommendations() {
@@ -371,15 +402,22 @@ function renderRecommendations() {
               <span class="muted">${escapeHtml(item.name_en)}</span>
             </div>
           </td>
+          <td>${imageCell(item.image_url, item.name_zh)}</td>
           <td>${escapeHtml(item.city)} / ${escapeHtml(item.county)}</td>
           <td>${escapeHtml(item.price_level)}</td>
           <td>${item.recommendation_level}</td>
           <td>${activePill(item.is_active)}</td>
-          <td><button class="small-btn" data-edit-recommendation="${item.id}">编辑</button></td>
+          <td>
+            <div class="row-actions">
+              <button class="small-btn" data-edit-recommendation="${item.id}">编辑</button>
+              <button class="small-btn danger" data-delete-recommendation="${item.id}">删除</button>
+            </div>
+          </td>
         </tr>
       `,
     )
     .join("");
+  renderPagination("recommendationsTable", "recommendations");
 }
 
 function renderSpotImages() {
@@ -402,6 +440,29 @@ function renderSpotImages() {
         )
         .join("")
     : '<p class="muted">暂无图片</p>';
+  renderPagination("spotImagesList", "spotImages");
+}
+
+function renderPagination(anchorId, key) {
+  const meta = state.pagination[key] || { page: 1, page_size: PAGE_SIZE, pages: 0, total: 0 };
+  const anchor = $(`#${anchorId}`);
+  const host = anchor.closest(".table-wrap") || anchor.parentElement;
+  if (!host) return;
+  let pager = host.querySelector(`[data-pagination="${key}"]`);
+  if (!pager) {
+    pager = document.createElement("div");
+    pager.className = "pagination";
+    pager.dataset.pagination = key;
+    host.appendChild(pager);
+  }
+  const totalPages = Math.max(meta.pages || 0, 1);
+  pager.innerHTML = `
+    <span>第 ${meta.page || 1} / ${totalPages} 页，共 ${meta.total || 0} 条</span>
+    <div class="row-actions">
+      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.max((meta.page || 1) - 1, 1)}" ${(meta.page || 1) <= 1 ? "disabled" : ""}>上一页</button>
+      <button class="small-btn" data-page-key="${key}" data-page-target="${Math.min((meta.page || 1) + 1, totalPages)}" ${(meta.page || 1) >= totalPages ? "disabled" : ""}>下一页</button>
+    </div>
+  `;
 }
 
 function renderTagChecks(selectedIds = []) {
@@ -432,16 +493,16 @@ async function loadData() {
     comments,
     recommendations,
   ] = await Promise.all([
-    request("/admin/tags"),
-    request("/admin/spots"),
-    request("/admin/users"),
-    request("/admin/pass-settings"),
-    request("/admin/memberships/plans"),
-    request("/admin/memberships/records"),
-    request("/admin/checkins"),
-    request("/admin/content/travel-notes"),
-    request("/admin/content/comments"),
-    request("/admin/content/recommendations"),
+    requestPage("tags", "/admin/tags"),
+    requestPage("spots", "/admin/spots"),
+    requestPage("users", "/admin/users"),
+    requestPage("passSettings", "/admin/pass-settings"),
+    requestPage("membershipPlans", "/admin/memberships/plans"),
+    requestPage("membershipRecords", "/admin/memberships/records"),
+    requestPage("checkins", "/admin/checkins"),
+    requestPage("travelNotes", "/admin/content/travel-notes"),
+    requestPage("comments", "/admin/content/comments"),
+    requestPage("recommendations", "/admin/content/recommendations"),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -462,6 +523,25 @@ async function loadData() {
   renderCheckins();
   renderCommunity();
   renderRecommendations();
+}
+
+async function requestPage(key, path) {
+  const meta = state.pagination[key] || { page: 1 };
+  const pageSize = meta.page_size || PAGE_SIZE_BY_KEY[key] || PAGE_SIZE;
+  const separator = path.includes("?") ? "&" : "?";
+  const data = await request(`${path}${separator}page=${meta.page || 1}&page_size=${pageSize}`);
+  if (data.total > 0 && data.pages > 0 && data.page > data.pages) {
+    state.pagination[key] = { ...meta, page: data.pages };
+    return requestPage(key, path);
+  }
+  const pageData = {
+    total: data.total,
+    page: data.page,
+    page_size: data.page_size,
+    pages: data.pages,
+  };
+  state.pagination[key] = pageData;
+  return data.items;
 }
 
 async function bootstrap() {
@@ -548,10 +628,22 @@ function fillTagForm(tag = null) {
 function fillUserForm(user) {
   const form = $("#userForm");
   form.reset();
-  state.editingUserId = user.id;
-  $("#userDialogTitle").textContent = `编辑用户：${user.nickname}`;
+  state.editingUserId = user?.id || null;
+  $("#userDialogTitle").textContent = user ? `编辑用户：${user.nickname}` : "新增用户";
+  if (!user) {
+    form.elements.language.value = "zh-CN";
+    form.elements.explorer_level.value = 0;
+    form.elements.checkin_count.value = 0;
+    form.elements.contribution_count.value = 0;
+    form.elements.eco_credit.value = 100;
+    form.elements.is_member.checked = false;
+    form.elements.is_active.checked = true;
+    return;
+  }
   [
+    "openid",
     "nickname",
+    "avatar_url",
     "phone",
     "language",
     "explorer_level",
@@ -563,6 +655,36 @@ function fillUserForm(user) {
   });
   form.elements.is_member.checked = Boolean(user.is_member);
   form.elements.is_active.checked = Boolean(user.is_active);
+}
+
+function fillTravelNoteForm(note = null) {
+  const form = $("#travelNoteForm");
+  form.reset();
+  state.editingTravelNoteId = note?.id || null;
+  $("#travelNoteDialogTitle").textContent = note ? `编辑游记：${note.title}` : "新增游记";
+  if (!note) {
+    form.elements.status.value = "pending";
+    form.elements.is_featured.checked = false;
+    return;
+  }
+  ["user_id", "spot_id", "title", "content", "image_url", "status"].forEach((field) => {
+    form.elements[field].value = note[field] ?? "";
+  });
+  form.elements.is_featured.checked = Boolean(note.is_featured);
+}
+
+function fillCommentForm(comment = null) {
+  const form = $("#commentForm");
+  form.reset();
+  state.editingCommentId = comment?.id || null;
+  $("#commentDialogTitle").textContent = comment ? `编辑留言：${comment.nickname}` : "新增留言";
+  if (!comment) {
+    form.elements.status.value = "pending";
+    return;
+  }
+  ["user_id", "spot_id", "content", "image_url", "status"].forEach((field) => {
+    form.elements[field].value = comment[field] ?? "";
+  });
 }
 
 function fillPassSettingForm(setting) {
@@ -627,6 +749,7 @@ function fillRecommendationForm(item = null) {
     "county",
     "address",
     "contact",
+    "image_url",
     "price_level",
     "recommendation_level",
   ].forEach((field) => {
@@ -638,11 +761,37 @@ function fillRecommendationForm(item = null) {
 async function loadSpotImages(spotId) {
   if (!spotId) {
     state.currentSpotImages = [];
+    state.pagination.spotImages = { page: 1, page_size: PAGE_SIZE, pages: 0, total: 0 };
     renderSpotImages();
     return;
   }
-  state.currentSpotImages = await request(`/admin/content/spots/${spotId}/images`);
+  state.currentSpotImages = await requestPage("spotImages", `/admin/content/spots/${spotId}/images`);
   renderSpotImages();
+}
+
+async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName = "image_url") {
+  const fileInput = $(fileInputSelector);
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast("请选择图片");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`${API}/admin/content/uploads/${folder}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${state.token}`,
+    },
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || "上传失败");
+  }
+  $(formSelector).elements[fieldName].value = data.image_url;
+  fileInput.value = "";
+  showToast("图片已上传");
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
@@ -688,6 +837,21 @@ $("#newTagBtn").addEventListener("click", () => {
   $("#tagDialog").showModal();
 });
 
+$("#newUserBtn").addEventListener("click", () => {
+  fillUserForm();
+  $("#userDialog").showModal();
+});
+
+$("#newTravelNoteBtn").addEventListener("click", () => {
+  fillTravelNoteForm();
+  $("#travelNoteDialog").showModal();
+});
+
+$("#newCommentBtn").addEventListener("click", () => {
+  fillCommentForm();
+  $("#commentDialog").showModal();
+});
+
 $("#newRecommendationBtn").addEventListener("click", () => {
   fillRecommendationForm();
   $("#recommendationDialog").showModal();
@@ -708,6 +872,22 @@ $$(".nav-btn").forEach((button) => {
   });
 });
 
+document.addEventListener("click", async (event) => {
+  const pageKey = event.target.dataset.pageKey;
+  const pageTarget = event.target.dataset.pageTarget;
+  if (!pageKey || !pageTarget) return;
+
+  state.pagination[pageKey] = {
+    ...(state.pagination[pageKey] || { page_size: PAGE_SIZE }),
+    page: Number(pageTarget),
+  };
+  if (pageKey === "spotImages") {
+    await loadSpotImages(state.editingSpotId);
+  } else {
+    await loadData();
+  }
+});
+
 $("#spotsTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editSpot;
   const reviewId = event.target.dataset.reviewSpot;
@@ -716,6 +896,7 @@ $("#spotsTable").addEventListener("click", async (event) => {
   if (editId) {
     const spot = state.spots.find((item) => item.id === Number(editId));
     fillSpotForm(spot);
+    state.pagination.spotImages = { page: 1, page_size: PAGE_SIZE };
     await loadSpotImages(spot.id);
     $("#spotDialog").showModal();
   }
@@ -756,6 +937,7 @@ $("#tagsTable").addEventListener("click", async (event) => {
 $("#usersTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editUser;
   const toggleId = event.target.dataset.toggleUser;
+  const deleteId = event.target.dataset.deleteUser;
 
   if (editId) {
     const user = state.users.find((item) => item.id === Number(editId));
@@ -771,6 +953,12 @@ $("#usersTable").addEventListener("click", async (event) => {
     });
     await loadData();
     showToast("用户状态已更新");
+  }
+
+  if (deleteId) {
+    await request(`/admin/users/${deleteId}`, { method: "DELETE" });
+    await loadData();
+    showToast("用户已删除");
   }
 });
 
@@ -818,6 +1006,8 @@ $("#checkinsTable").addEventListener("click", async (event) => {
 $("#travelNotesTable").addEventListener("click", async (event) => {
   const statusId = event.target.dataset.noteStatus;
   const featureId = event.target.dataset.noteFeature;
+  const editId = event.target.dataset.editNote;
+  const deleteId = event.target.dataset.deleteNote;
 
   if (statusId) {
     const note = state.travelNotes.find((item) => item.id === Number(statusId));
@@ -838,27 +1028,62 @@ $("#travelNotesTable").addEventListener("click", async (event) => {
     await loadData();
     showToast("游记精选状态已更新");
   }
+
+  if (editId) {
+    const note = state.travelNotes.find((item) => item.id === Number(editId));
+    fillTravelNoteForm(note);
+    $("#travelNoteDialog").showModal();
+  }
+
+  if (deleteId) {
+    await request(`/admin/content/travel-notes/${deleteId}`, { method: "DELETE" });
+    await loadData();
+    showToast("游记已删除");
+  }
 });
 
 $("#commentsTable").addEventListener("click", async (event) => {
   const statusId = event.target.dataset.commentStatus;
-  if (!statusId) return;
+  const editId = event.target.dataset.editComment;
+  const deleteId = event.target.dataset.deleteComment;
 
-  await request(`/admin/content/comments/${statusId}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: event.target.dataset.status }),
-  });
-  await loadData();
-  showToast("留言状态已更新");
+  if (statusId) {
+    await request(`/admin/content/comments/${statusId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: event.target.dataset.status }),
+    });
+    await loadData();
+    showToast("留言状态已更新");
+  }
+
+  if (editId) {
+    const comment = state.comments.find((item) => item.id === Number(editId));
+    fillCommentForm(comment);
+    $("#commentDialog").showModal();
+  }
+
+  if (deleteId) {
+    await request(`/admin/content/comments/${deleteId}`, { method: "DELETE" });
+    await loadData();
+    showToast("留言已删除");
+  }
 });
 
-$("#recommendationsTable").addEventListener("click", (event) => {
+$("#recommendationsTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editRecommendation;
-  if (!editId) return;
+  const deleteId = event.target.dataset.deleteRecommendation;
 
-  const item = state.recommendations.find((recommendation) => recommendation.id === Number(editId));
-  fillRecommendationForm(item);
-  $("#recommendationDialog").showModal();
+  if (editId) {
+    const item = state.recommendations.find((recommendation) => recommendation.id === Number(editId));
+    fillRecommendationForm(item);
+    $("#recommendationDialog").showModal();
+  }
+
+  if (deleteId) {
+    await request(`/admin/content/recommendations/${deleteId}`, { method: "DELETE" });
+    await loadData();
+    showToast("推荐已删除");
+  }
 });
 
 $("#spotImagesList").addEventListener("click", async (event) => {
@@ -941,6 +1166,22 @@ $("#uploadSpotImageBtn").addEventListener("click", async () => {
   showToast("图片已上传");
 });
 
+$("#uploadUserAvatarBtn").addEventListener("click", () => {
+  uploadImageTo("avatars", "#userAvatarFile", "#userForm", "avatar_url");
+});
+
+$("#uploadTravelNoteImageBtn").addEventListener("click", () => {
+  uploadImageTo("travel-notes", "#travelNoteImageFile", "#travelNoteForm", "image_url");
+});
+
+$("#uploadCommentImageBtn").addEventListener("click", () => {
+  uploadImageTo("comments", "#commentImageFile", "#commentForm", "image_url");
+});
+
+$("#uploadRecommendationImageBtn").addEventListener("click", () => {
+  uploadImageTo("recommendations", "#recommendationImageFile", "#recommendationForm", "image_url");
+});
+
 $("#tagForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -963,7 +1204,9 @@ $("#userForm").addEventListener("submit", async (event) => {
   const form = event.currentTarget;
   const data = formToObject(form);
   const payload = {
+    openid: data.openid,
     nickname: data.nickname,
+    avatar_url: data.avatar_url || null,
     phone: data.phone || null,
     language: data.language,
     explorer_level: Number(data.explorer_level),
@@ -973,13 +1216,57 @@ $("#userForm").addEventListener("submit", async (event) => {
     is_member: form.elements.is_member.checked,
     is_active: form.elements.is_active.checked,
   };
-  await request(`/admin/users/${state.editingUserId}`, {
-    method: "PATCH",
+  const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
+  const method = state.editingUserId ? "PATCH" : "POST";
+  await request(path, {
+    method,
     body: JSON.stringify(payload),
   });
   $("#userDialog").close();
   await loadData();
   showToast("用户已保存");
+});
+
+$("#travelNoteForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = formToObject(form);
+  const payload = {
+    user_id: Number(data.user_id),
+    spot_id: data.spot_id ? Number(data.spot_id) : null,
+    title: data.title,
+    content: data.content,
+    image_url: data.image_url || null,
+    status: data.status,
+    is_featured: form.elements.is_featured.checked,
+  };
+  const path = state.editingTravelNoteId
+    ? `/admin/content/travel-notes/${state.editingTravelNoteId}`
+    : "/admin/content/travel-notes";
+  const method = state.editingTravelNoteId ? "PATCH" : "POST";
+  await request(path, { method, body: JSON.stringify(payload) });
+  $("#travelNoteDialog").close();
+  await loadData();
+  showToast("游记已保存");
+});
+
+$("#commentForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = formToObject(form);
+  const payload = {
+    user_id: Number(data.user_id),
+    spot_id: data.spot_id ? Number(data.spot_id) : null,
+    content: data.content,
+    image_url: data.image_url || null,
+    status: data.status,
+  };
+  const path = state.editingCommentId ? `/admin/content/comments/${state.editingCommentId}` : "/admin/content/comments";
+  const method = state.editingCommentId ? "PATCH" : "POST";
+  await request(path, { method, body: JSON.stringify(payload) });
+  $("#commentDialog").close();
+  await loadData();
+  showToast("留言已保存");
 });
 
 $("#passSettingForm").addEventListener("submit", async (event) => {
@@ -1058,6 +1345,7 @@ $("#recommendationForm").addEventListener("submit", async (event) => {
     county: data.county,
     address: data.address || null,
     contact: data.contact || null,
+    image_url: data.image_url || null,
     price_level: data.price_level,
     recommendation_level: Number(data.recommendation_level),
     is_active: form.elements.is_active.checked,

@@ -28,6 +28,26 @@ class ContentStatusUpdate(BaseModel):
     is_featured: Optional[bool] = None
 
 
+class TravelNoteCreate(BaseModel):
+    user_id: int
+    spot_id: Optional[int] = None
+    title: str = Field(..., max_length=128)
+    content: str
+    image_url: Optional[str] = Field(default=None, max_length=512)
+    status: str = Field(default="pending", pattern="^(pending|approved|rejected|hidden)$")
+    is_featured: bool = False
+
+
+class TravelNoteUpdate(BaseModel):
+    user_id: Optional[int] = None
+    spot_id: Optional[int] = None
+    title: Optional[str] = Field(default=None, max_length=128)
+    content: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=512)
+    status: Optional[str] = Field(default=None, pattern="^(pending|approved|rejected|hidden)$")
+    is_featured: Optional[bool] = None
+
+
 class TravelNoteOut(BaseModel):
     id: int
     user_id: int
@@ -36,8 +56,25 @@ class TravelNoteOut(BaseModel):
     spot_name_zh: Optional[str] = None
     title: str
     content: str
+    image_url: Optional[str] = None
     status: str
     is_featured: bool
+
+
+class UserCommentCreate(BaseModel):
+    user_id: int
+    spot_id: Optional[int] = None
+    content: str = Field(..., max_length=512)
+    image_url: Optional[str] = Field(default=None, max_length=512)
+    status: str = Field(default="pending", pattern="^(pending|approved|rejected|hidden)$")
+
+
+class UserCommentUpdate(BaseModel):
+    user_id: Optional[int] = None
+    spot_id: Optional[int] = None
+    content: Optional[str] = Field(default=None, max_length=512)
+    image_url: Optional[str] = Field(default=None, max_length=512)
+    status: Optional[str] = Field(default=None, pattern="^(pending|approved|rejected|hidden)$")
 
 
 class UserCommentOut(BaseModel):
@@ -47,6 +84,7 @@ class UserCommentOut(BaseModel):
     spot_id: Optional[int] = None
     spot_name_zh: Optional[str] = None
     content: str
+    image_url: Optional[str] = None
     status: str
 
 
@@ -60,6 +98,7 @@ class RecommendationCreate(BaseModel):
     county: str = Field(..., max_length=64)
     address: Optional[str] = Field(default=None, max_length=256)
     contact: Optional[str] = Field(default=None, max_length=128)
+    image_url: Optional[str] = Field(default=None, max_length=512)
     price_level: str = Field(default="mid", max_length=32)
     recommendation_level: int = Field(default=1, ge=1, le=5)
     is_active: bool = True
@@ -75,6 +114,7 @@ class RecommendationUpdate(BaseModel):
     county: Optional[str] = Field(default=None, max_length=64)
     address: Optional[str] = Field(default=None, max_length=256)
     contact: Optional[str] = Field(default=None, max_length=128)
+    image_url: Optional[str] = Field(default=None, max_length=512)
     price_level: Optional[str] = Field(default=None, max_length=32)
     recommendation_level: Optional[int] = Field(default=None, ge=1, le=5)
     is_active: Optional[bool] = None

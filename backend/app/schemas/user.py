@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class MiniProgramUserUpdate(BaseModel):
+    openid: Optional[str] = Field(default=None, max_length=128)
     nickname: Optional[str] = Field(default=None, max_length=64)
+    avatar_url: Optional[str] = Field(default=None, max_length=512)
     phone: Optional[str] = Field(default=None, max_length=32)
     language: Optional[str] = Field(default=None, max_length=16)
     explorer_level: Optional[int] = Field(default=None, ge=0, le=5)
@@ -13,6 +15,20 @@ class MiniProgramUserUpdate(BaseModel):
     eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
     is_member: Optional[bool] = None
     is_active: Optional[bool] = None
+
+
+class MiniProgramUserCreate(BaseModel):
+    openid: str = Field(..., max_length=128)
+    nickname: str = Field(..., max_length=64)
+    avatar_url: Optional[str] = Field(default=None, max_length=512)
+    phone: Optional[str] = Field(default=None, max_length=32)
+    language: str = Field(default="zh-CN", max_length=16)
+    explorer_level: int = Field(default=0, ge=0, le=5)
+    checkin_count: int = Field(default=0, ge=0)
+    contribution_count: int = Field(default=0, ge=0)
+    eco_credit: int = Field(default=100, ge=0, le=100)
+    is_member: bool = False
+    is_active: bool = True
 
 
 class MiniProgramUserOut(BaseModel):

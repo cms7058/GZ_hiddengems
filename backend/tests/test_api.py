@@ -263,18 +263,39 @@ class ApiTest(unittest.TestCase):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/users", headers=headers)
         self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json()[0]["nickname"], "山野摄影师")
+        self.assertEqual(list_response.json()["items"][0]["nickname"], "山野摄影师")
+        self.assertEqual(list_response.json()["total"], 1)
+        self.assertEqual(list_response.json()["page"], 1)
 
         update_response = self.client.patch(
             "/api/v1/admin/users/1",
             headers=headers,
-            json={"explorer_level": 3, "is_member": False, "is_active": False},
+            json={
+                "explorer_level": 3,
+                "avatar_url": "/media/avatars/test.jpg",
+                "is_member": False,
+                "is_active": False,
+            },
         )
         self.assertEqual(update_response.status_code, 200)
         data = update_response.json()
         self.assertEqual(data["explorer_level"], 3)
+        self.assertEqual(data["avatar_url"], "/media/avatars/test.jpg")
         self.assertFalse(data["is_member"])
         self.assertFalse(data["is_active"])
+
+        create_response = self.client.post(
+            "/api/v1/admin/users",
+            headers=headers,
+            json={"openid": "openid-new", "nickname": "新用户", "avatar_url": "/media/avatars/new.jpg"},
+        )
+        self.assertEqual(create_response.status_code, 201)
+        user_id = create_response.json()["id"]
+
+        delete_response = self.client.delete(f"/api/v1/admin/users/{user_id}", headers=headers)
+        self.assertEqual(delete_response.status_code, 204)
+        deleted_response = self.client.get(f"/api/v1/admin/users/{user_id}", headers=headers)
+        self.assertFalse(deleted_response.json()["is_active"])
 
     def test_admin_can_update_pass_settings(self):
         response = self.client.patch(
@@ -297,7 +318,7 @@ class ApiTest(unittest.TestCase):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/memberships/plans", headers=headers)
         self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json()[0]["name_zh"], "月度探索会员")
+        self.assertEqual(list_response.json()["items"][0]["name_zh"], "月度探索会员")
 
         update_response = self.client.patch(
             "/api/v1/admin/memberships/plans/1",
@@ -310,13 +331,13 @@ class ApiTest(unittest.TestCase):
 
         records_response = self.client.get("/api/v1/admin/memberships/records", headers=headers)
         self.assertEqual(records_response.status_code, 200)
-        self.assertEqual(records_response.json()[0]["nickname"], "山野摄影师")
+        self.assertEqual(records_response.json()["items"][0]["nickname"], "山野摄影师")
 
     def test_admin_can_review_checkins_and_update_user_count(self):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/checkins", headers=headers)
         self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json()[0]["status"], "pending")
+        self.assertEqual(list_response.json()["items"][0]["status"], "pending")
 
         approve_response = self.client.patch(
             "/api/v1/admin/checkins/1/review",
@@ -342,7 +363,7 @@ class ApiTest(unittest.TestCase):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/content/spots/1/images", headers=headers)
         self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json()[0]["caption"], "演示图片")
+        self.assertEqual(list_response.json()["items"][0]["caption"], "演示图片")
 
         upload_response = self.client.post(
             "/api/v1/admin/content/spots/1/images",
@@ -358,7 +379,15 @@ class ApiTest(unittest.TestCase):
         headers = self.login_headers()
         notes_response = self.client.get("/api/v1/admin/content/travel-notes", headers=headers)
         self.assertEqual(notes_response.status_code, 200)
-        self.assertEqual(notes_response.json()[0]["title"], "路线记录")
+        self.assertEqual(notes_response.json()["items"][0]["title"], "路线记录")
+
+        upload_response = self.client.post(
+            "/api/v1/admin/content/uploads/travel-notes",
+            headers=headers,
+            files={"file": ("note.webp", b"fake-image", "image/webp")},
+        )
+        self.assertEqual(upload_response.status_code, 200)
+        self.assertTrue(upload_response.json()["image_url"].startswith("/media/travel-notes/"))
 
         note_review = self.client.patch(
             "/api/v1/admin/content/travel-notes/1/status",
@@ -377,11 +406,62 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(comment_review.status_code, 200)
         self.assertEqual(comment_review.json()["status"], "hidden")
 
+        create_note = self.client.post(
+            "/api/v1/admin/content/travel-notes",
+            headers=headers,
+            json={
+                "user_id": 1,
+                "spot_id": 1,
+                "title": "后台新增游记",
+                "content": "带图内容。",
+                "image_url": "/media/travel-notes/new.jpg",
+            },
+        )
+        self.assertEqual(create_note.status_code, 201)
+        note_id = create_note.json()["id"]
+        self.assertEqual(create_note.json()["image_url"], "/media/travel-notes/new.jpg")
+
+        update_note = self.client.patch(
+            f"/api/v1/admin/content/travel-notes/{note_id}",
+            headers=headers,
+            json={"title": "更新游记", "is_featured": True},
+        )
+        self.assertEqual(update_note.json()["title"], "更新游记")
+        self.assertTrue(update_note.json()["is_featured"])
+
+        delete_note = self.client.delete(f"/api/v1/admin/content/travel-notes/{note_id}", headers=headers)
+        self.assertEqual(delete_note.status_code, 204)
+
+        create_comment = self.client.post(
+            "/api/v1/admin/content/comments",
+            headers=headers,
+            json={
+                "user_id": 1,
+                "spot_id": 1,
+                "content": "后台新增留言。",
+                "image_url": "/media/comments/new.jpg",
+            },
+        )
+        self.assertEqual(create_comment.status_code, 201)
+        comment_id = create_comment.json()["id"]
+        self.assertEqual(create_comment.json()["image_url"], "/media/comments/new.jpg")
+
+        update_comment = self.client.patch(
+            f"/api/v1/admin/content/comments/{comment_id}",
+            headers=headers,
+            json={"content": "更新留言。", "status": "approved"},
+        )
+        self.assertEqual(update_comment.json()["content"], "更新留言。")
+        self.assertEqual(update_comment.json()["status"], "approved")
+
+        delete_comment = self.client.delete(f"/api/v1/admin/content/comments/{comment_id}", headers=headers)
+        self.assertEqual(delete_comment.status_code, 204)
+
     def test_admin_can_manage_lifestyle_recommendations(self):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/content/recommendations", headers=headers)
         self.assertEqual(list_response.status_code, 200)
-        self.assertEqual(list_response.json()[0]["name_zh"], "酸汤鱼")
+        self.assertEqual(list_response.json()["items"][0]["name_zh"], "酸汤鱼")
 
         create_response = self.client.post(
             "/api/v1/admin/content/recommendations",
@@ -394,21 +474,30 @@ class ApiTest(unittest.TestCase):
                 "summary_en": "Near the viewpoint.",
                 "city": "黔东南州",
                 "county": "从江县",
+                "image_url": "/media/recommendations/hotel.jpg",
                 "price_level": "mid",
                 "recommendation_level": 3,
             },
         )
         self.assertEqual(create_response.status_code, 201)
         recommendation_id = create_response.json()["id"]
+        self.assertEqual(create_response.json()["image_url"], "/media/recommendations/hotel.jpg")
 
         update_response = self.client.patch(
             f"/api/v1/admin/content/recommendations/{recommendation_id}",
             headers=headers,
-            json={"recommendation_level": 5, "is_active": False},
+            json={"recommendation_level": 5, "image_url": "/media/recommendations/hotel-2.jpg", "is_active": False},
         )
         self.assertEqual(update_response.status_code, 200)
         self.assertEqual(update_response.json()["recommendation_level"], 5)
+        self.assertEqual(update_response.json()["image_url"], "/media/recommendations/hotel-2.jpg")
         self.assertFalse(update_response.json()["is_active"])
+
+        delete_response = self.client.delete(
+            f"/api/v1/admin/content/recommendations/{recommendation_id}",
+            headers=headers,
+        )
+        self.assertEqual(delete_response.status_code, 204)
 
 
 if __name__ == "__main__":

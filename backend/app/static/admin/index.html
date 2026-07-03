@@ -160,12 +160,14 @@
               <h2>用户管理</h2>
               <p class="muted">管理小程序注册用户、会员状态、探索等级和环保信用。</p>
             </div>
+            <button id="newUserBtn" class="primary-btn">新增用户</button>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>用户</th>
+                  <th>头像</th>
                   <th>OpenID</th>
                   <th>语言</th>
                   <th>等级</th>
@@ -273,12 +275,17 @@
               <h2>游记留言</h2>
               <p class="muted">审核用户游记和留言，支持推荐精选游记或隐藏违规内容。</p>
             </div>
+            <div class="row-actions">
+              <button id="newTravelNoteBtn" class="primary-btn">新增游记</button>
+              <button id="newCommentBtn" class="secondary-btn">新增留言</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>游记</th>
+                  <th>图片</th>
                   <th>用户</th>
                   <th>秘境</th>
                   <th>状态</th>
@@ -294,6 +301,7 @@
               <thead>
                 <tr>
                   <th>留言</th>
+                  <th>图片</th>
                   <th>用户</th>
                   <th>秘境</th>
                   <th>状态</th>
@@ -319,6 +327,7 @@
                 <tr>
                   <th>分类</th>
                   <th>名称</th>
+                  <th>图片</th>
                   <th>地区</th>
                   <th>价格</th>
                   <th>推荐</th>
@@ -423,7 +432,13 @@
           <button type="button" class="icon-btn" data-close-dialog="userDialog">×</button>
         </header>
         <div class="form-grid">
+          <label><span>OpenID</span><input name="openid" required maxlength="128" /></label>
           <label><span>昵称</span><input name="nickname" required maxlength="64" /></label>
+          <label class="full"><span>微信头像 URL</span><input name="avatar_url" maxlength="512" /></label>
+          <div class="full upload-inline">
+            <input id="userAvatarFile" type="file" accept="image/*" />
+            <button id="uploadUserAvatarBtn" type="button" class="secondary-btn">上传头像</button>
+          </div>
           <label><span>手机号</span><input name="phone" maxlength="32" /></label>
           <label>
             <span>语言</span>
@@ -441,6 +456,72 @@
         </div>
         <footer>
           <button type="button" class="secondary-btn" data-close-dialog="userDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="travelNoteDialog" class="dialog wide-dialog">
+      <form id="travelNoteForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="travelNoteDialogTitle">游记</h2>
+          <button type="button" class="icon-btn" data-close-dialog="travelNoteDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>用户 ID</span><input name="user_id" type="number" min="1" required /></label>
+          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" /></label>
+          <label class="full"><span>标题</span><input name="title" required maxlength="128" /></label>
+          <label class="full"><span>内容</span><textarea name="content" rows="4" required></textarea></label>
+          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <div class="full upload-inline">
+            <input id="travelNoteImageFile" type="file" accept="image/*" />
+            <button id="uploadTravelNoteImageBtn" type="button" class="secondary-btn">上传图片</button>
+          </div>
+          <label>
+            <span>状态</span>
+            <select name="status">
+              <option value="pending">待审核</option>
+              <option value="approved">通过</option>
+              <option value="rejected">拒绝</option>
+              <option value="hidden">隐藏</option>
+            </select>
+          </label>
+          <label class="switch-line"><input name="is_featured" type="checkbox" /> <span>精选</span></label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="travelNoteDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="commentDialog" class="dialog wide-dialog">
+      <form id="commentForm" method="dialog" class="dialog-body">
+        <header>
+          <h2 id="commentDialogTitle">留言</h2>
+          <button type="button" class="icon-btn" data-close-dialog="commentDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label><span>用户 ID</span><input name="user_id" type="number" min="1" required /></label>
+          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" /></label>
+          <label class="full"><span>留言内容</span><textarea name="content" rows="3" required maxlength="512"></textarea></label>
+          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <div class="full upload-inline">
+            <input id="commentImageFile" type="file" accept="image/*" />
+            <button id="uploadCommentImageBtn" type="button" class="secondary-btn">上传图片</button>
+          </div>
+          <label>
+            <span>状态</span>
+            <select name="status">
+              <option value="pending">待审核</option>
+              <option value="approved">通过</option>
+              <option value="rejected">拒绝</option>
+              <option value="hidden">隐藏</option>
+            </select>
+          </label>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="commentDialog">取消</button>
           <button type="submit" class="primary-btn">保存</button>
         </footer>
       </form>
@@ -541,6 +622,11 @@
           <label><span>区县</span><input name="county" required maxlength="64" /></label>
           <label><span>地址</span><input name="address" maxlength="256" /></label>
           <label><span>联系方式</span><input name="contact" maxlength="128" /></label>
+          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <div class="full upload-inline">
+            <input id="recommendationImageFile" type="file" accept="image/*" />
+            <button id="uploadRecommendationImageBtn" type="button" class="secondary-btn">上传图片</button>
+          </div>
           <label>
             <span>价格级别</span>
             <select name="price_level">

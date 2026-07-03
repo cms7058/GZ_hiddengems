@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -8,7 +8,9 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.user import CheckinRecord
+from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut, CheckinReviewUpdate
+from app.services.pagination import build_page, paginated_scalars
 
 
 router = APIRouter()
@@ -30,17 +32,27 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
     )
 
 
-@router.get("", response_model=list[CheckinRecordOut])
+@router.get("", response_model=Page[CheckinRecordOut])
 def list_checkins(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
-) -> list[CheckinRecordOut]:
-    records = db.scalars(
+) -> Page[CheckinRecordOut]:
+    result = paginated_scalars(
+        db,
         select(CheckinRecord)
         .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
-        .order_by(CheckinRecord.id.desc())
-    ).all()
-    return [checkin_to_out(record) for record in records]
+        .order_by(CheckinRecord.id.desc()),
+        page,
+        page_size,
+    )
+    return build_page(
+        [checkin_to_out(record) for record in result.items],
+        result.total,
+        result.page,
+        result.page_size,
+    )
 
 
 @router.patch("/{checkin_id}/review", response_model=CheckinRecordOut)

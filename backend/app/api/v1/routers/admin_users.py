@@ -6,18 +6,22 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.user import MiniProgramUser
-from app.schemas.user import MiniProgramUserOut, MiniProgramUserUpdate
+from app.schemas.pagination import Page
+from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
+from app.services.pagination import paginated_scalars
 
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[MiniProgramUserOut])
+@router.get("", response_model=Page[MiniProgramUserOut])
 def list_admin_users(
     keyword: str = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
-) -> list[MiniProgramUserOut]:
+) -> Page[MiniProgramUserOut]:
     statement = select(MiniProgramUser).order_by(MiniProgramUser.id.desc())
     if keyword:
         like_keyword = f"%{keyword}%"
@@ -28,7 +32,7 @@ def list_admin_users(
                 MiniProgramUser.phone.like(like_keyword),
             )
         )
-    return list(db.scalars(statement).all())
+    return paginated_scalars(db, statement, page, page_size)
 
 
 @router.get("/{user_id}", response_model=MiniProgramUserOut)
@@ -40,6 +44,23 @@ def get_admin_user(
     user = db.get(MiniProgramUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.post("", response_model=MiniProgramUserOut, status_code=201)
+def create_admin_user(
+    payload: MiniProgramUserCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> MiniProgramUserOut:
+    exists = db.scalar(select(MiniProgramUser).where(MiniProgramUser.openid == payload.openid))
+    if exists is not None:
+        raise HTTPException(status_code=409, detail="OpenID already exists")
+
+    user = MiniProgramUser(**payload.model_dump())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -61,3 +82,17 @@ def update_admin_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_admin_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    user = db.get(MiniProgramUser, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = False
+    db.add(user)
+    db.commit()
