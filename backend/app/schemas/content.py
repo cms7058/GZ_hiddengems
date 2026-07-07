@@ -30,7 +30,7 @@ class ContentStatusUpdate(BaseModel):
 
 class TravelNoteCreate(BaseModel):
     user_id: int
-    spot_id: Optional[int] = None
+    spot_id: int
     title: str = Field(..., max_length=128)
     content: str
     image_url: Optional[str] = Field(default=None, max_length=512)
@@ -63,7 +63,7 @@ class TravelNoteOut(BaseModel):
 
 class UserCommentCreate(BaseModel):
     user_id: int
-    spot_id: Optional[int] = None
+    spot_id: int
     content: str = Field(..., max_length=512)
     image_url: Optional[str] = Field(default=None, max_length=512)
     status: str = Field(default="pending", pattern="^(pending|approved|rejected|hidden)$")
@@ -89,6 +89,7 @@ class UserCommentOut(BaseModel):
 
 
 class RecommendationCreate(BaseModel):
+    spot_id: int
     category: str = Field(..., pattern="^(clothing|food|hotel|transport)$")
     name_zh: str = Field(..., max_length=128)
     name_en: str = Field(..., max_length=128)
@@ -105,6 +106,7 @@ class RecommendationCreate(BaseModel):
 
 
 class RecommendationUpdate(BaseModel):
+    spot_id: Optional[int] = None
     category: Optional[str] = Field(default=None, pattern="^(clothing|food|hotel|transport)$")
     name_zh: Optional[str] = Field(default=None, max_length=128)
     name_en: Optional[str] = Field(default=None, max_length=128)
@@ -122,6 +124,7 @@ class RecommendationUpdate(BaseModel):
 
 class RecommendationOut(RecommendationCreate):
     id: int
+    spot_name_zh: Optional[str] = None
 
     class Config:
         from_attributes = True

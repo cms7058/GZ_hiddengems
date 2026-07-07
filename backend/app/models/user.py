@@ -14,6 +14,7 @@ class MiniProgramUser(Base):
     phone = Column(String(32), nullable=True)
     language = Column(String(16), default="zh-CN", nullable=False)
     explorer_level = Column(Integer, default=0, nullable=False)
+    explore_points = Column(Integer, default=0, nullable=False)
     checkin_count = Column(Integer, default=0, nullable=False)
     contribution_count = Column(Integer, default=0, nullable=False)
     eco_credit = Column(Integer, default=100, nullable=False)

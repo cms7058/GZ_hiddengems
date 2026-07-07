@@ -77,6 +77,32 @@ def comment_to_out(comment: UserComment) -> UserCommentOut:
     )
 
 
+def recommendation_to_out(recommendation: LifestyleRecommendation) -> RecommendationOut:
+    return RecommendationOut(
+        id=recommendation.id,
+        spot_id=recommendation.spot_id,
+        spot_name_zh=recommendation.spot.name_zh if recommendation.spot else None,
+        category=recommendation.category,
+        name_zh=recommendation.name_zh,
+        name_en=recommendation.name_en,
+        summary_zh=recommendation.summary_zh,
+        summary_en=recommendation.summary_en,
+        city=recommendation.city,
+        county=recommendation.county,
+        address=recommendation.address,
+        contact=recommendation.contact,
+        image_url=recommendation.image_url,
+        price_level=recommendation.price_level,
+        recommendation_level=recommendation.recommendation_level,
+        is_active=recommendation.is_active,
+    )
+
+
+def ensure_spot_exists(db: Session, spot_id: int) -> None:
+    if db.get(ScenicSpot, spot_id) is None:
+        raise HTTPException(status_code=404, detail="Spot not found")
+
+
 def get_note(db: Session, note_id: int) -> TravelNote:
     note = db.scalar(
         select(TravelNote)
@@ -214,6 +240,7 @@ def create_travel_note(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> TravelNoteOut:
+    ensure_spot_exists(db, payload.spot_id)
     note = TravelNote(**payload.model_dump())
     db.add(note)
     db.commit()
@@ -229,7 +256,10 @@ def update_travel_note(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> TravelNoteOut:
     note = get_note(db, note_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "spot_id" in update_data and update_data["spot_id"] is not None:
+        ensure_spot_exists(db, update_data["spot_id"])
+    for field, value in update_data.items():
         setattr(note, field, value)
     db.add(note)
     db.commit()
@@ -293,6 +323,7 @@ def create_comment(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> UserCommentOut:
+    ensure_spot_exists(db, payload.spot_id)
     comment = UserComment(**payload.model_dump())
     db.add(comment)
     db.commit()
@@ -308,7 +339,10 @@ def update_comment(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> UserCommentOut:
     comment = get_comment(db, comment_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "spot_id" in update_data and update_data["spot_id"] is not None:
+        ensure_spot_exists(db, update_data["spot_id"])
+    for field, value in update_data.items():
         setattr(comment, field, value)
     db.add(comment)
     db.commit()
@@ -348,15 +382,23 @@ def list_recommendations(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[RecommendationOut]:
-    return paginated_scalars(
+    result = paginated_scalars(
         db,
-        select(LifestyleRecommendation).order_by(
+        select(LifestyleRecommendation)
+        .options(joinedload(LifestyleRecommendation.spot))
+        .order_by(
             LifestyleRecommendation.category.asc(),
             LifestyleRecommendation.recommendation_level.desc(),
             LifestyleRecommendation.id.desc(),
         ),
         page,
         page_size,
+    )
+    return build_page(
+        [recommendation_to_out(recommendation) for recommendation in result.items],
+        result.total,
+        result.page,
+        result.page_size,
     )
 
 
@@ -366,11 +408,17 @@ def create_recommendation(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> RecommendationOut:
+    ensure_spot_exists(db, payload.spot_id)
     recommendation = LifestyleRecommendation(**payload.model_dump())
     db.add(recommendation)
     db.commit()
-    db.refresh(recommendation)
-    return recommendation
+    return recommendation_to_out(
+        db.scalar(
+            select(LifestyleRecommendation)
+            .options(joinedload(LifestyleRecommendation.spot))
+            .where(LifestyleRecommendation.id == recommendation.id)
+        )
+    )
 
 
 @router.delete("/recommendations/{recommendation_id}", status_code=204)
@@ -396,9 +444,17 @@ def update_recommendation(
     recommendation = db.get(LifestyleRecommendation, recommendation_id)
     if recommendation is None:
         raise HTTPException(status_code=404, detail="Recommendation not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "spot_id" in update_data and update_data["spot_id"] is not None:
+        ensure_spot_exists(db, update_data["spot_id"])
+    for field, value in update_data.items():
         setattr(recommendation, field, value)
     db.add(recommendation)
     db.commit()
-    db.refresh(recommendation)
-    return recommendation
+    return recommendation_to_out(
+        db.scalar(
+            select(LifestyleRecommendation)
+            .options(joinedload(LifestyleRecommendation.spot))
+            .where(LifestyleRecommendation.id == recommendation_id)
+        )
+    )

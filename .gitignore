@@ -7,7 +7,10 @@ __pycache__/
 backend/.venv/
 backend/.env
 backend/*.db
-backend/app/static/uploads/spots/*
-!backend/app/static/uploads/spots/.gitkeep
+backend/app/static/uploads/*
+backend/app/static/uploads/**/*
+!backend/app/static/uploads/.gitkeep
+!backend/app/static/uploads/*/
+!backend/app/static/uploads/*/.gitkeep
 
 mysql_data/

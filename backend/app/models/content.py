@@ -34,7 +34,7 @@ class TravelNote(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     user = relationship("MiniProgramUser")
-    spot = relationship("ScenicSpot")
+    spot = relationship("ScenicSpot", back_populates="travel_notes")
 
 
 class UserComment(Base):
@@ -50,13 +50,14 @@ class UserComment(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     user = relationship("MiniProgramUser")
-    spot = relationship("ScenicSpot")
+    spot = relationship("ScenicSpot", back_populates="comments")
 
 
 class LifestyleRecommendation(Base):
     __tablename__ = "lifestyle_recommendations"
 
     id = Column(Integer, primary_key=True, index=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=True, index=True)
     category = Column(String(32), nullable=False, index=True)
     name_zh = Column(String(128), nullable=False)
     name_en = Column(String(128), nullable=False)
@@ -72,3 +73,5 @@ class LifestyleRecommendation(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    spot = relationship("ScenicSpot", back_populates="lifestyle_recommendations")

@@ -1,9 +1,11 @@
 from typing import Optional
 
 from app.core.config import settings
+from app.models.content import LifestyleRecommendation, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
+from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
 from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotDetailOut, TagAdminOut
-from app.services.geo import mask_coordinate
+from app.services.geo import can_unlock_spot, mask_coordinate
 from app.services.localization import choose_text, normalize_language
 
 
@@ -42,6 +44,7 @@ def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
         visibility_level=spot.visibility_level,
         review_status=spot.review_status,
         recommendation_level=spot.recommendation_level,
+        required_explore_points=spot.required_explore_points,
         checkin_radius_meters=spot.checkin_radius_meters,
         is_active=spot.is_active,
         tag_ids=[tag.id for tag in spot.tags],
@@ -54,8 +57,10 @@ def spot_to_map_out(
     lang: Optional[str] = None,
     user_level: int = 0,
     is_member: bool = False,
+    user_explore_points: int = 0,
 ) -> MapSpotOut:
     normalized_lang = normalize_language(lang, settings.default_language)
+    is_unlocked = can_unlock_spot(spot.required_explore_points, user_explore_points)
     coordinate = mask_coordinate(
         spot.latitude,
         spot.longitude,
@@ -73,6 +78,9 @@ def spot_to_map_out(
         latitude=coordinate.latitude,
         longitude=coordinate.longitude,
         visibility_level=spot.visibility_level,
+        required_explore_points=spot.required_explore_points,
+        user_explore_points=user_explore_points,
+        is_unlocked=is_unlocked,
         is_precise_location=coordinate.is_precise,
         recommendation_level=spot.recommendation_level,
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
@@ -84,11 +92,76 @@ def spot_to_detail_out(
     lang: Optional[str] = None,
     user_level: int = 0,
     is_member: bool = False,
+    user_explore_points: int = 0,
 ) -> SpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
-    base = spot_to_map_out(spot, normalized_lang, user_level, is_member)
+    base = spot_to_map_out(spot, normalized_lang, user_level, is_member, user_explore_points)
     return SpotDetailOut(
         **base.model_dump(),
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
+        travel_notes=[
+            travel_note_to_out(note)
+            for note in getattr(spot, "travel_notes", [])
+            if note.status == "approved"
+        ],
+        comments=[
+            comment_to_out(comment)
+            for comment in getattr(spot, "comments", [])
+            if comment.status == "approved"
+        ],
+        lifestyle_recommendations=[
+            recommendation_to_out(recommendation)
+            for recommendation in getattr(spot, "lifestyle_recommendations", [])
+            if recommendation.is_active
+        ],
+    )
+
+
+def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
+    return TravelNoteOut(
+        id=note.id,
+        user_id=note.user_id,
+        nickname=note.user.nickname,
+        spot_id=note.spot_id,
+        spot_name_zh=note.spot.name_zh if note.spot else None,
+        title=note.title,
+        content=note.content,
+        image_url=note.image_url,
+        status=note.status,
+        is_featured=note.is_featured,
+    )
+
+
+def comment_to_out(comment: UserComment) -> UserCommentOut:
+    return UserCommentOut(
+        id=comment.id,
+        user_id=comment.user_id,
+        nickname=comment.user.nickname,
+        spot_id=comment.spot_id,
+        spot_name_zh=comment.spot.name_zh if comment.spot else None,
+        content=comment.content,
+        image_url=comment.image_url,
+        status=comment.status,
+    )
+
+
+def recommendation_to_out(recommendation: LifestyleRecommendation) -> RecommendationOut:
+    return RecommendationOut(
+        id=recommendation.id,
+        spot_id=recommendation.spot_id,
+        spot_name_zh=recommendation.spot.name_zh if recommendation.spot else None,
+        category=recommendation.category,
+        name_zh=recommendation.name_zh,
+        name_en=recommendation.name_en,
+        summary_zh=recommendation.summary_zh,
+        summary_en=recommendation.summary_en,
+        city=recommendation.city,
+        county=recommendation.county,
+        address=recommendation.address,
+        contact=recommendation.contact,
+        image_url=recommendation.image_url,
+        price_level=recommendation.price_level,
+        recommendation_level=recommendation.recommendation_level,
+        is_active=recommendation.is_active,
     )

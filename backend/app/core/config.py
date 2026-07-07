@@ -23,6 +23,14 @@ class Settings:
     default_language: str = os.getenv("DEFAULT_LANGUAGE", "zh-CN")
     coordinate_mask_decimals: int = int(os.getenv("COORDINATE_MASK_DECIMALS", "2"))
 
+    qweather_api_host: str = os.getenv("QWEATHER_API_HOST", "").strip()
+    qweather_api_key: str = os.getenv("QWEATHER_API_KEY", "").strip()
+    qweather_key_id: str = os.getenv("QWEATHER_KEY_ID", "").strip()
+    qweather_project_id: str = os.getenv("QWEATHER_PROJECT_ID", "").strip()
+    qweather_private_key: str = os.getenv("QWEATHER_PRIVATE_KEY", "").replace("\\n", "\n").strip()
+    qweather_private_key_file: str = os.getenv("QWEATHER_PRIVATE_KEY_FILE", "").strip()
+    qweather_jwt_expire_seconds: int = int(os.getenv("QWEATHER_JWT_EXPIRE_SECONDS", "900"))
+
     cors_origins: list[str] = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "*").split(",")

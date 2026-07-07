@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260707-integrations" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -45,6 +45,7 @@
           <button class="nav-btn" data-section="checkinsSection">打卡审核</button>
           <button class="nav-btn" data-section="communitySection">游记留言</button>
           <button class="nav-btn" data-section="recommendationsSection">衣食住行</button>
+          <button class="nav-btn" data-section="integrationsSection">接口管理</button>
         </nav>
         <button id="logoutBtn" class="ghost-btn">退出登录</button>
       </aside>
@@ -58,6 +59,7 @@
           <div class="topbar-actions">
             <button id="langToggleBtn" class="secondary-btn">English</button>
             <button id="refreshBtn" class="secondary-btn">刷新</button>
+            <button id="accountSettingsBtn" class="secondary-btn">账号设置</button>
             <button id="newSpotBtn" class="primary-btn">新增秘境</button>
           </div>
         </header>
@@ -121,6 +123,8 @@
                   <th>坐标</th>
                   <th>标签</th>
                   <th>可见级别</th>
+                  <th>秘境等级</th>
+                  <th>解锁积分</th>
                   <th>审核</th>
                   <th>状态</th>
                   <th>操作</th>
@@ -160,7 +164,7 @@
           <div class="section-head">
             <div>
               <h2>用户管理</h2>
-              <p class="muted">管理小程序注册用户、会员状态、探索等级和环保信用。</p>
+              <p class="muted">管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。</p>
             </div>
             <button id="newUserBtn" class="primary-btn">新增用户</button>
           </div>
@@ -330,6 +334,7 @@
                   <th>分类</th>
                   <th>名称</th>
                   <th>图片</th>
+                  <th>秘境</th>
                   <th>地区</th>
                   <th>价格</th>
                   <th>推荐</th>
@@ -340,6 +345,16 @@
               <tbody id="recommendationsTable"></tbody>
             </table>
           </div>
+        </section>
+
+        <section id="integrationsSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>接口管理</h2>
+              <p class="muted">统一管理天气接口、大模型接口、河流洪水接口配置。敏感字段留空表示不修改。</p>
+            </div>
+          </div>
+          <div id="integrationsPanel" class="integration-grid"></div>
         </section>
       </section>
     </main>
@@ -379,7 +394,17 @@
               <option value="rejected">已拒绝</option>
             </select>
           </label>
-          <label><span>推荐等级</span><input name="recommendation_level" type="number" min="1" max="5" value="1" /></label>
+          <label>
+            <span>秘境等级</span>
+            <select name="recommendation_level">
+              <option value="1">L1 入门</option>
+              <option value="2">L2 轻探秘</option>
+              <option value="3">L3 深度</option>
+              <option value="4">L4 高阶</option>
+              <option value="5">L5 守护者</option>
+            </select>
+          </label>
+          <label><span>解锁积分</span><input name="required_explore_points" type="number" min="0" value="0" /></label>
           <label><span>打卡半径米</span><input name="checkin_radius_meters" type="number" min="50" value="300" /></label>
           <label class="full"><span>标签</span><div id="spotTagChecks" class="checks"></div></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
@@ -402,6 +427,25 @@
         </div>
         <footer>
           <button type="button" class="secondary-btn" data-close-dialog="spotDialog">取消</button>
+          <button type="submit" class="primary-btn">保存</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="accountSettingsDialog" class="dialog">
+      <form id="accountSettingsForm" method="dialog" class="dialog-body">
+        <header>
+          <h2>账号设置</h2>
+          <button type="button" class="icon-btn" data-close-dialog="accountSettingsDialog">×</button>
+        </header>
+        <div class="form-grid">
+          <label class="full"><span>用户名</span><input name="username" required minlength="3" maxlength="64" autocomplete="username" /></label>
+          <label class="full"><span>当前密码</span><input name="current_password" type="password" minlength="8" maxlength="128" autocomplete="current-password" /></label>
+          <label class="full"><span>新密码</span><input name="new_password" type="password" minlength="8" maxlength="128" autocomplete="new-password" /></label>
+          <p class="muted full">只修改用户名时可不填写密码；修改密码时必须填写当前密码和新密码。</p>
+        </div>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="accountSettingsDialog">取消</button>
           <button type="submit" class="primary-btn">保存</button>
         </footer>
       </form>
@@ -450,6 +494,7 @@
             </select>
           </label>
           <label><span>探索等级</span><input name="explorer_level" type="number" min="0" max="5" /></label>
+          <label><span>探秘积分</span><input name="explore_points" type="number" min="0" /></label>
           <label><span>打卡数</span><input name="checkin_count" type="number" min="0" /></label>
           <label><span>贡献数</span><input name="contribution_count" type="number" min="0" /></label>
           <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" /></label>
@@ -471,7 +516,7 @@
         </header>
         <div class="form-grid">
           <label><span>用户 ID</span><input name="user_id" type="number" min="1" required /></label>
-          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" /></label>
+          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" required /></label>
           <label class="full"><span>标题</span><input name="title" required maxlength="128" /></label>
           <label class="full"><span>内容</span><textarea name="content" rows="4" required></textarea></label>
           <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
@@ -505,7 +550,7 @@
         </header>
         <div class="form-grid">
           <label><span>用户 ID</span><input name="user_id" type="number" min="1" required /></label>
-          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" /></label>
+          <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" required /></label>
           <label class="full"><span>留言内容</span><textarea name="content" rows="3" required maxlength="512"></textarea></label>
           <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
           <div class="full upload-inline">
@@ -607,6 +652,10 @@
         </header>
         <div class="form-grid">
           <label>
+            <span>所属秘境</span>
+            <select name="spot_id" required></select>
+          </label>
+          <label>
             <span>分类</span>
             <select name="category">
               <option value="clothing">衣</option>
@@ -647,6 +696,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js"></script>
+    <script src="/admin/static/app.js?v=20260707-integrations"></script>
   </body>
 </html>

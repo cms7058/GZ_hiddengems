@@ -14,6 +14,7 @@ const state = {
   travelNotes: [],
   comments: [],
   recommendations: [],
+  integrations: [],
   currentSpotImages: [],
   pagination: {},
   editingSpotId: null,
@@ -47,9 +48,11 @@ const I18N = {
   "打卡审核": "Check-ins",
   "游记留言": "Notes & Comments",
   "衣食住行": "Lifestyle",
+  "接口管理": "Integrations",
   "退出登录": "Sign Out",
   "内容运营台": "Content Operations",
   "刷新": "Refresh",
+  "账号设置": "Account Settings",
   "新增秘境": "New Spot",
   "秘境总数": "Total Spots",
   "已审核": "Approved",
@@ -63,12 +66,19 @@ const I18N = {
   "推荐条目": "Recommendations",
   "维护中英文内容、坐标、标签、可见级别和审核状态。": "Maintain bilingual content, coordinates, tags, visibility levels, and review states.",
   "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
-  "管理小程序注册用户、会员状态、探索等级和环保信用。": "Manage registered users, membership status, explorer levels, and eco credit.",
+  "管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。": "Manage registered users, membership status, explorer levels, explore points, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
   "维护会员套餐、价格、周期、权益，并查看用户会员记录。": "Maintain membership plans, prices, periods, benefits, and user membership records.",
   "审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。": "Review GPS and image check-ins; approvals increase user check-in counts.",
   "审核用户游记和留言，支持推荐精选游记或隐藏违规内容。": "Review user notes and comments, feature good notes, or hide inappropriate content.",
   "维护装备、美食、住宿和交通推荐，为秘境探索提供配套信息。": "Maintain gear, food, lodging, and transport recommendations.",
+  "统一管理天气接口、大模型接口、河流洪水接口配置。敏感字段留空表示不修改。": "Manage weather, AI model, and flood API settings. Leave sensitive fields empty to keep existing values.",
+  "天气接口管理": "Weather API",
+  "大模型接口管理": "AI Model API",
+  "河流洪水接口管理": "Flood API",
+  "配置和风天气实时天气、气象预警接口。敏感字段列表中会脱敏显示。": "Configure QWeather live weather and warning APIs. Sensitive values are masked in lists.",
+  "配置智能小助手后续使用的大模型服务。": "Configure model service used by the AI assistant.",
+  "配置河流、水文、洪水预警数据接口。未配置时以人工提示和气象预警为兜底。": "Configure river, hydrology, and flood warning APIs. Weather alerts are used as fallback when unconfigured.",
   "新增标签": "New Tag",
   "新增用户": "New User",
   "新增游记": "New Note",
@@ -79,6 +89,8 @@ const I18N = {
   "坐标": "Coordinates",
   "标签": "Tags",
   "可见级别": "Visibility",
+  "秘境等级": "Spot Level",
+  "解锁积分": "Unlock Points",
   "审核": "Review",
   "打卡": "Check-ins",
   "贡献": "Contributions",
@@ -132,6 +144,12 @@ const I18N = {
   "已通过": "Approved",
   "已拒绝": "Rejected",
   "推荐等级": "Recommendation Level",
+  "L1 入门": "L1 Beginner",
+  "L2 轻探秘": "L2 Light",
+  "L3 深度": "L3 Deep",
+  "L4 高阶": "L4 Advanced",
+  "L5 守护者": "L5 Guardian",
+  "探秘积分": "Explore Points",
   "打卡半径米": "Check-in Radius (m)",
   "启用": "Active",
   "秘境图片": "Spot Images",
@@ -152,6 +170,7 @@ const I18N = {
   "所需打卡": "Required Check-ins",
   "所需贡献": "Required Contributions",
   "环保信用": "Eco Credit",
+  "所属秘境": "Linked Spot",
   "需要会员": "Requires Membership",
   "周期天数": "Duration Days",
   "价格分": "Price Cents",
@@ -228,6 +247,16 @@ const I18N = {
   "会员套餐已保存": "Membership plan saved",
   "打卡审核已保存": "Check-in review saved",
   "已刷新": "Refreshed",
+  "接口配置已保存": "Integration settings saved",
+  "已配置": "Configured",
+  "未配置": "Not configured",
+  "留空表示不修改": "Leave blank to keep unchanged",
+  "当前密码": "Current Password",
+  "新密码": "New Password",
+  "只修改用户名时可不填写密码；修改密码时必须填写当前密码和新密码。": "Leave password fields empty when only changing username. Current and new passwords are required when changing password.",
+  "账号设置已保存": "Account settings saved",
+  "两次密码不能相同": "New password must be different",
+  "请输入当前密码": "Enter current password",
 };
 
 const I18N_REVERSE = Object.fromEntries(Object.entries(I18N).map(([zh, en]) => [en, zh]));
@@ -278,6 +307,7 @@ function renderAll() {
   renderCheckins();
   renderCommunity();
   renderRecommendations();
+  renderIntegrations();
   applyLanguage();
 }
 
@@ -287,6 +317,10 @@ function showToast(message) {
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2400);
+}
+
+function renderAdminInfo() {
+  $("#adminInfo").textContent = state.admin ? `${state.admin.username} / ${state.admin.role}` : "-";
 }
 
 async function request(path, options = {}) {
@@ -332,6 +366,16 @@ function visibilityText(level) {
     protected: t("保护"),
     secret: t("守护者"),
   }[level] || level;
+}
+
+function spotLevelText(level) {
+  return {
+    1: t("L1 入门"),
+    2: t("L2 轻探秘"),
+    3: t("L3 深度"),
+    4: t("L4 高阶"),
+    5: t("L5 守护者"),
+  }[Number(level)] || `L${level}`;
 }
 
 function activePill(active) {
@@ -413,6 +457,8 @@ function renderSpots() {
           <td>${Number(spot.latitude).toFixed(4)}, ${Number(spot.longitude).toFixed(4)}</td>
           <td><div class="pill-row">${tags}</div></td>
           <td>${visibilityText(spot.visibility_level)}</td>
+          <td>${spotLevelText(spot.recommendation_level)}</td>
+          <td>${spot.required_explore_points || 0}</td>
           <td>${statusPill(spot.review_status)}</td>
           <td>${activePill(spot.is_active)}</td>
           <td>
@@ -448,6 +494,7 @@ function renderUsers() {
           <td>
             <div class="cell-title">
               <span>${t("打卡")} ${user.checkin_count} / ${t("贡献")} ${user.contribution_count}</span>
+              <span class="muted">${t("探秘积分")} ${user.explore_points || 0}</span>
               <span class="muted">${t("环保信用")} ${user.eco_credit}</span>
             </div>
           </td>
@@ -650,6 +697,7 @@ function renderRecommendations() {
             </div>
           </td>
           <td>${imageCell(item.image_url, item.name_zh)}</td>
+          <td>${escapeHtml(item.spot_name_zh || t("未设置"))}</td>
           <td>${escapeHtml(item.city)} / ${escapeHtml(item.county)}</td>
           <td>${escapeHtml(item.price_level)}</td>
           <td>${item.recommendation_level}</td>
@@ -665,6 +713,57 @@ function renderRecommendations() {
     )
     .join("");
   renderPagination("recommendationsTable", "recommendations");
+}
+
+function renderIntegrations() {
+  const panel = $("#integrationsPanel");
+  if (!panel) return;
+  panel.innerHTML = state.integrations
+    .map(
+      (group) => `
+        <form class="integration-card" data-integration-form="${group.group}">
+          <div class="section-head compact-head">
+            <div>
+              <h3>${escapeHtml(t(group.title_zh))}</h3>
+              <p class="muted">${escapeHtml(t(group.description_zh))}</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            ${group.settings.map((setting) => renderIntegrationField(setting)).join("")}
+          </div>
+          <footer>
+            <button type="submit" class="primary-btn">${t("保存")}</button>
+          </footer>
+        </form>
+      `,
+    )
+    .join("");
+}
+
+function renderIntegrationField(setting) {
+  const value = escapeHtml(setting.value || "");
+  const label = escapeHtml(state.lang === "en-US" ? setting.label_en : setting.label_zh);
+  const status = setting.is_configured ? t("已配置") : t("未配置");
+  const placeholder = setting.is_secret && setting.is_configured ? `${status}，${t("留空表示不修改")}` : "";
+  if (setting.input_type === "textarea") {
+    return `
+      <label class="full">
+        <span>${label} <small class="muted">${status}</small></span>
+        <textarea name="${setting.key}" rows="4" placeholder="${placeholder}">${setting.is_secret ? "" : value}</textarea>
+      </label>
+    `;
+  }
+  return `
+    <label class="${setting.key.includes("PRIVATE_KEY_FILE") || setting.key.includes("API_BASE") ? "full" : ""}">
+      <span>${label} <small class="muted">${status}</small></span>
+      <input
+        name="${setting.key}"
+        type="${setting.input_type === "password" ? "password" : setting.input_type}"
+        value="${setting.is_secret ? "" : value}"
+        placeholder="${placeholder}"
+      />
+    </label>
+  `;
 }
 
 function renderSpotImages() {
@@ -727,6 +826,18 @@ function renderTagChecks(selectedIds = []) {
     .join("");
 }
 
+function renderSpotOptions(select, selectedId = null) {
+  select.innerHTML = state.spots
+    .map(
+      (spot) => `
+        <option value="${spot.id}" ${Number(selectedId) === spot.id ? "selected" : ""}>
+          ${escapeHtml(spot.name_zh)}
+        </option>
+      `,
+    )
+    .join("");
+}
+
 async function loadData() {
   const [
     tags,
@@ -739,6 +850,7 @@ async function loadData() {
     travelNotes,
     comments,
     recommendations,
+    integrations,
   ] = await Promise.all([
     requestPage("tags", "/admin/tags"),
     requestPage("spots", "/admin/spots"),
@@ -750,6 +862,7 @@ async function loadData() {
     requestPage("travelNotes", "/admin/content/travel-notes"),
     requestPage("comments", "/admin/content/comments"),
     requestPage("recommendations", "/admin/content/recommendations"),
+    request("/admin/integrations"),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -761,6 +874,7 @@ async function loadData() {
   state.travelNotes = travelNotes;
   state.comments = comments;
   state.recommendations = recommendations;
+  state.integrations = integrations;
   renderAll();
 }
 
@@ -791,7 +905,7 @@ async function bootstrap() {
   }
   try {
     state.admin = await request("/admin/me");
-    $("#adminInfo").textContent = `${state.admin.username} / ${state.admin.role}`;
+    renderAdminInfo();
     setAuthenticated(true);
     await loadData();
     applyLanguage();
@@ -812,6 +926,14 @@ function getSelectedSpotTagIds() {
   return $$("#spotTagChecks input:checked").map((input) => Number(input.value));
 }
 
+function fillAccountSettingsForm() {
+  const form = $("#accountSettingsForm");
+  form.reset();
+  form.elements.username.value = state.admin?.username || "";
+  form.elements.current_password.value = "";
+  form.elements.new_password.value = "";
+}
+
 function fillSpotForm(spot = null) {
   const form = $("#spotForm");
   form.reset();
@@ -825,6 +947,7 @@ function fillSpotForm(spot = null) {
     form.elements.review_status.value = "draft";
     form.elements.visibility_level.value = "public";
     form.elements.recommendation_level.value = 1;
+    form.elements.required_explore_points.value = 0;
     form.elements.checkin_radius_meters.value = 300;
     form.elements.is_active.checked = true;
     return;
@@ -844,6 +967,7 @@ function fillSpotForm(spot = null) {
     "visibility_level",
     "review_status",
     "recommendation_level",
+    "required_explore_points",
     "checkin_radius_meters",
   ].forEach((field) => {
     form.elements[field].value = spot[field] ?? "";
@@ -875,6 +999,7 @@ function fillUserForm(user) {
   if (!user) {
     form.elements.language.value = "zh-CN";
     form.elements.explorer_level.value = 0;
+    form.elements.explore_points.value = 0;
     form.elements.checkin_count.value = 0;
     form.elements.contribution_count.value = 0;
     form.elements.eco_credit.value = 100;
@@ -889,6 +1014,7 @@ function fillUserForm(user) {
     "phone",
     "language",
     "explorer_level",
+    "explore_points",
     "checkin_count",
     "contribution_count",
     "eco_credit",
@@ -974,6 +1100,7 @@ function fillRecommendationForm(item = null) {
   form.reset();
   state.editingRecommendationId = item?.id || null;
   $("#recommendationDialogTitle").textContent = item ? `${t("编辑推荐")}：${item.name_zh}` : t("新增推荐");
+  renderSpotOptions(form.elements.spot_id, item?.spot_id || state.spots[0]?.id);
   if (!item) {
     form.elements.category.value = "food";
     form.elements.price_level.value = "mid";
@@ -982,6 +1109,7 @@ function fillRecommendationForm(item = null) {
     return;
   }
   [
+    "spot_id",
     "category",
     "name_zh",
     "name_en",
@@ -1050,7 +1178,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
     state.token = data.access_token;
     state.admin = data.admin;
     localStorage.setItem("gz_admin_token", state.token);
-    $("#adminInfo").textContent = `${state.admin.username} / ${state.admin.role}`;
+    renderAdminInfo();
     setAuthenticated(true);
     await loadData();
   } catch (error) {
@@ -1074,6 +1202,11 @@ $("#logoutBtn").addEventListener("click", () => {
 $("#refreshBtn").addEventListener("click", async () => {
   await loadData();
   showToast("已刷新");
+});
+
+$("#accountSettingsBtn").addEventListener("click", () => {
+  fillAccountSettingsForm();
+  $("#accountSettingsDialog").showModal();
 });
 
 $("#newSpotBtn").addEventListener("click", () => {
@@ -1135,6 +1268,32 @@ document.addEventListener("click", async (event) => {
   } else {
     await loadData();
   }
+});
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-integration-form]");
+  if (!form) return;
+  event.preventDefault();
+  const group = form.dataset.integrationForm;
+  const groupData = state.integrations.find((item) => item.group === group);
+  const formData = new FormData(form);
+  const settings = {};
+  (groupData?.settings || []).forEach((setting) => {
+    const value = formData.get(setting.key);
+    if (setting.is_secret && !value) {
+      settings[setting.key] = null;
+      return;
+    }
+    settings[setting.key] = String(value || "").trim();
+  });
+  const updated = await request(`/admin/integrations/${group}`, {
+    method: "PATCH",
+    body: JSON.stringify({ settings }),
+  });
+  state.integrations = state.integrations.map((item) => (item.group === group ? updated : item));
+  renderIntegrations();
+  applyLanguage($("#integrationsSection"));
+  showToast("接口配置已保存");
 });
 
 $("#spotsTable").addEventListener("click", async (event) => {
@@ -1358,6 +1517,34 @@ $("#spotImagesList").addEventListener("click", async (event) => {
   }
 });
 
+$("#accountSettingsForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = formToObject(form);
+  const payload = {
+    username: data.username.trim(),
+  };
+  if (data.new_password) {
+    if (!data.current_password) {
+      showToast("请输入当前密码");
+      return;
+    }
+    if (data.current_password === data.new_password) {
+      showToast("两次密码不能相同");
+      return;
+    }
+    payload.current_password = data.current_password;
+    payload.new_password = data.new_password;
+  }
+  state.admin = await request("/admin/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  renderAdminInfo();
+  $("#accountSettingsDialog").close();
+  showToast("账号设置已保存");
+});
+
 $("#spotForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1367,6 +1554,7 @@ $("#spotForm").addEventListener("submit", async (event) => {
     latitude: Number(data.latitude),
     longitude: Number(data.longitude),
     recommendation_level: Number(data.recommendation_level),
+    required_explore_points: Number(data.required_explore_points),
     checkin_radius_meters: Number(data.checkin_radius_meters),
     is_active: form.elements.is_active.checked,
     tag_ids: getSelectedSpotTagIds(),
@@ -1459,6 +1647,7 @@ $("#userForm").addEventListener("submit", async (event) => {
     phone: data.phone || null,
     language: data.language,
     explorer_level: Number(data.explorer_level),
+    explore_points: Number(data.explore_points),
     checkin_count: Number(data.checkin_count),
     contribution_count: Number(data.contribution_count),
     eco_credit: Number(data.eco_credit),
@@ -1482,7 +1671,7 @@ $("#travelNoteForm").addEventListener("submit", async (event) => {
   const data = formToObject(form);
   const payload = {
     user_id: Number(data.user_id),
-    spot_id: data.spot_id ? Number(data.spot_id) : null,
+    spot_id: Number(data.spot_id),
     title: data.title,
     content: data.content,
     image_url: data.image_url || null,
@@ -1505,7 +1694,7 @@ $("#commentForm").addEventListener("submit", async (event) => {
   const data = formToObject(form);
   const payload = {
     user_id: Number(data.user_id),
-    spot_id: data.spot_id ? Number(data.spot_id) : null,
+    spot_id: Number(data.spot_id),
     content: data.content,
     image_url: data.image_url || null,
     status: data.status,
@@ -1585,6 +1774,7 @@ $("#recommendationForm").addEventListener("submit", async (event) => {
   const form = event.currentTarget;
   const data = formToObject(form);
   const payload = {
+    spot_id: Number(data.spot_id),
     category: data.category,
     name_zh: data.name_zh,
     name_en: data.name_en,

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS scenic_spots (
     visibility_level VARCHAR(32) NOT NULL DEFAULT 'public',
     review_status VARCHAR(32) NOT NULL DEFAULT 'draft',
     recommendation_level INT NOT NULL DEFAULT 1,
+    required_explore_points INT NOT NULL DEFAULT 0,
     checkin_radius_meters INT NOT NULL DEFAULT 300,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -56,6 +57,22 @@ CREATE TABLE IF NOT EXISTS admin_users (
     KEY ix_admin_users_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS integration_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    `group` VARCHAR(32) NOT NULL,
+    `key` VARCHAR(96) NOT NULL,
+    value TEXT NULL,
+    label_zh VARCHAR(128) NOT NULL,
+    label_en VARCHAR(128) NOT NULL,
+    input_type VARCHAR(32) NOT NULL DEFAULT 'text',
+    is_secret BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_integration_group_key (`group`, `key`),
+    KEY ix_integration_settings_group (`group`),
+    KEY ix_integration_settings_key (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS mini_program_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     openid VARCHAR(128) NOT NULL,
@@ -64,6 +81,7 @@ CREATE TABLE IF NOT EXISTS mini_program_users (
     phone VARCHAR(32) NULL,
     language VARCHAR(16) NOT NULL DEFAULT 'zh-CN',
     explorer_level INT NOT NULL DEFAULT 0,
+    explore_points INT NOT NULL DEFAULT 0,
     checkin_count INT NOT NULL DEFAULT 0,
     contribution_count INT NOT NULL DEFAULT 0,
     eco_credit INT NOT NULL DEFAULT 100,
@@ -192,6 +210,7 @@ CREATE TABLE IF NOT EXISTS user_comments (
 
 CREATE TABLE IF NOT EXISTS lifestyle_recommendations (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    spot_id INT NULL,
     category VARCHAR(32) NOT NULL,
     name_zh VARCHAR(128) NOT NULL,
     name_en VARCHAR(128) NOT NULL,
@@ -208,8 +227,26 @@ CREATE TABLE IF NOT EXISTS lifestyle_recommendations (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     KEY ix_lifestyle_recommendations_category (category),
-    KEY ix_lifestyle_recommendations_active (is_active)
+    KEY ix_lifestyle_recommendations_active (is_active),
+    KEY ix_lifestyle_recommendations_spot (spot_id),
+    CONSTRAINT fk_lifestyle_recommendations_spot FOREIGN KEY (spot_id) REFERENCES scenic_spots(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO integration_settings (`group`, `key`, value, label_zh, label_en, input_type, is_secret, sort_order) VALUES
+    ('weather', 'QWEATHER_API_HOST', '', '和风天气 API Host', 'QWeather API Host', 'text', FALSE, 10),
+    ('weather', 'QWEATHER_PROJECT_ID', '', '和风项目 ID', 'QWeather Project ID', 'text', FALSE, 20),
+    ('weather', 'QWEATHER_KEY_ID', '', '和风凭据 ID', 'QWeather Key ID', 'text', FALSE, 30),
+    ('weather', 'QWEATHER_PRIVATE_KEY_FILE', '', 'Ed25519 私钥文件路径', 'Ed25519 Private Key File', 'text', FALSE, 40),
+    ('weather', 'QWEATHER_PRIVATE_KEY', '', 'Ed25519 私钥内容', 'Ed25519 Private Key', 'textarea', TRUE, 50),
+    ('weather', 'QWEATHER_API_KEY', '', '和风 API KEY', 'QWeather API Key', 'password', TRUE, 60),
+    ('weather', 'QWEATHER_JWT_EXPIRE_SECONDS', '900', 'JWT 有效期秒', 'JWT Expire Seconds', 'number', FALSE, 70),
+    ('ai', 'AI_PROVIDER', '', '大模型服务商', 'AI Provider', 'text', FALSE, 10),
+    ('ai', 'AI_API_BASE', '', '大模型 API 地址', 'AI API Base URL', 'text', FALSE, 20),
+    ('ai', 'AI_MODEL', '', '模型名称', 'Model Name', 'text', FALSE, 30),
+    ('ai', 'AI_API_KEY', '', '大模型 API KEY', 'AI API Key', 'password', TRUE, 40),
+    ('flood', 'FLOOD_API_PROVIDER', '', '洪水接口服务商', 'Flood API Provider', 'text', FALSE, 10),
+    ('flood', 'FLOOD_API_BASE', '', '洪水接口地址', 'Flood API Base URL', 'text', FALSE, 20),
+    ('flood', 'FLOOD_API_KEY', '', '洪水接口 API KEY', 'Flood API Key', 'password', TRUE, 30);
 
 INSERT INTO tags (id, name_zh, name_en, icon, sort_order, is_active) VALUES
     (1, '摄影', 'Photography', 'camera', 10, TRUE),
@@ -239,6 +276,7 @@ INSERT INTO scenic_spots (
     visibility_level,
     review_status,
     recommendation_level,
+    required_explore_points,
     checkin_radius_meters,
     is_active
 ) VALUES
@@ -257,6 +295,7 @@ INSERT INTO scenic_spots (
         'public',
         'approved',
         5,
+        0,
         300,
         TRUE
     ),
@@ -275,6 +314,7 @@ INSERT INTO scenic_spots (
         'protected',
         'approved',
         4,
+        120,
         500,
         TRUE
     )
@@ -295,17 +335,19 @@ INSERT INTO mini_program_users (
     phone,
     language,
     explorer_level,
+    explore_points,
     checkin_count,
     contribution_count,
     eco_credit,
     is_member,
     is_active
 ) VALUES
-    (1, 'demo-openid-001', '山野摄影师', '13800000001', 'zh-CN', 2, 8, 3, 96, TRUE, TRUE),
-    (2, 'demo-openid-002', 'HiddenGem Fan', NULL, 'en-US', 1, 2, 0, 100, FALSE, TRUE)
+    (1, 'demo-openid-001', '山野摄影师', '13800000001', 'zh-CN', 2, 180, 8, 3, 96, TRUE, TRUE),
+    (2, 'demo-openid-002', 'HiddenGem Fan', NULL, 'en-US', 1, 40, 2, 0, 100, FALSE, TRUE)
 ON DUPLICATE KEY UPDATE
     nickname = VALUES(nickname),
     explorer_level = VALUES(explorer_level),
+    explore_points = VALUES(explore_points),
     is_active = VALUES(is_active);
 
 INSERT INTO pass_level_settings (
@@ -385,6 +427,7 @@ INSERT IGNORE INTO user_comments (id, user_id, spot_id, content, image_url, stat
 
 INSERT IGNORE INTO lifestyle_recommendations (
     id,
+    spot_id,
     category,
     name_zh,
     name_en,
@@ -399,7 +442,7 @@ INSERT IGNORE INTO lifestyle_recommendations (
     recommendation_level,
     is_active
 ) VALUES
-    (1, 'clothing', '山地速干防滑装备', 'Mountain Quick-Dry Gear', '适合梯田、瀑布和雨后徒步场景，建议搭配防滑鞋。', 'For terraces, waterfalls, and wet trails. Anti-slip shoes are recommended.', '黔东南州', '从江县', NULL, NULL, '/media/recommendations/demo-gear.jpg', 'mid', 4, TRUE),
-    (2, 'food', '从江酸汤鱼本地小馆', 'Congjiang Sour Soup Fish', '适合加榜梯田返程用餐，口味偏酸辣。', 'A sour and spicy local meal after visiting Jiabang terraces.', '黔东南州', '从江县', '从江县城区', NULL, '/media/recommendations/demo-food.jpg', 'mid', 4, TRUE),
-    (3, 'hotel', '梯田观景民宿', 'Terrace View Homestay', '靠近观景点，适合日出摄影用户。', 'Near the viewpoint and suitable for sunrise photographers.', '黔东南州', '从江县', NULL, NULL, NULL, 'mid', 3, TRUE),
-    (4, 'transport', '从江包车向导', 'Congjiang Local Driver Guide', '适合山路不熟的新用户，建议提前一天预约。', 'Useful for first-time visitors unfamiliar with mountain roads. Book one day ahead.', '黔东南州', '从江县', NULL, '提前预约', NULL, 'high', 4, TRUE);
+    (1, 1, 'clothing', '山地速干防滑装备', 'Mountain Quick-Dry Gear', '适合梯田、瀑布和雨后徒步场景，建议搭配防滑鞋。', 'For terraces, waterfalls, and wet trails. Anti-slip shoes are recommended.', '黔东南州', '从江县', NULL, NULL, '/media/recommendations/demo-gear.jpg', 'mid', 4, TRUE),
+    (2, 1, 'food', '从江酸汤鱼本地小馆', 'Congjiang Sour Soup Fish', '适合加榜梯田返程用餐，口味偏酸辣。', 'A sour and spicy local meal after visiting Jiabang terraces.', '黔东南州', '从江县', '从江县城区', NULL, '/media/recommendations/demo-food.jpg', 'mid', 4, TRUE),
+    (3, 1, 'hotel', '梯田观景民宿', 'Terrace View Homestay', '靠近观景点，适合日出摄影用户。', 'Near the viewpoint and suitable for sunrise photographers.', '黔东南州', '从江县', NULL, NULL, NULL, 'mid', 3, TRUE),
+    (4, 1, 'transport', '从江包车向导', 'Congjiang Local Driver Guide', '适合山路不熟的新用户，建议提前一天预约。', 'Useful for first-time visitors unfamiliar with mountain roads. Book one day ahead.', '黔东南州', '从江县', NULL, '提前预约', NULL, 'high', 4, TRUE);

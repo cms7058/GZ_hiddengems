@@ -42,9 +42,13 @@ class ScenicSpot(Base):
     visibility_level = Column(String(32), default="public", nullable=False)
     review_status = Column(String(32), default="draft", nullable=False)
     recommendation_level = Column(Integer, default=1, nullable=False)
+    required_explore_points = Column(Integer, default=0, nullable=False)
     checkin_radius_meters = Column(Integer, default=300, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     tags = relationship("Tag", secondary="spot_tags", back_populates="spots")
+    travel_notes = relationship("TravelNote", back_populates="spot")
+    comments = relationship("UserComment", back_populates="spot")
+    lifestyle_recommendations = relationship("LifestyleRecommendation", back_populates="spot")

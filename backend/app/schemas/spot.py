@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
+
 
 class LocalizedTag(BaseModel):
     id: int
@@ -45,7 +47,8 @@ class SpotCreate(BaseModel):
     longitude: float
     visibility_level: str = "public"
     review_status: str = "draft"
-    recommendation_level: int = 1
+    recommendation_level: int = Field(default=1, ge=1, le=5)
+    required_explore_points: int = Field(default=0, ge=0)
     checkin_radius_meters: int = 300
     is_active: bool = True
     tag_ids: list[int] = Field(default_factory=list)
@@ -64,7 +67,8 @@ class SpotUpdate(BaseModel):
     longitude: Optional[float] = None
     visibility_level: Optional[str] = None
     review_status: Optional[str] = None
-    recommendation_level: Optional[int] = None
+    recommendation_level: Optional[int] = Field(default=None, ge=1, le=5)
+    required_explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_radius_meters: Optional[int] = None
     is_active: Optional[bool] = None
     tag_ids: Optional[list[int]] = None
@@ -91,6 +95,9 @@ class MapSpotOut(BaseModel):
     latitude: float
     longitude: float
     visibility_level: str
+    required_explore_points: int
+    user_explore_points: int = 0
+    is_unlocked: bool
     is_precise_location: bool
     recommendation_level: int
     tags: list[LocalizedTag]
@@ -99,3 +106,6 @@ class MapSpotOut(BaseModel):
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
+    travel_notes: list[TravelNoteOut] = Field(default_factory=list)
+    comments: list[UserCommentOut] = Field(default_factory=list)
+    lifestyle_recommendations: list[RecommendationOut] = Field(default_factory=list)

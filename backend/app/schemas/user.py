@@ -10,6 +10,7 @@ class MiniProgramUserUpdate(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=32)
     language: Optional[str] = Field(default=None, max_length=16)
     explorer_level: Optional[int] = Field(default=None, ge=0, le=5)
+    explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: Optional[int] = Field(default=None, ge=0)
     contribution_count: Optional[int] = Field(default=None, ge=0)
     eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
@@ -24,6 +25,7 @@ class MiniProgramUserCreate(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=32)
     language: str = Field(default="zh-CN", max_length=16)
     explorer_level: int = Field(default=0, ge=0, le=5)
+    explore_points: int = Field(default=0, ge=0)
     checkin_count: int = Field(default=0, ge=0)
     contribution_count: int = Field(default=0, ge=0)
     eco_credit: int = Field(default=100, ge=0, le=100)
@@ -39,6 +41,7 @@ class MiniProgramUserOut(BaseModel):
     phone: Optional[str] = None
     language: str
     explorer_level: int
+    explore_points: int
     checkin_count: int
     contribution_count: int
     eco_credit: int
@@ -116,6 +119,15 @@ class UserMembershipOut(BaseModel):
 class CheckinReviewUpdate(BaseModel):
     status: str = Field(..., pattern="^(pending|approved|rejected)$")
     review_note: Optional[str] = Field(default=None, max_length=512)
+
+
+class CheckinCreate(BaseModel):
+    user_id: int
+    spot_id: int
+    latitude: Optional[str] = Field(default=None, max_length=32)
+    longitude: Optional[str] = Field(default=None, max_length=32)
+    image_url: Optional[str] = Field(default=None, max_length=512)
+    note: Optional[str] = Field(default=None, max_length=512)
 
 
 class CheckinRecordOut(BaseModel):

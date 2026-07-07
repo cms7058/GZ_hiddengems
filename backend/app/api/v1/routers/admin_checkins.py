@@ -14,6 +14,7 @@ from app.services.pagination import build_page, paginated_scalars
 
 
 router = APIRouter()
+CHECKIN_EXPLORE_POINTS = 20
 
 
 def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
@@ -77,8 +78,10 @@ def review_checkin(
 
     if payload.status == "approved" and not was_approved:
         record.user.checkin_count += 1
+        record.user.explore_points += CHECKIN_EXPLORE_POINTS
     if payload.status != "approved" and was_approved and record.user.checkin_count > 0:
         record.user.checkin_count -= 1
+        record.user.explore_points = max(record.user.explore_points - CHECKIN_EXPLORE_POINTS, 0)
 
     db.add(record)
     db.commit()

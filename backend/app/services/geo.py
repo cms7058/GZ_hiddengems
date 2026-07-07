@@ -30,6 +30,10 @@ def can_view_precise_location(
     return False
 
 
+def can_unlock_spot(required_explore_points: int = 0, user_explore_points: int = 0) -> bool:
+    return user_explore_points >= required_explore_points
+
+
 def mask_coordinate(
     latitude: float,
     longitude: float,

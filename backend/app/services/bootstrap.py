@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import (
     CheckinRecord,
@@ -19,6 +20,7 @@ from app.models.user import (
     UserMembership,
 )
 from app.services.security import hash_password
+from app.services.integrations import seed_integration_settings
 
 
 def wait_for_database(max_attempts: int = 30, delay_seconds: int = 2) -> None:
@@ -43,8 +45,15 @@ def ensure_runtime_columns() -> None:
     column_specs = {
         "travel_notes": {"image_url": "VARCHAR(512) NULL"},
         "user_comments": {"image_url": "VARCHAR(512) NULL"},
-        "lifestyle_recommendations": {"image_url": "VARCHAR(512) NULL"},
-        "mini_program_users": {"avatar_url": "VARCHAR(512) NULL"},
+        "lifestyle_recommendations": {
+            "image_url": "VARCHAR(512) NULL",
+            "spot_id": "INT NULL",
+        },
+        "mini_program_users": {
+            "avatar_url": "VARCHAR(512) NULL",
+            "explore_points": "INT NOT NULL DEFAULT 0",
+        },
+        "scenic_spots": {"required_explore_points": "INT NOT NULL DEFAULT 0"},
     }
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())
@@ -56,6 +65,10 @@ def ensure_runtime_columns() -> None:
             for column_name, column_type in specs.items():
                 if column_name not in existing_columns:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
+        if "lifestyle_recommendations" in table_names:
+            connection.execute(
+                text("UPDATE lifestyle_recommendations SET spot_id = 1 WHERE spot_id IS NULL")
+            )
 
 
 def seed_initial_data() -> None:
@@ -67,6 +80,7 @@ def seed_initial_data() -> None:
         seed_memberships(db)
         seed_checkins(db)
         seed_content(db)
+        seed_integration_settings(db)
         db.commit()
 
 
@@ -113,6 +127,7 @@ def seed_tags_and_spots(db: Session) -> None:
         visibility_level="public",
         review_status="approved",
         recommendation_level=5,
+        required_explore_points=0,
         checkin_radius_meters=300,
         tags=[photo, easy],
     )
@@ -131,6 +146,7 @@ def seed_tags_and_spots(db: Session) -> None:
         visibility_level="protected",
         review_status="approved",
         recommendation_level=4,
+        required_explore_points=120,
         checkin_radius_meters=500,
         tags=[hiking, camping],
     )
@@ -150,6 +166,7 @@ def seed_users(db: Session) -> None:
                 phone="13800000001",
                 language="zh-CN",
                 explorer_level=2,
+                explore_points=180,
                 checkin_count=8,
                 contribution_count=3,
                 eco_credit=96,
@@ -160,6 +177,7 @@ def seed_users(db: Session) -> None:
                 nickname="HiddenGem Fan",
                 language="en-US",
                 explorer_level=1,
+                explore_points=40,
                 checkin_count=2,
                 contribution_count=0,
                 eco_credit=100,
@@ -364,6 +382,7 @@ def seed_content(db: Session) -> None:
     db.add_all(
         [
             LifestyleRecommendation(
+                spot_id=1,
                 category="clothing",
                 name_zh="山地速干防滑装备",
                 name_en="Mountain Quick-Dry Gear",
@@ -376,6 +395,7 @@ def seed_content(db: Session) -> None:
                 image_url="/media/recommendations/demo-gear.jpg",
             ),
             LifestyleRecommendation(
+                spot_id=1,
                 category="food",
                 name_zh="从江酸汤鱼本地小馆",
                 name_en="Congjiang Sour Soup Fish",
@@ -389,6 +409,7 @@ def seed_content(db: Session) -> None:
                 image_url="/media/recommendations/demo-food.jpg",
             ),
             LifestyleRecommendation(
+                spot_id=1,
                 category="hotel",
                 name_zh="梯田观景民宿",
                 name_en="Terrace View Homestay",
@@ -400,6 +421,7 @@ def seed_content(db: Session) -> None:
                 recommendation_level=3,
             ),
             LifestyleRecommendation(
+                spot_id=1,
                 category="transport",
                 name_zh="从江包车向导",
                 name_en="Congjiang Local Driver Guide",
