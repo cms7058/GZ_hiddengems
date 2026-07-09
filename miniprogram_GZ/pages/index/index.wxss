@@ -41,32 +41,35 @@ page {
 .map-controls {
   position: absolute;
   right: 24rpx;
-  bottom: 24rpx;
+  top: 24rpx;
   z-index: 3;
+  width: 218rpx;
   display: flex;
-  flex-direction: column;
-  gap: 10rpx;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 8rpx;
 }
 
 .map-control {
-  width: 72rpx;
-  height: 72rpx;
+  width: 54rpx;
+  height: 54rpx;
+  margin: 0;
   padding: 0;
   border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.6);
   color: #193127;
-  font-size: 36rpx;
+  font-size: 28rpx;
   font-weight: 800;
-  line-height: 72rpx;
-  box-shadow: 0 8rpx 24rpx rgba(25, 49, 39, 0.18);
-}
-
-.map-control::after {
-  border: 0;
+  box-shadow: 0 6rpx 18rpx rgba(25, 49, 39, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .map-control.text {
-  font-size: 22rpx;
+  width: 104rpx;
+  font-size: 20rpx;
   font-weight: 700;
 }
 
