@@ -1,0 +1,57 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/spot-detail/spot-detail",
+    "pages/user/user",
+    "pages/assistant/assistant"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom",
+    "backgroundColor": "#f4f1e8",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#6f766f",
+    "selectedColor": "#1f5f45",
+    "backgroundColor": "#fbfaf5",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "text": "用户"
+      },
+      {
+        "pagePath": "pages/assistant/assistant",
+        "text": "智能小助手"
+      }
+    ]
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在夜郎秘境地图中展示你与秘境点位的大致距离"
+    },
+    "scope.camera": {
+      "desc": "用于拍摄秘境打卡图片或视频"
+    }
+  },
+  "style": "v2",
+  "renderer": "skyline",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "defaultContentBox": true,
+      "tagNameStyleIsolation": "legacy",
+      "disableABTest": true,
+      "sdkVersionBegin": "3.0.0",
+      "sdkVersionEnd": "15.255.255"
+    }
+  },
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

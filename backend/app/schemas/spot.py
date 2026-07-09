@@ -45,6 +45,9 @@ class SpotCreate(BaseModel):
     county: str = Field(..., max_length=64)
     latitude: float
     longitude: float
+    river_name: Optional[str] = Field(default=None, max_length=128)
+    river_upstream_latitude: Optional[float] = None
+    river_upstream_longitude: Optional[float] = None
     visibility_level: str = "public"
     review_status: str = "draft"
     recommendation_level: int = Field(default=1, ge=1, le=5)
@@ -65,6 +68,9 @@ class SpotUpdate(BaseModel):
     county: Optional[str] = Field(default=None, max_length=64)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    river_name: Optional[str] = Field(default=None, max_length=128)
+    river_upstream_latitude: Optional[float] = None
+    river_upstream_longitude: Optional[float] = None
     visibility_level: Optional[str] = None
     review_status: Optional[str] = None
     recommendation_level: Optional[int] = Field(default=None, ge=1, le=5)

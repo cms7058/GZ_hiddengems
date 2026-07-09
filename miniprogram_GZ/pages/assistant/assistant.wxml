@@ -1,0 +1,18 @@
+<view class="page">
+  <navigation-bar title="{{copy.title}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+
+  <view class="hero">
+    <text class="eyebrow">AI EXPLORER</text>
+    <text class="headline">{{copy.headline}}</text>
+    <text class="subtitle">{{copy.subtitle}}</text>
+  </view>
+
+  <view class="chat-card">
+    <view class="bubble assistant">{{copy.message}}</view>
+  </view>
+
+  <view class="composer">
+    <input placeholder="{{copy.input}}" disabled />
+    <button bindtap="onSendTap">{{copy.send}}</button>
+  </view>
+</view>

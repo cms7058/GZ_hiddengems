@@ -53,7 +53,16 @@ def ensure_runtime_columns() -> None:
             "avatar_url": "VARCHAR(512) NULL",
             "explore_points": "INT NOT NULL DEFAULT 0",
         },
-        "scenic_spots": {"required_explore_points": "INT NOT NULL DEFAULT 0"},
+        "checkin_records": {
+            "media_url": "VARCHAR(512) NULL",
+            "media_type": "VARCHAR(32) NULL",
+        },
+        "scenic_spots": {
+            "required_explore_points": "INT NOT NULL DEFAULT 0",
+            "river_name": "VARCHAR(128) NULL",
+            "river_upstream_latitude": "DOUBLE NULL",
+            "river_upstream_longitude": "DOUBLE NULL",
+        },
     }
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())

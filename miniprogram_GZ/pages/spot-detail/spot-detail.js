@@ -1,0 +1,517 @@
+const { request, uploadMedia } = require("../../utils/request")
+
+const app = getApp()
+
+const COPY = {
+  "zh-CN": {
+    navTitle: "秘境详情",
+    points: "探秘积分",
+    unlockNeed: "解锁积分",
+    users: "互动用户",
+    notes: "游记",
+    comments: "留言",
+    recommendations: "衣食住行",
+    description: "秘境介绍",
+    location: "位置",
+    tags: "标签",
+    emptyRecommendations: "暂无衣食住行推荐",
+    emptyNotes: "暂无游记",
+    emptyComments: "暂无留言",
+    loading: "加载中",
+    loadFailed: "详情加载失败",
+    fallbackNotice: "后台详情暂不可用，当前显示基础信息",
+    locked: "积分不足，暂未解锁",
+    featured: "精选",
+    address: "地址",
+    contact: "联系方式",
+    clothing: "衣",
+    food: "食",
+    hotel: "住",
+    transport: "行",
+    safety: "实时安全信息",
+    weather: "天气",
+    alerts: "预警",
+    riverRisk: "河流风险",
+    upstreamWeather: "上游天气",
+    upstreamAlerts: "上游预警",
+    safetyNotConfigured: "实时天气暂未接入",
+    noAlerts: "暂无生效预警",
+    noUpstreamAlerts: "暂无上游生效预警",
+    dataSource: "数据来源",
+    actions: "互动提交",
+    checkin: "提交打卡",
+    currentLocation: "我的实时位置",
+    chooseMedia: "上传图片/视频",
+    mediaReady: "素材已上传",
+    mediaEmpty: "可选择图片或视频后再打卡",
+    noteTitle: "游记标题",
+    noteContent: "游记内容",
+    commentContent: "留言内容",
+    submitNote: "发布游记",
+    submitComment: "提交留言",
+    checkinPlaceholder: "记录你到达这里的情况",
+    noteTitlePlaceholder: "给这次探索起个标题",
+    noteContentPlaceholder: "分享路线、天气、体验和注意事项",
+    commentPlaceholder: "写下你的补充或提醒",
+    submitted: "已提交，等待后台审核",
+    submitFailed: "提交失败，请稍后重试",
+    locationFailed: "定位失败，请检查定位权限",
+    uploadFailed: "上传失败，请稍后重试",
+  },
+  "en-US": {
+    navTitle: "Gem Detail",
+    points: "Explore Points",
+    unlockNeed: "Required",
+    users: "Users",
+    notes: "Notes",
+    comments: "Comments",
+    recommendations: "Local Picks",
+    description: "About",
+    location: "Location",
+    tags: "Tags",
+    emptyRecommendations: "No local picks yet",
+    emptyNotes: "No travel notes yet",
+    emptyComments: "No comments yet",
+    loading: "Loading",
+    loadFailed: "Failed to load detail",
+    fallbackNotice: "Detail service unavailable. Showing basic info",
+    locked: "Not enough points to unlock",
+    featured: "Featured",
+    address: "Address",
+    contact: "Contact",
+    clothing: "Clothing",
+    food: "Food",
+    hotel: "Stay",
+    transport: "Transport",
+    safety: "Live Safety",
+    weather: "Weather",
+    alerts: "Alerts",
+    riverRisk: "River Risk",
+    upstreamWeather: "Upstream Weather",
+    upstreamAlerts: "Upstream Alerts",
+    safetyNotConfigured: "Live weather not configured",
+    noAlerts: "No active alerts",
+    noUpstreamAlerts: "No active upstream alerts",
+    dataSource: "Source",
+    actions: "Submit",
+    checkin: "Check In",
+    currentLocation: "My Live Location",
+    chooseMedia: "Upload Photo/Video",
+    mediaReady: "Media uploaded",
+    mediaEmpty: "Choose photo or video before check-in",
+    noteTitle: "Note Title",
+    noteContent: "Travel Note",
+    commentContent: "Comment",
+    submitNote: "Publish Note",
+    submitComment: "Submit Comment",
+    checkinPlaceholder: "Record your arrival or field note",
+    noteTitlePlaceholder: "Title your exploration",
+    noteContentPlaceholder: "Share route, weather, experience, and cautions",
+    commentPlaceholder: "Add a tip or reminder",
+    submitted: "Submitted for review",
+    submitFailed: "Submit failed. Try again later",
+    locationFailed: "Location failed. Check permission",
+    uploadFailed: "Upload failed. Try again later",
+  },
+}
+
+const CATEGORY_ORDER = ["clothing", "food", "hotel", "transport"]
+
+Page({
+  data: {
+    id: 0,
+    lang: "zh-CN",
+    copy: COPY["zh-CN"],
+    user: app.globalData.user,
+    spot: null,
+    markers: [],
+    userLocation: null,
+    groupedRecommendations: [],
+    safety: null,
+    userCount: 0,
+    loading: true,
+    error: "",
+    fallbackMode: false,
+    checkinNote: "",
+    checkinMedia: null,
+    noteForm: {
+      title: "",
+      content: "",
+    },
+    commentForm: {
+      content: "",
+    },
+    submitting: false,
+  },
+
+  onLoad(options) {
+    this.handleLocationChange = (location) => this.updateUserLocation(location)
+    const id = Number(options.id || 0)
+    this.setData({ id })
+    this.refreshCopy()
+    this.loadDetail()
+    this.tryShowUserLocation()
+  },
+
+  onUnload() {
+    if (this.handleLocationChange && wx.offLocationChange) {
+      wx.offLocationChange(this.handleLocationChange)
+    }
+  },
+
+  onPullDownRefresh() {
+    this.loadDetail().finally(() => wx.stopPullDownRefresh())
+  },
+
+  refreshCopy() {
+    const lang = app.globalData.lang || "zh-CN"
+    this.setData({
+      lang,
+      copy: COPY[lang],
+      user: app.globalData.user,
+    })
+  },
+
+  buildDetailPath() {
+    const { user } = this.data
+    const params = [
+      `lang=${this.data.lang}`,
+      `user_id=${user.id}`,
+      `explore_points=${user.explore_points}`,
+      `user_level=${user.explorer_level}`,
+      `is_member=${user.is_member ? "true" : "false"}`,
+    ]
+    return `/spots/${this.data.id}?${params.join("&")}`
+  },
+
+  async loadDetail() {
+    if (!this.data.id) return
+    this.setData({ loading: true, error: "" })
+    try {
+      const spot = await request(this.buildDetailPath())
+      this.setData({
+        spot: this.normalizeSpot(spot),
+        markers: this.buildMarkers(spot),
+        groupedRecommendations: this.groupRecommendations(spot.lifestyle_recommendations || []),
+        userCount: this.countUsers(spot),
+        loading: false,
+        fallbackMode: false,
+      })
+      this.loadSafety()
+    } catch (error) {
+      const fallbackSpot = app.globalData.currentSpot
+      if (fallbackSpot && Number(fallbackSpot.id) === this.data.id) {
+        const spot = this.normalizeSpot(fallbackSpot)
+        this.setData({
+          spot,
+          markers: this.buildMarkers(spot),
+          groupedRecommendations: [],
+          userCount: 0,
+          loading: false,
+          fallbackMode: true,
+          error: "",
+        })
+        return
+      }
+      this.setData({
+        loading: false,
+        error: error.message || this.data.copy.loadFailed,
+      })
+      wx.showToast({
+        title: this.data.copy.loadFailed,
+        icon: "none",
+      })
+    }
+  },
+
+  async loadSafety() {
+    try {
+      const safety = await request(`/spots/${this.data.id}/safety?lang=${this.data.lang}`)
+      this.setData({ safety: this.normalizeSafety(safety) })
+    } catch (error) {
+      console.warn("load safety failed", error)
+      this.setData({ safety: null })
+    }
+  },
+
+  normalizeSafety(safety) {
+    const weather = safety.weather || {}
+    const upstream = safety.river_warning?.upstream_weather?.weather || {}
+    const upstreamLocation = safety.river_warning?.upstream_location
+    const upstreamLocationText = upstreamLocation
+      ? `${Number(upstreamLocation.latitude).toFixed(4)}, ${Number(upstreamLocation.longitude).toFixed(4)}`
+      : ""
+    return {
+      ...safety,
+      weatherText: weather.text ? `${weather.text} ${weather.temp || "-"}°C` : this.data.copy.safetyNotConfigured,
+      weatherMeta: weather.obsTime ? `${weather.windDir || ""} ${weather.windScale || ""}级 · ${weather.humidity || "-"}% · ${weather.obsTime}` : "",
+      upstreamWeatherText: upstream.text ? `${upstream.text} ${upstream.temp || "-"}°C` : "",
+      upstreamWeatherMeta: upstream.obsTime ? `${upstream.windDir || ""} ${upstream.windScale || ""}级 · ${upstream.humidity || "-"}% · ${upstream.obsTime}${upstreamLocationText ? ` · ${upstreamLocationText}` : ""}` : upstreamLocationText,
+      alerts: safety.alerts || [],
+      upstreamAlerts: safety.river_warning?.upstream_alerts || [],
+      riverLevelText: this.riverLevelText(safety.river_warning?.level),
+    }
+  },
+
+  riverLevelText(level) {
+    const labels = {
+      high: this.data.lang === "en-US" ? "High" : "高",
+      medium: this.data.lang === "en-US" ? "Medium" : "中",
+      low: this.data.lang === "en-US" ? "Low" : "低",
+      unknown: this.data.lang === "en-US" ? "Unknown" : "未知",
+    }
+    return labels[level] || labels.unknown
+  },
+
+  normalizeSpot(spot) {
+    return {
+      ...spot,
+      required_explore_points: spot.required_explore_points || 0,
+      user_explore_points: spot.user_explore_points || this.data.user.explore_points || 0,
+      is_unlocked: spot.is_unlocked !== false,
+      tags: spot.tags || [],
+      travel_notes: spot.travel_notes || [],
+      comments: spot.comments || [],
+      lifestyle_recommendations: spot.lifestyle_recommendations || [],
+    }
+  },
+
+  buildMarkers(spot) {
+    const markers = [
+      {
+        id: spot.id,
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        width: 32,
+        height: 32,
+        callout: {
+          content: spot.name,
+          display: "ALWAYS",
+          fontSize: 13,
+          borderRadius: 8,
+          padding: 8,
+          bgColor: "#e7f3e8",
+          color: "#193127",
+        },
+      },
+    ]
+    if (this.data.userLocation) {
+      markers.push({
+        id: 999999,
+        latitude: this.data.userLocation.latitude,
+        longitude: this.data.userLocation.longitude,
+        width: 26,
+        height: 26,
+        callout: {
+          content: this.data.copy.currentLocation,
+          display: "ALWAYS",
+          fontSize: 12,
+          borderRadius: 8,
+          padding: 8,
+          bgColor: "#1f5f45",
+          color: "#ffffff",
+        },
+      })
+    }
+    return markers
+  },
+
+  countUsers(spot) {
+    const ids = {}
+    ;(spot.travel_notes || []).forEach((item) => {
+      ids[item.user_id] = true
+    })
+    ;(spot.comments || []).forEach((item) => {
+      ids[item.user_id] = true
+    })
+    return Object.keys(ids).length
+  },
+
+  groupRecommendations(recommendations) {
+    const copy = this.data.copy
+    return CATEGORY_ORDER.map((category) => ({
+      category,
+      label: copy[category],
+      items: recommendations.filter((item) => item.category === category).map((item) => ({
+        ...item,
+        displayName: this.data.lang === "en-US" ? item.name_en : item.name_zh,
+        displaySummary: this.data.lang === "en-US" ? item.summary_en : item.summary_zh,
+      })),
+    })).filter((group) => group.items.length)
+  },
+
+  onLanguageTap() {
+    app.globalData.lang = this.data.lang === "zh-CN" ? "en-US" : "zh-CN"
+    this.refreshCopy()
+    this.loadDetail()
+  },
+
+  onCheckinNoteInput(event) {
+    this.setData({ checkinNote: event.detail.value })
+  },
+
+  async tryShowUserLocation() {
+    try {
+      const location = await this.getLocation()
+      this.updateUserLocation(location)
+      this.startLocationWatch()
+    } catch (error) {
+      console.warn("detail location skipped", error)
+    }
+  },
+
+  updateUserLocation(location) {
+    this.setData({
+      userLocation: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+    })
+    if (this.data.spot) {
+      this.setData({ markers: this.buildMarkers(this.data.spot) })
+    }
+  },
+
+  startLocationWatch() {
+    if (!wx.startLocationUpdate || !wx.onLocationChange || this.locationWatcherStarted) return
+    wx.startLocationUpdate({
+      type: "gcj02",
+      success: () => {
+        this.locationWatcherStarted = true
+        wx.onLocationChange(this.handleLocationChange)
+      },
+    })
+  },
+
+  async onChooseCheckinMedia() {
+    if (this.data.submitting) return
+    try {
+      const result = await new Promise((resolve, reject) => {
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ["image", "video"],
+          sourceType: ["album", "camera"],
+          maxDuration: 30,
+          camera: "back",
+          success: resolve,
+          fail: reject,
+        })
+      })
+      const file = result.tempFiles?.[0]
+      if (!file?.tempFilePath) return
+      const uploaded = await uploadMedia(file.tempFilePath)
+      this.setData({
+        checkinMedia: {
+          ...uploaded,
+          tempFilePath: file.tempFilePath,
+        },
+      })
+      wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.uploadFailed, icon: "none" })
+    }
+  },
+
+  onNoteTitleInput(event) {
+    this.setData({ "noteForm.title": event.detail.value })
+  },
+
+  onNoteContentInput(event) {
+    this.setData({ "noteForm.content": event.detail.value })
+  },
+
+  onCommentInput(event) {
+    this.setData({ "commentForm.content": event.detail.value })
+  },
+
+  async onSubmitCheckin() {
+    if (this.data.submitting || !this.data.spot) return
+    this.setData({ submitting: true })
+    try {
+      let location
+      try {
+        location = this.data.userLocation || (await this.getLocation())
+        this.updateUserLocation(location)
+        this.startLocationWatch()
+      } catch (error) {
+        wx.showToast({ title: this.data.copy.locationFailed, icon: "none" })
+        return
+      }
+      await request("/mini/checkins", {
+        method: "POST",
+        data: {
+          user_id: this.data.user.id,
+          spot_id: this.data.spot.id,
+          latitude: String(location.latitude),
+          longitude: String(location.longitude),
+          image_url: this.data.checkinMedia?.image_url || null,
+          media_url: this.data.checkinMedia?.media_url || null,
+          media_type: this.data.checkinMedia?.media_type || null,
+          note: this.data.checkinNote,
+        },
+      })
+      this.setData({ checkinNote: "", checkinMedia: null })
+      wx.showToast({ title: this.data.copy.submitted, icon: "none" })
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+    } finally {
+      this.setData({ submitting: false })
+    }
+  },
+
+  async onSubmitNote() {
+    const title = this.data.noteForm.title.trim()
+    const content = this.data.noteForm.content.trim()
+    if (this.data.submitting || !title || !content || !this.data.spot) return
+    this.setData({ submitting: true })
+    try {
+      await request("/mini/travel-notes", {
+        method: "POST",
+        data: {
+          user_id: this.data.user.id,
+          spot_id: this.data.spot.id,
+          title,
+          content,
+        },
+      })
+      this.setData({ noteForm: { title: "", content: "" } })
+      wx.showToast({ title: this.data.copy.submitted, icon: "none" })
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+    } finally {
+      this.setData({ submitting: false })
+    }
+  },
+
+  async onSubmitComment() {
+    const content = this.data.commentForm.content.trim()
+    if (this.data.submitting || !content || !this.data.spot) return
+    this.setData({ submitting: true })
+    try {
+      await request("/mini/comments", {
+        method: "POST",
+        data: {
+          user_id: this.data.user.id,
+          spot_id: this.data.spot.id,
+          content,
+        },
+      })
+      this.setData({ commentForm: { content: "" } })
+      wx.showToast({ title: this.data.copy.submitted, icon: "none" })
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+    } finally {
+      this.setData({ submitting: false })
+    }
+  },
+
+  getLocation() {
+    return new Promise((resolve, reject) => {
+      wx.getLocation({
+        type: "gcj02",
+        success: resolve,
+        fail: reject,
+      })
+    })
+  },
+})

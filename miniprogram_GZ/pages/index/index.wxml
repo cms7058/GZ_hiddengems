@@ -1,0 +1,92 @@
+<view class="page">
+  <navigation-bar title="{{copy.navTitle}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)">
+    <view slot="right" class="nav-action" bindtap="onLanguageTap">{{copy.langButton}}</view>
+  </navigation-bar>
+
+  <view class="hero">
+    <map
+      id="gemsMap"
+      class="map"
+      latitude="{{center.latitude}}"
+      longitude="{{center.longitude}}"
+      scale="{{scale}}"
+      markers="{{markers}}"
+      bindmarkertap="onMarkerTap"
+      show-location="{{userLocation ? true : false}}"
+    ></map>
+
+  </view>
+
+  <view class="sheet">
+    <scroll-view class="tag-scroll" scroll-x>
+      <view class="tag-row">
+        <view class="tag {{selectedTagId === 0 ? 'active' : ''}}" data-id="0" bindtap="onTagTap">{{copy.allTags}}</view>
+        <view
+          wx:for="{{tags}}"
+          wx:key="id"
+          class="tag {{selectedTagId === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onTagTap"
+        >
+          {{item.name}}
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{offline}}" class="notice">{{copy.offline}}</view>
+    <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
+    <view wx:elif="{{filteredSpots.length === 0}}" class="notice">{{copy.empty}}</view>
+
+    <scroll-view class="spot-list" scroll-y>
+      <view
+        wx:for="{{filteredSpots}}"
+        wx:key="id"
+        class="spot-card {{selectedSpotId === item.id ? 'selected' : ''}} {{!item.is_unlocked ? 'locked' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onSpotTap"
+      >
+        <view class="spot-main">
+          <view class="spot-head">
+            <text class="spot-name">{{item.name}}</text>
+          </view>
+          <text class="spot-summary">{{item.summary}}</text>
+          <view class="spot-meta">
+            <text>{{item.city}} / {{item.county}}</text>
+            <text>Lv.{{item.recommendation_level}}</text>
+          </view>
+          <view wx:if="{{item.weatherSummary}}" class="weather-row">
+            <text class="weather-label">{{copy.weather}}</text>
+            <text class="weather-text">{{item.weatherSummary}}</text>
+            <text wx:if="{{item.weatherAlertCount > 0}}" class="weather-alert">{{item.weatherAlertCount}}{{copy.alertUnit}}</text>
+          </view>
+          <view class="tag-mini-row">
+            <text wx:for="{{item.tags}}" wx:key="id" class="tag-mini">{{item.name}}</text>
+          </view>
+        </view>
+        <view class="card-actions">
+          <button class="status-button {{item.is_unlocked ? 'ok' : 'lock'}}" data-id="{{item.id}}" catchtap="onSpotTap">
+            {{item.is_unlocked ? copy.unlocked : copy.locked}}
+          </button>
+          <button class="go-button" data-id="{{item.id}}" catchtap="onNavigateTap">{{copy.goThere}}</button>
+          <view class="unlock-box">
+            <text class="unlock-number">{{item.required_explore_points || 0}}</text>
+            <text>{{copy.pointsUnit}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{showSafetyAgreement}}" class="agreement-mask">
+    <view class="agreement-panel">
+      <text class="agreement-title">安全协议</text>
+      <text class="agreement-body">
+        本小程序仅提供夜郎秘境参考指南和信息展示。实际出行、探访、交通、住宿、露营、徒步、涉水、登山等活动，请以国家法律法规、行业规范以及当地政府、景区、社区和管理机构规定为准。
+      </text>
+      <text class="agreement-body">
+        本小程序不提供任何安全保障、救援承诺或风险兜底。用户应自行评估天气、路线、身体状况、装备、交通和当地管制要求，所有安全责任由用户自行承担。
+      </text>
+      <button class="agreement-button" bindtap="onAcceptSafetyAgreement">我已阅读并同意</button>
+    </view>
+  </view>
+</view>

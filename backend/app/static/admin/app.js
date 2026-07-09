@@ -949,6 +949,9 @@ function fillSpotForm(spot = null) {
     form.elements.recommendation_level.value = 1;
     form.elements.required_explore_points.value = 0;
     form.elements.checkin_radius_meters.value = 300;
+    form.elements.river_name.value = "";
+    form.elements.river_upstream_latitude.value = "";
+    form.elements.river_upstream_longitude.value = "";
     form.elements.is_active.checked = true;
     return;
   }
@@ -964,6 +967,9 @@ function fillSpotForm(spot = null) {
     "county",
     "latitude",
     "longitude",
+    "river_name",
+    "river_upstream_latitude",
+    "river_upstream_longitude",
     "visibility_level",
     "review_status",
     "recommendation_level",
@@ -1553,6 +1559,9 @@ $("#spotForm").addEventListener("submit", async (event) => {
     ...data,
     latitude: Number(data.latitude),
     longitude: Number(data.longitude),
+    river_name: data.river_name || null,
+    river_upstream_latitude: data.river_upstream_latitude ? Number(data.river_upstream_latitude) : null,
+    river_upstream_longitude: data.river_upstream_longitude ? Number(data.river_upstream_longitude) : null,
     recommendation_level: Number(data.recommendation_level),
     required_explore_points: Number(data.required_explore_points),
     checkin_radius_meters: Number(data.checkin_radius_meters),

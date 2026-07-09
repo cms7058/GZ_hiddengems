@@ -1,0 +1,176 @@
+page {
+  min-height: 100vh;
+  background: #f4f1e8;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 28rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.profile-card,
+.profile-form,
+.panel,
+.tip {
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 30rpx rgba(31, 49, 39, 0.08);
+}
+
+.profile-card {
+  padding: 28rpx;
+  display: flex;
+  gap: 22rpx;
+  align-items: center;
+}
+
+.avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 52rpx;
+  background: #1f5f45;
+  color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-avatar {
+  display: block;
+  background: #e7ece5;
+}
+
+.name,
+.subtitle,
+.form-title,
+.tip-title {
+  display: block;
+}
+
+.name {
+  color: #203127;
+  font-size: 36rpx;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin-top: 10rpx;
+  color: #667369;
+  font-size: 24rpx;
+}
+
+.profile-form {
+  margin-top: 22rpx;
+  padding: 24rpx;
+}
+
+.form-title {
+  color: #203127;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.avatar-button,
+.save-button {
+  height: 76rpx;
+  margin-top: 18rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-button {
+  background: #edf3ea;
+  color: #1f5f45;
+}
+
+.form-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+}
+
+.nickname-input {
+  height: 76rpx;
+  margin-top: 16rpx;
+  padding: 0 20rpx;
+  border-radius: 8rpx;
+  background: #f6f4ed;
+  color: #203127;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
+.save-button {
+  background: #1f5f45;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.stats-grid {
+  margin-top: 22rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.stat {
+  min-height: 150rpx;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  background: #edf3ea;
+  color: #5c6b60;
+  font-size: 22rpx;
+  box-sizing: border-box;
+}
+
+.value {
+  display: block;
+  margin-top: 18rpx;
+  color: #193127;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.value.small {
+  font-size: 28rpx;
+}
+
+.panel {
+  margin-top: 22rpx;
+  padding: 8rpx 28rpx;
+}
+
+.row {
+  min-height: 92rpx;
+  border-bottom: 1rpx solid #edf0e8;
+  color: #223127;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.tip {
+  margin-top: 22rpx;
+  padding: 28rpx;
+  color: #5d6c62;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.tip-title {
+  margin-bottom: 8rpx;
+  color: #1f5f45;
+  font-size: 30rpx;
+  font-weight: 800;
+}

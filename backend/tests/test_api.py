@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import PropertyMock, patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -263,6 +264,47 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["source"], "QWeather")
         self.assertEqual(data["alerts"], [])
         self.assertEqual(data["river_warning"]["level"], "unknown")
+
+    def test_spot_safety_returns_upstream_weather_and_alerts(self):
+        db = self.SessionLocal()
+        spot = db.get(ScenicSpot, 1)
+        spot.river_name = "都柳江支流"
+        spot.river_upstream_latitude = 25.9
+        spot.river_upstream_longitude = 108.7
+        db.commit()
+        db.close()
+
+        with (
+            patch.object(QWeatherClient, "is_configured", new_callable=PropertyMock, return_value=True),
+            patch.object(
+                QWeatherClient,
+                "get_weather_now",
+                side_effect=[
+                    {"now": {"text": "多云", "temp": "24", "precip": "0"}, "updateTime": "2026-07-09T12:00+08:00"},
+                    {"now": {"text": "暴雨", "temp": "21", "precip": "12"}, "updateTime": "2026-07-09T12:05+08:00"},
+                ],
+            ) as weather_mock,
+            patch.object(
+                QWeatherClient,
+                "get_weather_alerts",
+                side_effect=[
+                    {"alerts": []},
+                    {"alerts": [{"id": "upstream-alert", "headline": "上游暴雨预警", "description": "上游强降雨。"}]},
+                ],
+            ) as alerts_mock,
+        ):
+            response = self.client.get("/api/v1/spots/1/safety?lang=zh-CN")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["configured"])
+        self.assertEqual(data["river_warning"]["river_name"], "都柳江支流")
+        self.assertEqual(data["river_warning"]["upstream_location"]["latitude"], 25.9)
+        self.assertEqual(data["river_warning"]["upstream_weather"]["weather"]["text"], "暴雨")
+        self.assertEqual(data["river_warning"]["upstream_alerts"][0]["headline"], "上游暴雨预警")
+        self.assertEqual(data["river_warning"]["level"], "high")
+        self.assertEqual(weather_mock.call_count, 2)
+        self.assertEqual(alerts_mock.call_count, 2)
 
     def test_admin_endpoint_requires_token(self):
         response = self.client.get("/api/v1/admin/tags")

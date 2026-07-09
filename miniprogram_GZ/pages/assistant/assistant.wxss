@@ -1,0 +1,94 @@
+page {
+  min-height: 100vh;
+  background: #f4f1e8;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 28rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.hero {
+  padding: 36rpx 30rpx;
+  border-radius: 8rpx;
+  background: #193127;
+  color: #ffffff;
+}
+
+.eyebrow,
+.headline,
+.subtitle {
+  display: block;
+}
+
+.eyebrow {
+  color: #a8c8b4;
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.headline {
+  margin-top: 10rpx;
+  font-size: 42rpx;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin-top: 14rpx;
+  color: #d8e4dc;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.chat-card {
+  min-height: 420rpx;
+  margin-top: 22rpx;
+  padding: 26rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.bubble {
+  max-width: 560rpx;
+  padding: 22rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.assistant {
+  background: #edf3ea;
+  color: #263b2f;
+}
+
+.composer {
+  margin-top: 22rpx;
+  display: flex;
+  gap: 14rpx;
+}
+
+.composer input {
+  flex: 1;
+  height: 88rpx;
+  padding: 0 24rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #7b827a;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
+.composer button {
+  width: 136rpx;
+  height: 88rpx;
+  border-radius: 8rpx;
+  background: #1f5f45;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

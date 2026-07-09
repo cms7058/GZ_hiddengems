@@ -1,0 +1,221 @@
+<view class="page">
+  <navigation-bar title="{{copy.navTitle}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)">
+    <view slot="right" class="nav-action" bindtap="onLanguageTap">{{lang === 'zh-CN' ? 'EN' : '中'}}</view>
+  </navigation-bar>
+
+  <scroll-view class="detail-scroll" scroll-y>
+    <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
+    <view wx:elif="{{error}}" class="notice error">{{copy.loadFailed}}</view>
+
+    <block wx:elif="{{spot}}">
+      <view class="hero">
+        <map
+          class="map"
+          latitude="{{spot.latitude}}"
+          longitude="{{spot.longitude}}"
+          scale="10"
+          markers="{{markers}}"
+          show-location="{{userLocation ? true : false}}"
+        ></map>
+      </view>
+
+      <view class="content">
+        <view class="title-row">
+          <view class="title-block">
+            <text class="eyebrow">AI EXPLORER</text>
+            <text class="title">{{spot.name}}</text>
+            <text class="summary">{{spot.summary}}</text>
+          </view>
+          <view class="level">Lv.{{spot.recommendation_level}}</view>
+        </view>
+
+        <view wx:if="{{!spot.is_unlocked}}" class="locked-banner">{{copy.locked}}</view>
+        <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
+
+        <view class="stats">
+          <view class="stat">
+            <text class="stat-number">{{spot.user_explore_points}}</text>
+            <text>{{copy.points}}</text>
+          </view>
+          <view class="stat">
+            <text class="stat-number">{{spot.required_explore_points}}</text>
+            <text>{{copy.unlockNeed}}</text>
+          </view>
+          <view class="stat">
+            <text class="stat-number">{{userCount}}</text>
+            <text>{{copy.users}}</text>
+          </view>
+          <view class="stat">
+            <text class="stat-number">{{spot.travel_notes.length + spot.comments.length}}</text>
+            <text>{{copy.notes}}/{{copy.comments}}</text>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-head">
+            <text>{{copy.description}}</text>
+          </view>
+          <text class="body-text">{{spot.description || spot.summary}}</text>
+          <view class="meta-grid">
+            <view>
+              <text class="meta-label">{{copy.location}}</text>
+              <text class="meta-value">{{spot.city}} / {{spot.county}}</text>
+            </view>
+            <view>
+              <text class="meta-label">{{copy.tags}}</text>
+              <view class="tag-row">
+                <text wx:for="{{spot.tags}}" wx:key="id" class="tag">{{item.name}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="section safety-section">
+          <view class="section-head">
+            <text>{{copy.safety}}</text>
+            <text wx:if="{{safety}}" class="count">{{safety.source}}</text>
+          </view>
+          <view wx:if="{{!safety}}" class="empty">{{copy.safetyNotConfigured}}</view>
+          <block wx:else>
+            <view class="safety-card">
+              <text class="safety-label">{{copy.weather}}</text>
+              <text class="safety-title">{{safety.weatherText}}</text>
+              <text class="safety-meta">{{safety.weatherMeta}}</text>
+            </view>
+            <view class="safety-card">
+              <text class="safety-label">{{copy.riverRisk}}</text>
+              <text class="safety-title">{{safety.riverLevelText}}</text>
+              <text class="safety-meta">{{safety.river_warning.summary}}</text>
+            </view>
+            <view wx:if="{{safety.upstreamWeatherText}}" class="safety-card">
+              <text class="safety-label">{{copy.upstreamWeather}}</text>
+              <text class="safety-title">{{safety.upstreamWeatherText}}</text>
+              <text class="safety-meta">{{safety.upstreamWeatherMeta}}</text>
+            </view>
+            <view class="safety-card">
+              <text class="safety-label">{{copy.upstreamAlerts}}</text>
+              <text wx:if="{{safety.upstreamAlerts.length === 0}}" class="safety-meta">{{copy.noUpstreamAlerts}}</text>
+              <view wx:for="{{safety.upstreamAlerts}}" wx:key="id" class="alert-item">
+                <text class="safety-title">{{item.headline}}</text>
+                <text class="safety-meta">{{item.description}}</text>
+              </view>
+            </view>
+            <view class="safety-card">
+              <text class="safety-label">{{copy.alerts}}</text>
+              <text wx:if="{{safety.alerts.length === 0}}" class="safety-meta">{{copy.noAlerts}}</text>
+              <view wx:for="{{safety.alerts}}" wx:key="id" class="alert-item">
+                <text class="safety-title">{{item.headline}}</text>
+                <text class="safety-meta">{{item.description}}</text>
+              </view>
+            </view>
+          </block>
+        </view>
+
+        <view class="section action-section">
+          <view class="section-head">
+            <text>{{copy.actions}}</text>
+          </view>
+          <view class="action-block">
+            <view class="checkin-toolbar">
+              <view class="location-chip {{userLocation ? 'active' : ''}}">
+                {{userLocation ? copy.currentLocation : copy.locationFailed}}
+              </view>
+              <button class="media-button" loading="{{submitting}}" bindtap="onChooseCheckinMedia">{{copy.chooseMedia}}</button>
+            </view>
+            <view wx:if="{{checkinMedia}}" class="media-state">
+              <image wx:if="{{checkinMedia.media_type === 'image'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" mode="aspectFill"></image>
+              <view class="media-info">
+                <text class="media-title">{{copy.mediaReady}}</text>
+                <text class="media-meta">{{checkinMedia.media_type}}</text>
+              </view>
+            </view>
+            <textarea
+              class="form-textarea"
+              value="{{checkinNote}}"
+              maxlength="512"
+              placeholder="{{copy.checkinPlaceholder}}"
+              bindinput="onCheckinNoteInput"
+            ></textarea>
+            <button class="action-button" loading="{{submitting}}" bindtap="onSubmitCheckin">{{copy.checkin}}</button>
+          </view>
+          <view class="action-block">
+            <input
+              class="form-input"
+              value="{{noteForm.title}}"
+              maxlength="128"
+              placeholder="{{copy.noteTitlePlaceholder}}"
+              bindinput="onNoteTitleInput"
+            />
+            <textarea
+              class="form-textarea"
+              value="{{noteForm.content}}"
+              placeholder="{{copy.noteContentPlaceholder}}"
+              bindinput="onNoteContentInput"
+            ></textarea>
+            <button class="action-button secondary-action" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
+          </view>
+          <view class="action-block last">
+            <textarea
+              class="form-textarea"
+              value="{{commentForm.content}}"
+              maxlength="512"
+              placeholder="{{copy.commentPlaceholder}}"
+              bindinput="onCommentInput"
+            ></textarea>
+            <button class="action-button secondary-action" loading="{{submitting}}" bindtap="onSubmitComment">{{copy.submitComment}}</button>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-head">
+            <text>{{copy.recommendations}}</text>
+            <text class="count">{{spot.lifestyle_recommendations.length}}</text>
+          </view>
+          <view wx:if="{{groupedRecommendations.length === 0}}" class="empty">{{copy.emptyRecommendations}}</view>
+          <view wx:for="{{groupedRecommendations}}" wx:key="category" class="rec-group">
+            <text class="rec-category">{{item.label}}</text>
+            <view wx:for="{{item.items}}" wx:for-item="rec" wx:key="id" class="rec-item">
+              <image wx:if="{{rec.image_url}}" class="rec-image" src="{{rec.image_url}}" mode="aspectFill"></image>
+              <view class="rec-body">
+                <text class="rec-title">{{rec.displayName}}</text>
+                <text class="rec-summary">{{rec.displaySummary}}</text>
+                <text wx:if="{{rec.address}}" class="rec-meta">{{copy.address}}：{{rec.address}}</text>
+                <text wx:if="{{rec.contact}}" class="rec-meta">{{copy.contact}}：{{rec.contact}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-head">
+            <text>{{copy.notes}}</text>
+            <text class="count">{{spot.travel_notes.length}}</text>
+          </view>
+          <view wx:if="{{spot.travel_notes.length === 0}}" class="empty">{{copy.emptyNotes}}</view>
+          <view wx:for="{{spot.travel_notes}}" wx:key="id" class="note-item">
+            <image wx:if="{{item.image_url}}" class="content-image" src="{{item.image_url}}" mode="aspectFill"></image>
+            <view class="note-head">
+              <text class="note-title">{{item.title}}</text>
+              <text wx:if="{{item.is_featured}}" class="featured">{{copy.featured}}</text>
+            </view>
+            <text class="author">{{item.nickname}}</text>
+            <text class="body-text">{{item.content}}</text>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-head">
+            <text>{{copy.comments}}</text>
+            <text class="count">{{spot.comments.length}}</text>
+          </view>
+          <view wx:if="{{spot.comments.length === 0}}" class="empty">{{copy.emptyComments}}</view>
+          <view wx:for="{{spot.comments}}" wx:key="id" class="comment-item">
+            <image wx:if="{{item.image_url}}" class="content-image" src="{{item.image_url}}" mode="aspectFill"></image>
+            <text class="author">{{item.nickname}}</text>
+            <text class="body-text">{{item.content}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+</view>

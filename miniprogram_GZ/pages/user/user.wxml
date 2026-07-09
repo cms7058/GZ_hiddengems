@@ -1,0 +1,59 @@
+<view class="page">
+  <navigation-bar title="{{copy.title}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+
+  <view class="profile-card">
+    <image wx:if="{{user.avatar_url}}" class="avatar image-avatar" src="{{user.avatar_url}}" mode="aspectFill"></image>
+    <view wx:else class="avatar">{{avatarInitial}}</view>
+    <view>
+      <text class="name">{{user.nickname}}</text>
+      <text class="subtitle">{{copy.subtitle}}</text>
+    </view>
+  </view>
+
+  <view class="profile-form">
+    <text class="form-title">{{copy.editProfile}}</text>
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <image wx:if="{{profileForm.avatar_url}}" class="form-avatar" src="{{profileForm.avatar_url}}" mode="aspectFill"></image>
+      <text wx:else>{{copy.chooseAvatar}}</text>
+    </button>
+    <input
+      class="nickname-input"
+      type="nickname"
+      value="{{profileForm.nickname}}"
+      placeholder="{{copy.nicknamePlaceholder}}"
+      bindinput="onNicknameInput"
+    />
+    <button class="save-button" bindtap="onSaveProfile">{{copy.saveProfile}}</button>
+  </view>
+
+  <view class="stats-grid">
+    <view class="stat">
+      <text>{{copy.points}}</text>
+      <text class="value">{{user.explore_points}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.level}}</text>
+      <text class="value">L{{user.explorer_level}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.member}}</text>
+      <text class="value small">{{user.is_member ? copy.activeMember : copy.regular}}</text>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="row">
+      <text>{{copy.checkins}}</text>
+      <text>{{user.checkin_count || 0}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.contributions}}</text>
+      <text>{{user.contribution_count || 0}}</text>
+    </view>
+  </view>
+
+  <view class="tip">
+    <text class="tip-title">{{copy.next}}</text>
+    <text>{{copy.tip}}</text>
+  </view>
+</view>

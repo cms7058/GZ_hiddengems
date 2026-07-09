@@ -127,6 +127,8 @@ class CheckinCreate(BaseModel):
     latitude: Optional[str] = Field(default=None, max_length=32)
     longitude: Optional[str] = Field(default=None, max_length=32)
     image_url: Optional[str] = Field(default=None, max_length=512)
+    media_url: Optional[str] = Field(default=None, max_length=512)
+    media_type: Optional[str] = Field(default=None, max_length=32)
     note: Optional[str] = Field(default=None, max_length=512)
 
 
@@ -140,5 +142,7 @@ class CheckinRecordOut(BaseModel):
     latitude: Optional[str] = None
     longitude: Optional[str] = None
     image_url: Optional[str] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
     note: Optional[str] = None
     review_note: Optional[str] = None

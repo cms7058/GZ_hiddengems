@@ -83,6 +83,8 @@ class CheckinRecord(Base):
     latitude = Column(String(32), nullable=True)
     longitude = Column(String(32), nullable=True)
     image_url = Column(String(512), nullable=True)
+    media_url = Column(String(512), nullable=True)
+    media_type = Column(String(32), nullable=True)
     note = Column(String(512), nullable=True)
     review_note = Column(String(512), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

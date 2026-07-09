@@ -14,3 +14,5 @@ backend/app/static/uploads/**/*
 !backend/app/static/uploads/*/.gitkeep
 
 mysql_data/
+
+**/project.private.config.json
