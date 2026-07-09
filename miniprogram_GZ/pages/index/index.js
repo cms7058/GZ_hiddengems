@@ -112,6 +112,7 @@ Page({
     selectedSpot: null,
     selectedSpotId: 0,
     userLocation: null,
+    hasUserLocation: false,
     user: app.globalData.user,
     loading: true,
     offline: false,
@@ -235,7 +236,7 @@ Page({
   },
 
   formatWeatherSummary(safety) {
-    const weather = safety?.weather || {}
+    const weather = (safety && safety.weather) || {}
     if (!weather.text) return this.data.copy.weatherUnavailable
     const temp = weather.temp ? `${weather.temp}°C` : ""
     const humidity = weather.humidity ? `${weather.humidity}%` : ""
@@ -248,13 +249,13 @@ Page({
       ? this.data.spots.filter((spot) => spot.tags.some((tag) => tag.id === selectedTagId))
       : this.data.spots
     const markers = this.buildMarkers(filteredSpots)
-    const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : filteredSpots[0]?.id || 0
+    const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
     this.setData({
       filteredSpots,
       markers,
       selectedSpot,
-      selectedSpotId: selectedSpot?.id || 0,
+      selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
     })
   },
 
@@ -372,6 +373,7 @@ Page({
         latitude: location.latitude,
         longitude: location.longitude,
       },
+      hasUserLocation: true,
       ...(recenter
         ? {
             center: {

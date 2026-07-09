@@ -15,7 +15,7 @@
           longitude="{{spot.longitude}}"
           scale="10"
           markers="{{markers}}"
-          show-location="{{userLocation ? true : false}}"
+          show-location="{{hasUserLocation}}"
         ></map>
       </view>
 

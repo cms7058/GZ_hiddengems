@@ -126,6 +126,7 @@ Page({
     spot: null,
     markers: [],
     userLocation: null,
+    hasUserLocation: false,
     groupedRecommendations: [],
     safety: null,
     userCount: 0,
@@ -236,8 +237,10 @@ Page({
 
   normalizeSafety(safety) {
     const weather = safety.weather || {}
-    const upstream = safety.river_warning?.upstream_weather?.weather || {}
-    const upstreamLocation = safety.river_warning?.upstream_location
+    const riverWarning = safety.river_warning || {}
+    const upstreamWeather = riverWarning.upstream_weather || {}
+    const upstream = upstreamWeather.weather || {}
+    const upstreamLocation = riverWarning.upstream_location
     const upstreamLocationText = upstreamLocation
       ? `${Number(upstreamLocation.latitude).toFixed(4)}, ${Number(upstreamLocation.longitude).toFixed(4)}`
       : ""
@@ -248,8 +251,8 @@ Page({
       upstreamWeatherText: upstream.text ? `${upstream.text} ${upstream.temp || "-"}°C` : "",
       upstreamWeatherMeta: upstream.obsTime ? `${upstream.windDir || ""} ${upstream.windScale || ""}级 · ${upstream.humidity || "-"}% · ${upstream.obsTime}${upstreamLocationText ? ` · ${upstreamLocationText}` : ""}` : upstreamLocationText,
       alerts: safety.alerts || [],
-      upstreamAlerts: safety.river_warning?.upstream_alerts || [],
-      riverLevelText: this.riverLevelText(safety.river_warning?.level),
+      upstreamAlerts: riverWarning.upstream_alerts || [],
+      riverLevelText: this.riverLevelText(riverWarning.level),
     }
   },
 
@@ -366,6 +369,7 @@ Page({
         latitude: location.latitude,
         longitude: location.longitude,
       },
+      hasUserLocation: true,
     })
     if (this.data.spot) {
       this.setData({ markers: this.buildMarkers(this.data.spot) })
@@ -397,8 +401,8 @@ Page({
           fail: reject,
         })
       })
-      const file = result.tempFiles?.[0]
-      if (!file?.tempFilePath) return
+      const file = result.tempFiles && result.tempFiles[0]
+      if (!file || !file.tempFilePath) return
       const uploaded = await uploadMedia(file.tempFilePath)
       this.setData({
         checkinMedia: {
@@ -444,9 +448,9 @@ Page({
           spot_id: this.data.spot.id,
           latitude: String(location.latitude),
           longitude: String(location.longitude),
-          image_url: this.data.checkinMedia?.image_url || null,
-          media_url: this.data.checkinMedia?.media_url || null,
-          media_type: this.data.checkinMedia?.media_type || null,
+          image_url: (this.data.checkinMedia && this.data.checkinMedia.image_url) || null,
+          media_url: (this.data.checkinMedia && this.data.checkinMedia.media_url) || null,
+          media_type: (this.data.checkinMedia && this.data.checkinMedia.media_type) || null,
           note: this.data.checkinNote,
         },
       })

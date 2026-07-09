@@ -1,5 +1,5 @@
 const config = {
-  apiBaseUrl: "http://124.222.227.107/api/v1",
+  apiBaseUrl: "https://hiddengems.pebs.tech/api/v1",
   tencentMapKey: "",
 }
 

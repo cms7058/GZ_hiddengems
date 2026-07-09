@@ -12,7 +12,7 @@
       scale="{{scale}}"
       markers="{{markers}}"
       bindmarkertap="onMarkerTap"
-      show-location="{{userLocation ? true : false}}"
+      show-location="{{hasUserLocation}}"
     ></map>
 
   </view>
