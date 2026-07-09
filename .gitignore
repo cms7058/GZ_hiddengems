@@ -16,3 +16,4 @@ backend/app/static/uploads/**/*
 mysql_data/
 
 **/project.private.config.json
+ssl/
