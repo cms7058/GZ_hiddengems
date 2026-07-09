@@ -257,6 +257,40 @@ Page({
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
     })
+    this.fitMapToVisiblePoints(filteredSpots)
+  },
+
+  fitMapToVisiblePoints(spots) {
+    const points = (spots || [])
+      .filter((spot) => Number.isFinite(Number(spot.latitude)) && Number.isFinite(Number(spot.longitude)))
+      .map((spot) => ({
+        latitude: Number(spot.latitude),
+        longitude: Number(spot.longitude),
+      }))
+
+    if (this.data.userLocation) {
+      points.push({
+        latitude: Number(this.data.userLocation.latitude),
+        longitude: Number(this.data.userLocation.longitude),
+      })
+    }
+
+    if (points.length === 0) return
+    if (points.length === 1) {
+      this.setData({
+        center: points[0],
+        scale: this.data.userLocation ? 11 : 8,
+      })
+      return
+    }
+
+    clearTimeout(this.fitMapTimer)
+    this.fitMapTimer = setTimeout(() => {
+      wx.createMapContext("gemsMap", this).includePoints({
+        points,
+        padding: [72, 48, 72, 48],
+      })
+    }, 80)
   },
 
   buildMarkers(spots) {
