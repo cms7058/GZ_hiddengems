@@ -7,6 +7,10 @@ const CENTER = {
   longitude: 106.7074,
 }
 
+const DEFAULT_SCALE = 7
+const MIN_SCALE = 5
+const MAX_SCALE = 18
+
 const COPY = {
   "zh-CN": {
     navTitle: "夜郎秘境",
@@ -31,6 +35,7 @@ const COPY = {
     locationReady: "已显示当前位置",
     locationFailed: "定位失败，请检查权限",
     locationRequired: "请先允许位置权限",
+    resetMap: "默认",
   },
   "en-US": {
     navTitle: "Yelang Gems",
@@ -55,6 +60,7 @@ const COPY = {
     locationReady: "Location shown",
     locationFailed: "Location failed",
     locationRequired: "Allow location first",
+    resetMap: "Reset",
   },
 }
 
@@ -103,7 +109,7 @@ Page({
     lang: "zh-CN",
     copy: COPY["zh-CN"],
     center: CENTER,
-    scale: 7,
+    scale: DEFAULT_SCALE,
     tags: [],
     selectedTagId: 0,
     spots: [],
@@ -120,6 +126,7 @@ Page({
   },
 
   onLoad() {
+    this.mapAutoFit = true
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
     this.checkSafetyAgreement()
@@ -152,6 +159,7 @@ Page({
   },
 
   async loadHomeData() {
+    this.mapAutoFit = true
     this.setData({ loading: true })
     try {
       const tags = await request(`/tags?lang=${this.data.lang}`)
@@ -261,6 +269,8 @@ Page({
   },
 
   fitMapToVisiblePoints(spots) {
+    if (!this.mapAutoFit) return
+
     const points = (spots || [])
       .filter((spot) => Number.isFinite(Number(spot.latitude)) && Number.isFinite(Number(spot.longitude)))
       .map((spot) => ({
@@ -291,6 +301,54 @@ Page({
         padding: [72, 48, 72, 48],
       })
     }, 80)
+  },
+
+  disableMapAutoFit() {
+    this.mapAutoFit = false
+    clearTimeout(this.fitMapTimer)
+  },
+
+  onMapRegionChange(event) {
+    if (event.type !== "end") return
+    if (event.causedBy === "scale" || event.causedBy === "drag") {
+      this.disableMapAutoFit()
+    }
+  },
+
+  onZoomIn() {
+    this.adjustMapScale(1)
+  },
+
+  onZoomOut() {
+    this.adjustMapScale(-1)
+  },
+
+  adjustMapScale(delta) {
+    this.disableMapAutoFit()
+    this.getCurrentMapScale((currentScale) => {
+      const nextScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScale + delta))
+      this.setData({ scale: nextScale })
+    })
+  },
+
+  getCurrentMapScale(callback) {
+    const fallbackScale = Number(this.data.scale) || DEFAULT_SCALE
+    const mapContext = wx.createMapContext("gemsMap", this)
+    if (!mapContext.getScale) {
+      callback(fallbackScale)
+      return
+    }
+
+    mapContext.getScale({
+      success: (res) => callback(Number(res.scale) || fallbackScale),
+      fail: () => callback(fallbackScale),
+    })
+  },
+
+  onResetMap() {
+    this.mapAutoFit = true
+    this.setData({ scale: DEFAULT_SCALE })
+    this.fitMapToVisiblePoints(this.data.filteredSpots)
   },
 
   buildMarkers(spots) {
@@ -345,6 +403,7 @@ Page({
   },
 
   onTagTap(event) {
+    this.mapAutoFit = true
     this.setData({ selectedTagId: Number(event.currentTarget.dataset.id) })
     this.applyFilters()
   },
@@ -382,6 +441,7 @@ Page({
   onLanguageTap() {
     app.globalData.lang = this.data.lang === "zh-CN" ? "en-US" : "zh-CN"
     this.refreshCopy()
+    this.mapAutoFit = true
     this.loadHomeData()
   },
 

@@ -12,9 +12,15 @@
       scale="{{scale}}"
       markers="{{markers}}"
       bindmarkertap="onMarkerTap"
+      bindregionchange="onMapRegionChange"
       show-location="{{hasUserLocation}}"
     ></map>
 
+    <view class="map-controls">
+      <button class="map-control" catchtap="onZoomIn">+</button>
+      <button class="map-control" catchtap="onZoomOut">-</button>
+      <button class="map-control text" catchtap="onResetMap">{{copy.resetMap}}</button>
+    </view>
   </view>
 
   <view class="sheet">
