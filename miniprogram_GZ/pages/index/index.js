@@ -1,4 +1,4 @@
-const { request } = require("../../utils/request")
+const { isServiceClosedError, request } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
 
 const app = getApp()
@@ -43,6 +43,7 @@ const COPY = {
     nextUnlockPrefix: "还差",
     nextUnlockSuffix: "积分可以解锁下一个秘境",
     allUnlocked: "当前可探索秘境已全部解锁",
+    serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
   },
   "en-US": {
     navTitle: "Yelang Gems",
@@ -74,6 +75,7 @@ const COPY = {
     nextUnlockPrefix: "Need ",
     nextUnlockSuffix: " more pts to unlock the next gem",
     allUnlocked: "All visible gems are unlocked",
+    serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
   },
 }
 
@@ -139,6 +141,7 @@ Page({
     user: app.globalData.user,
     loading: true,
     offline: false,
+    serviceClosed: false,
     showSafetyAgreement: false,
   },
 
@@ -190,15 +193,32 @@ Page({
         tags,
         spots: this.normalizeSpots(spots),
         offline: false,
+        serviceClosed: false,
         loading: false,
       })
       this.applyFilters()
       this.loadWeatherSummaries()
     } catch (error) {
+      if (isServiceClosedError(error)) {
+        this.setData({
+          tags: [],
+          spots: [],
+          filteredSpots: [],
+          markers: [],
+          selectedSpot: null,
+          selectedSpotId: 0,
+          unlockHint: { hiddenCount: 0, nextNeed: 0 },
+          offline: false,
+          serviceClosed: true,
+          loading: false,
+        })
+        return
+      }
       this.setData({
         tags: DEMO_TAGS,
         spots: DEMO_SPOTS,
         offline: true,
+        serviceClosed: false,
         loading: false,
       })
       this.applyFilters()
@@ -578,6 +598,8 @@ Page({
       chooseNavigationApp({
         spot,
         location,
+        mapId: "gemsMap",
+        page: this,
         lang: this.data.lang,
       })
     } catch (error) {

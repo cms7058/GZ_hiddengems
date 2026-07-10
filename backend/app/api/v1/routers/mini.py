@@ -10,6 +10,7 @@ from app.models.spot import ScenicSpot
 from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.content import TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
 from app.schemas.user import CheckinCreate, CheckinRecordOut
+from app.services.integrations import get_mini_program_service_hours
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
 
@@ -26,6 +27,11 @@ ALLOWED_MEDIA_SUFFIXES = {
     ".mov": "video",
     ".m4v": "video",
 }
+
+
+@router.get("/service-hours")
+def get_service_hours(db: Session = Depends(get_db)) -> dict:
+    return get_mini_program_service_hours(db)
 
 
 def ensure_active_user(db: Session, user_id: int) -> MiniProgramUser:

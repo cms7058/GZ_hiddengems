@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -57,6 +57,16 @@ def update_integration_settings(
 ) -> IntegrationGroupOut:
     rows = db.scalars(select(IntegrationSetting).where(IntegrationSetting.group == group)).all()
     by_key = {row.key: row for row in rows}
+    if group == "mini_program":
+        merged = {key: row.value or "" for key, row in by_key.items()}
+        merged.update({key: value or "" for key, value in payload.settings.items() if key in by_key})
+        try:
+            open_hour = int(merged.get("PUBLIC_API_OPEN_HOUR", "8"))
+            close_hour = int(merged.get("PUBLIC_API_CLOSE_HOUR", "24"))
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Service hours must be integers") from error
+        if not (0 <= open_hour < close_hour <= 24):
+            raise HTTPException(status_code=400, detail="Service hours must satisfy 0 <= start < end <= 24")
     for key, value in payload.settings.items():
         row = by_key.get(key)
         if row is None:

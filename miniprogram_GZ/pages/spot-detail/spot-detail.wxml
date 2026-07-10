@@ -10,6 +10,7 @@
     <block wx:elif="{{spot}}">
       <view class="hero">
         <map
+          id="spotDetailMap"
           class="map"
           latitude="{{spot.latitude}}"
           longitude="{{spot.longitude}}"

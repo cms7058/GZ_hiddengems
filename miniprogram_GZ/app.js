@@ -7,6 +7,8 @@ const DEFAULT_USER = {
   is_member: false,
 }
 
+const { notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
+
 const TAB_BAR_TEXT = {
   "zh-CN": ["首页", "小助手", "用户"],
   "en-US": ["Home", "Assistant", "Profile"],
@@ -30,6 +32,7 @@ App({
       }
     }
     this.globalData.hasAcceptedSafetyAgreement = Boolean(wx.getStorageSync("gzSafetyAgreementAccepted"))
+    preloadServiceHours().then(() => notifyServiceClosedIfNeeded())
   },
 
   setLanguage(lang) {

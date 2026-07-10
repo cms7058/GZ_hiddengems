@@ -1,13 +1,25 @@
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.services.bootstrap import create_tables, seed_initial_data
+from app.services.integrations import get_mini_program_service_hours
+
+
+BEIJING_TIMEZONE = timezone(timedelta(hours=8))
+
+
+def public_api_is_open(open_hour: int, close_hour: int, now: Optional[datetime] = None) -> bool:
+    current_hour = (now or datetime.now(BEIJING_TIMEZONE)).astimezone(BEIJING_TIMEZONE).hour
+    return open_hour <= current_hour < close_hour
 
 
 def create_app() -> FastAPI:
@@ -24,6 +36,32 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def enforce_public_api_service_hours(request: Request, call_next):
+        path = request.url.path
+        api_prefix = settings.api_v1_prefix.rstrip("/")
+        admin_prefix = f"{api_prefix}/admin"
+        service_hours_path = f"{api_prefix}/mini/service-hours"
+        is_public_api = path.startswith(f"{api_prefix}/") and not (
+            path == admin_prefix or path.startswith(f"{admin_prefix}/")
+        )
+        if is_public_api and path != service_hours_path:
+            with SessionLocal() as db:
+                service_hours = get_mini_program_service_hours(db)
+            if service_hours["enabled"] and not public_api_is_open(
+                service_hours["open_hour"], service_hours["close_hour"]
+            ):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "code": "SERVICE_CLOSED",
+                        "detail": "Public data service is outside the configured Beijing-time window",
+                        "open_hour": service_hours["open_hour"],
+                        "close_hour": service_hours["close_hour"],
+                    },
+                )
+        return await call_next(request)
 
     @app.get("/health", tags=["health"])
     def health_check() -> dict[str, str]:

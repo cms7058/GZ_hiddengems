@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,6 +25,12 @@ GROUP_META = {
         "description_zh": "配置河流、水文、洪水预警数据接口。未配置时以人工提示和气象预警为兜底。",
         "description_en": "Configure river, hydrology, and flood warning APIs. Weather alerts are used as fallback when unconfigured.",
     },
+    "mini_program": {
+        "title_zh": "小程序数据时间管理",
+        "title_en": "Mini Program Data Hours",
+        "description_zh": "设置小程序后台数据的开放时间。启用后，超出时间范围的小程序请求会被拒绝并显示提示。",
+        "description_en": "Set the time window for mini program data access. When enabled, requests outside the window are rejected with a notice.",
+    },
 }
 
 
@@ -43,6 +49,9 @@ DEFAULT_SETTINGS = [
     ("flood", "FLOOD_API_PROVIDER", "洪水接口服务商", "Flood API Provider", "text", False, 10),
     ("flood", "FLOOD_API_BASE", "洪水接口地址", "Flood API Base URL", "text", False, 20),
     ("flood", "FLOOD_API_KEY", "洪水接口 API KEY", "Flood API Key", "password", True, 30),
+    ("mini_program", "PUBLIC_API_TIME_RESTRICTION_ENABLED", "启用数据时间限制", "Enable Data Time Restriction", "checkbox", False, 10),
+    ("mini_program", "PUBLIC_API_OPEN_HOUR", "开放开始小时（北京时间）", "Open Start Hour (Beijing Time)", "number", False, 20),
+    ("mini_program", "PUBLIC_API_CLOSE_HOUR", "开放结束小时（北京时间）", "Open End Hour (Beijing Time)", "number", False, 30),
 ]
 
 
@@ -54,7 +63,13 @@ def seed_integration_settings(db: Session) -> None:
     for group, key, label_zh, label_en, input_type, is_secret, sort_order in DEFAULT_SETTINGS:
         if (group, key) in existing:
             continue
-        default_value = "900" if key == "QWEATHER_JWT_EXPIRE_SECONDS" else ""
+        defaults = {
+            "QWEATHER_JWT_EXPIRE_SECONDS": "900",
+            "PUBLIC_API_TIME_RESTRICTION_ENABLED": "false",
+            "PUBLIC_API_OPEN_HOUR": "8",
+            "PUBLIC_API_CLOSE_HOUR": "24",
+        }
+        default_value = defaults.get(key, "")
         db.add(
             IntegrationSetting(
                 group=group,
@@ -72,6 +87,25 @@ def seed_integration_settings(db: Session) -> None:
 def get_group_config(db: Session, group: str) -> dict[str, str]:
     rows = db.scalars(select(IntegrationSetting).where(IntegrationSetting.group == group)).all()
     return {row.key: row.value or "" for row in rows}
+
+
+def get_mini_program_service_hours(db: Session) -> dict[str, Any]:
+    config = get_group_config(db, "mini_program")
+    enabled = config.get("PUBLIC_API_TIME_RESTRICTION_ENABLED", "false").lower() == "true"
+    try:
+        open_hour = int(config.get("PUBLIC_API_OPEN_HOUR", "8"))
+        close_hour = int(config.get("PUBLIC_API_CLOSE_HOUR", "24"))
+    except (TypeError, ValueError):
+        open_hour, close_hour = 8, 24
+
+    if not (0 <= open_hour < close_hour <= 24):
+        open_hour, close_hour = 8, 24
+
+    return {
+        "enabled": enabled,
+        "open_hour": open_hour,
+        "close_hour": close_hour,
+    }
 
 
 def mask_secret(value: Optional[str]) -> str:

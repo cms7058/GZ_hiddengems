@@ -1,4 +1,4 @@
-const { request, uploadMedia } = require("../../utils/request")
+const { isServiceClosedError, request, uploadMedia } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
 
 const app = getApp()
@@ -60,6 +60,7 @@ const COPY = {
     uploadFailed: "上传失败，请稍后重试",
     goThere: "到这去",
     locationRequired: "请先允许位置权限",
+    serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
   },
   "en-US": {
     navTitle: "Gem Detail",
@@ -117,6 +118,7 @@ const COPY = {
     uploadFailed: "Upload failed. Try again later",
     goThere: "Go",
     locationRequired: "Allow location first",
+    serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
   },
 }
 
@@ -210,6 +212,18 @@ Page({
       })
       this.loadSafety()
     } catch (error) {
+      if (isServiceClosedError(error)) {
+        this.setData({
+          spot: null,
+          markers: [],
+          groupedRecommendations: [],
+          safety: null,
+          loading: false,
+          fallbackMode: false,
+          error: this.data.copy.serviceClosed,
+        })
+        return
+      }
       const fallbackSpot = app.globalData.currentSpot
       if (fallbackSpot && Number(fallbackSpot.id) === this.data.id) {
         const spot = this.normalizeSpot(fallbackSpot)
@@ -422,6 +436,7 @@ Page({
       })
       wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
     } catch (error) {
+      if (isServiceClosedError(error)) return
       wx.showToast({ title: this.data.copy.uploadFailed, icon: "none" })
     }
   },
@@ -436,6 +451,8 @@ Page({
       chooseNavigationApp({
         spot,
         location,
+        mapId: "spotDetailMap",
+        page: this,
         lang: this.data.lang,
       })
     } catch (error) {
@@ -491,6 +508,7 @@ Page({
       this.setData({ checkinNote: "", checkinMedia: null })
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
+      if (isServiceClosedError(error)) return
       wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     } finally {
       this.setData({ submitting: false })
@@ -515,6 +533,7 @@ Page({
       this.setData({ noteForm: { title: "", content: "" } })
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
+      if (isServiceClosedError(error)) return
       wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     } finally {
       this.setData({ submitting: false })
@@ -537,6 +556,7 @@ Page({
       this.setData({ commentForm: { content: "" } })
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
+      if (isServiceClosedError(error)) return
       wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     } finally {
       this.setData({ submitting: false })

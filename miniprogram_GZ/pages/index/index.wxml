@@ -39,8 +39,9 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{offline}}" class="notice">{{copy.offline}}</view>
-    <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
+    <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
+    <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
+    <view wx:elif="{{loading}}" class="notice">{{copy.loading}}</view>
     <view wx:elif="{{filteredSpots.length === 0 && unlockHint.hiddenCount === 0}}" class="notice">{{copy.empty}}</view>
 
     <view wx:if="{{unlockHint.hiddenCount > 0}}" class="mystery-card">

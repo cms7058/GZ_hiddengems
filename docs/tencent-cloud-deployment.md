@@ -1,5 +1,7 @@
 # 腾讯云 Ubuntu + Docker 部署指南
 
+> 维护约定：以后处理本项目的首次部署、更新部署、启停服务和部署故障时，应先查阅本文件，并以当前仓库中的 `backend/docker-compose.prod.yml` 和 `deploy/nginx/default.conf` 为最终依据。
+
 ## 服务器准备
 
 腾讯云安全组至少放行：
@@ -62,6 +64,10 @@ nano .env
 - `INITIAL_ADMIN_PASSWORD`
 - `MAP_API_KEY`
 
+小程序公共数据服务的时间限制通过后台管理页面配置：进入“接口管理”中的“小程序数据时间管理”，设置启用开关与北京时间的开始、结束小时。启用后，小程序启动时先读取这项配置；超出开放时间时不加载后台数据并弹出提示。
+
+该限制只作用于 `/api/v1` 下的小程序公共数据和提交接口，管理后台 `/admin`、后台管理接口 `/api/v1/admin`、小程序时间配置接口及 `/health` 健康检查保持全天可用。管理员保存新时间后立即生效，无需重启容器。
+
 国内服务器构建镜像时默认使用腾讯云 Debian / PyPI 镜像源。如遇到包源不可用，可在 `.env` 中改成其他镜像：
 
 ```env
@@ -99,12 +105,77 @@ http://你的服务器公网 IP/admin
 
 ## 更新部署
 
+生产服务器目录为 `~/GZ_hiddengems`。推荐先备份数据库，再停止旧容器、拉取代码并重新构建。`docker compose down` 只删除容器和项目网络，不会删除 MySQL、Redis 或上传文件的数据卷。
+
+可选：更新前备份数据库：
+
 ```bash
-cd GZ_hiddengems
-git pull
+cd ~/GZ_hiddengems/backend
+mkdir -p ~/gz-hidden-gems-backups
+BACKUP_FILE=~/gz-hidden-gems-backups/gz_hidden_gems_$(date +%Y%m%d_%H%M%S).sql
+docker compose -f docker-compose.prod.yml exec -T mysql sh -lc 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "$BACKUP_FILE"
+echo "$BACKUP_FILE"
+```
+
+标准更新流程：
+
+```bash
+cd ~/GZ_hiddengems/backend
+docker compose -f docker-compose.prod.yml down
+
+cd ~/GZ_hiddengems
+git pull --ff-only origin main
+
 cd backend
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+检查容器和 API 日志：
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs --tail=100 api
+docker compose -f docker-compose.prod.yml logs --tail=100 nginx
+```
+
+验证 HTTPS、管理后台和 API：
+
+```bash
+curl -I https://hiddengems.pebs.tech/admin
+curl --compressed 'https://hiddengems.pebs.tech/api/v1/tags?lang=zh-CN'
+```
+
+`curl -I /admin` 可能返回 `405 Method Not Allowed`，因为 `-I` 发出的是 `HEAD` 请求；这通常仍表示 HTTPS 和 Nginx 已连通。需要验证页面内容时使用：
+
+```bash
+curl --compressed https://hiddengems.pebs.tech/admin
+```
+
+API 启动时会通过 SQLAlchemy 创建缺失的数据表。本次新增的 `spot_child_points` 表会在启动时自动创建；不要为此删除或重建 MySQL 数据卷。
+
+### 仅停止服务
+
+需要暂时释放服务器内存和 CPU 时执行：
+
+```bash
+cd ~/GZ_hiddengems/backend
+docker compose -f docker-compose.prod.yml down
+```
+
+重新启动现有镜像：
+
+```bash
+cd ~/GZ_hiddengems/backend
+docker compose -f docker-compose.prod.yml up -d
+```
+
+严禁在保留生产数据的情况下执行以下命令：
+
+```bash
+docker compose -f docker-compose.prod.yml down -v
+```
+
+其中 `-v` 会删除 Compose 管理的 MySQL、Redis 和上传文件数据卷。
 
 ## 数据与文件
 
@@ -127,14 +198,22 @@ docker compose -f docker-compose.prod.yml exec mysql \
 
 ## HTTPS
 
-当前 Nginx 配置默认只开放 HTTP，并且 `docker-compose.prod.yml` 只映射 `80:80`。生产推荐绑定域名后配置 HTTPS：
+当前生产配置已启用 HTTPS：
 
-1. 将域名解析到腾讯云服务器公网 IP。
-2. 申请证书。
-3. 将证书放到 `backend/certs/`。
-4. 修改 `deploy/nginx/default.conf`，增加 `listen 443 ssl;` 和证书路径。
-5. 在 `backend/docker-compose.prod.yml` 的 `nginx.ports` 下增加 `443:443`。
-6. 重启 Nginx：
+- 域名：`hiddengems.pebs.tech`
+- HTTP `80` 自动跳转到 HTTPS `443`
+- Compose 已映射 `80:80` 和 `443:443`
+- 证书目录：`backend/certs/`
+- 证书文件：`hiddengems.pebs.tech.pem`
+- 私钥文件：`hiddengems.pebs.tech.key`
+
+服务器上的私钥权限应设置为仅所有者可读写：
+
+```bash
+chmod 600 ~/GZ_hiddengems/backend/certs/hiddengems.pebs.tech.key
+```
+
+更新证书后重启 Nginx：
 
 ```bash
 docker compose -f docker-compose.prod.yml restart nginx

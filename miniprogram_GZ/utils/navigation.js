@@ -1,52 +1,77 @@
 const NAV_TEXT = {
   "zh-CN": {
-    systemMap: "系统地图导航",
+    systemMap: "选择地图 App 导航",
     twoSteps: "两步路户外助手--记录",
     twoStepsTitle: "两步路接入未配置",
     twoStepsContent:
-      "微信小程序不能直接拉起任意第三方 App 并传递路线。请提供两步路官方 AppID、URL Scheme 或接入文档。当前可先打开系统位置页。",
-    openLocation: "打开位置",
+      "暂未获得两步路官方接入信息。可先选择已安装的地图 App 进行导航。",
+    openMapApp: "选择地图 App",
     cancel: "取消",
+    mapUnavailableTitle: "无法打开地图 App",
+    mapUnavailableContent: "请更新微信并安装可用的地图 App 后重试。为保护秘境位置信息，系统不会打开微信内置位置页。",
   },
   "en-US": {
-    systemMap: "System Map",
+    systemMap: "Choose a Map App",
     twoSteps: "2bulu Outdoor--Record",
     twoStepsTitle: "2bulu integration missing",
     twoStepsContent:
-      "A WeChat mini program cannot launch an arbitrary third-party app with route parameters unless the app provides an approved integration. Provide the 2bulu AppID, URL scheme, or integration docs. For now, open the system location page.",
-    openLocation: "Open Location",
+      "2bulu has not provided an approved integration. Choose an installed map app for navigation instead.",
+    openMapApp: "Choose Map App",
     cancel: "Cancel",
+    mapUnavailableTitle: "Map app unavailable",
+    mapUnavailableContent: "Update WeChat and install a supported map app, then try again. The built-in WeChat location page will not be opened to protect spot data.",
   },
 }
 
-function openLocation(spot) {
-  wx.openLocation({
-    latitude: Number(spot.latitude),
-    longitude: Number(spot.longitude),
-    name: spot.name,
-    address: [spot.city, spot.county, spot.summary].filter(Boolean).join(" "),
-    scale: 16,
+function showMapUnavailable(text) {
+  wx.showModal({
+    title: text.mapUnavailableTitle,
+    content: text.mapUnavailableContent,
+    showCancel: false,
   })
 }
 
-function chooseNavigationApp({ spot, lang = "zh-CN" }) {
+function openMapApp({ spot, mapId, page, text }) {
+  if (!wx.createMapContext || !mapId || !page) {
+    showMapUnavailable(text)
+    return
+  }
+
+  const mapContext = wx.createMapContext(mapId, page)
+  if (!mapContext || typeof mapContext.openMapApp !== "function") {
+    showMapUnavailable(text)
+    return
+  }
+
+  mapContext.openMapApp({
+    latitude: Number(spot.latitude),
+    longitude: Number(spot.longitude),
+    destination: spot.name,
+    fail: (error) => {
+      if (String((error && error.errMsg) || "").toLowerCase().includes("cancel")) return
+      showMapUnavailable(text)
+    },
+  })
+}
+
+function chooseNavigationApp({ spot, mapId, page, lang = "zh-CN" }) {
   const text = NAV_TEXT[lang] || NAV_TEXT["zh-CN"]
   wx.showActionSheet({
     itemList: [text.systemMap, text.twoSteps],
     success(res) {
       if (res.tapIndex === 0) {
-        openLocation(spot)
+        openMapApp({ spot, mapId, page, text })
         return
       }
 
       wx.showModal({
         title: text.twoStepsTitle,
         content: text.twoStepsContent,
-        confirmText: text.openLocation,
+        confirmText: text.openMapApp,
         cancelText: text.cancel,
         success(modalRes) {
           if (modalRes.confirm) {
-            openLocation(spot)
+            openMapApp({ spot, mapId, page, text })
           }
         },
       })

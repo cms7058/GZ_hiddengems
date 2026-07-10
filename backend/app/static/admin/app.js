@@ -77,9 +77,11 @@ const I18N = {
   "天气接口管理": "Weather API",
   "大模型接口管理": "AI Model API",
   "河流洪水接口管理": "Flood API",
+  "小程序数据时间管理": "Mini Program Data Hours",
   "配置和风天气实时天气、气象预警接口。敏感字段列表中会脱敏显示。": "Configure QWeather live weather and warning APIs. Sensitive values are masked in lists.",
   "配置智能小助手后续使用的大模型服务。": "Configure model service used by the AI assistant.",
   "配置河流、水文、洪水预警数据接口。未配置时以人工提示和气象预警为兜底。": "Configure river, hydrology, and flood warning APIs. Weather alerts are used as fallback when unconfigured.",
+  "设置小程序后台数据的开放时间。启用后，超出时间范围的小程序请求会被拒绝并显示提示。": "Set the time window for mini program data access. When enabled, requests outside the window are rejected with a notice.",
   "新增标签": "New Tag",
   "新增用户": "New User",
   "新增游记": "New Note",
@@ -759,6 +761,15 @@ function renderIntegrationField(setting) {
   const label = escapeHtml(state.lang === "en-US" ? setting.label_en : setting.label_zh);
   const status = setting.is_configured ? t("已配置") : t("未配置");
   const placeholder = setting.is_secret && setting.is_configured ? `${status}，${t("留空表示不修改")}` : "";
+  if (setting.input_type === "checkbox") {
+    const checked = String(setting.value).toLowerCase() === "true" ? "checked" : "";
+    return `
+      <label class="switch-line">
+        <input name="${setting.key}" type="checkbox" ${checked} />
+        <span>${label}</span>
+      </label>
+    `;
+  }
   if (setting.input_type === "textarea") {
     return `
       <label class="full">
@@ -773,6 +784,8 @@ function renderIntegrationField(setting) {
       <input
         name="${setting.key}"
         type="${setting.input_type === "password" ? "password" : setting.input_type}"
+        ${setting.key === "PUBLIC_API_OPEN_HOUR" ? 'min="0" max="23" step="1"' : ""}
+        ${setting.key === "PUBLIC_API_CLOSE_HOUR" ? 'min="1" max="24" step="1"' : ""}
         value="${setting.is_secret ? "" : value}"
         placeholder="${placeholder}"
       />
@@ -1342,6 +1355,10 @@ document.addEventListener("submit", async (event) => {
   const formData = new FormData(form);
   const settings = {};
   (groupData?.settings || []).forEach((setting) => {
+    if (setting.input_type === "checkbox") {
+      settings[setting.key] = Boolean(form.elements[setting.key]?.checked) ? "true" : "false";
+      return;
+    }
     const value = formData.get(setting.key);
     if (setting.is_secret && !value) {
       settings[setting.key] = null;
