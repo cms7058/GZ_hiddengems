@@ -1,4 +1,5 @@
 const { request } = require("../../utils/request")
+const { chooseNavigationApp } = require("../../utils/navigation")
 
 const app = getApp()
 
@@ -36,6 +37,12 @@ const COPY = {
     locationFailed: "定位失败，请检查权限",
     locationRequired: "请先允许位置权限",
     resetMap: "默认",
+    mysteryTitle: "神秘秘境等待探索",
+    mysteryPrefix: "还有",
+    mysterySuffix: "个神秘景点等待你去探索",
+    nextUnlockPrefix: "还差",
+    nextUnlockSuffix: "积分可以解锁下一个秘境",
+    allUnlocked: "当前可探索秘境已全部解锁",
   },
   "en-US": {
     navTitle: "Yelang Gems",
@@ -61,6 +68,12 @@ const COPY = {
     locationFailed: "Location failed",
     locationRequired: "Allow location first",
     resetMap: "Reset",
+    mysteryTitle: "Mystery gems ahead",
+    mysteryPrefix: "There are ",
+    mysterySuffix: " mystery spots waiting",
+    nextUnlockPrefix: "Need ",
+    nextUnlockSuffix: " more pts to unlock the next gem",
+    allUnlocked: "All visible gems are unlocked",
   },
 }
 
@@ -117,6 +130,10 @@ Page({
     markers: [],
     selectedSpot: null,
     selectedSpotId: 0,
+    unlockHint: {
+      hiddenCount: 0,
+      nextNeed: 0,
+    },
     userLocation: null,
     hasUserLocation: false,
     user: app.globalData.user,
@@ -127,6 +144,7 @@ Page({
 
   onLoad() {
     this.mapAutoFit = true
+    this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
     this.checkSafetyAgreement()
@@ -142,6 +160,10 @@ Page({
 
   onPullDownRefresh() {
     this.loadHomeData().finally(() => wx.stopPullDownRefresh())
+  },
+
+  onShow() {
+    app.applyTabBarLanguage()
   },
 
   refreshCopy() {
@@ -253,9 +275,10 @@ Page({
 
   applyFilters(options = {}) {
     const selectedTagId = Number(this.data.selectedTagId)
-    const filteredSpots = selectedTagId
+    const taggedSpots = selectedTagId
       ? this.data.spots.filter((spot) => spot.tags.some((tag) => tag.id === selectedTagId))
       : this.data.spots
+    const filteredSpots = taggedSpots.filter((spot) => this.canViewSpot(spot))
     const markers = this.buildMarkers(filteredSpots)
     const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
@@ -264,8 +287,29 @@ Page({
       markers,
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
+      unlockHint: this.buildUnlockHint(taggedSpots),
     })
     this.fitMapToVisiblePoints(filteredSpots)
+  },
+
+  canViewSpot(spot) {
+    const requiredPoints = Number(spot.required_explore_points || 0)
+    const userPoints = Number(this.data.user.explore_points || 0)
+    return spot.is_unlocked !== false && userPoints >= requiredPoints
+  },
+
+  buildUnlockHint(spots) {
+    const userPoints = Number(this.data.user.explore_points || 0)
+    const hiddenSpots = (spots || []).filter((spot) => !this.canViewSpot(spot))
+    const nextNeed = hiddenSpots.reduce((minNeed, spot) => {
+      const need = Math.max(Number(spot.required_explore_points || 0) - userPoints, 0)
+      if (need <= 0) return minNeed
+      return minNeed === 0 ? need : Math.min(minNeed, need)
+    }, 0)
+    return {
+      hiddenCount: hiddenSpots.length,
+      nextNeed,
+    }
   },
 
   fitMapToVisiblePoints(spots) {
@@ -424,7 +468,7 @@ Page({
   },
 
   openSpotDetail(spot) {
-    if (!spot.is_unlocked) {
+    if (!this.canViewSpot(spot)) {
       const need = Math.max((spot.required_explore_points || 0) - (this.data.user.explore_points || 0), 0)
       wx.showToast({
         title: `${this.data.copy.needPoints} ${need} ${this.data.copy.pointsUnit}`,
@@ -438,8 +482,19 @@ Page({
     })
   },
 
+  hideShareMenu() {
+    if (wx.hideShareMenu) {
+      wx.hideShareMenu({
+        menus: ["shareAppMessage", "shareTimeline"],
+      })
+    }
+    if (wx.hideOptionMenu) {
+      wx.hideOptionMenu()
+    }
+  },
+
   onLanguageTap() {
-    app.globalData.lang = this.data.lang === "zh-CN" ? "en-US" : "zh-CN"
+    app.setLanguage(this.data.lang === "zh-CN" ? "en-US" : "zh-CN")
     this.refreshCopy()
     this.mapAutoFit = true
     this.loadHomeData()
@@ -520,12 +575,10 @@ Page({
       const location = this.data.userLocation || (await this.getLocation())
       this.updateUserLocation(location)
       this.startLocationWatch()
-      wx.openLocation({
-        latitude: Number(spot.latitude),
-        longitude: Number(spot.longitude),
-        name: spot.name,
-        address: [spot.city, spot.county, spot.summary].filter(Boolean).join(" "),
-        scale: 16,
+      chooseNavigationApp({
+        spot,
+        location,
+        lang: this.data.lang,
       })
     } catch (error) {
       wx.showModal({

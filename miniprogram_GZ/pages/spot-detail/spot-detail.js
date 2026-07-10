@@ -1,4 +1,5 @@
 const { request, uploadMedia } = require("../../utils/request")
+const { chooseNavigationApp } = require("../../utils/navigation")
 
 const app = getApp()
 
@@ -57,6 +58,8 @@ const COPY = {
     submitFailed: "提交失败，请稍后重试",
     locationFailed: "定位失败，请检查定位权限",
     uploadFailed: "上传失败，请稍后重试",
+    goThere: "到这去",
+    locationRequired: "请先允许位置权限",
   },
   "en-US": {
     navTitle: "Gem Detail",
@@ -112,6 +115,8 @@ const COPY = {
     submitFailed: "Submit failed. Try again later",
     locationFailed: "Location failed. Check permission",
     uploadFailed: "Upload failed. Try again later",
+    goThere: "Go",
+    locationRequired: "Allow location first",
   },
 }
 
@@ -146,6 +151,7 @@ Page({
   },
 
   onLoad(options) {
+    this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location)
     const id = Number(options.id || 0)
     this.setData({ id })
@@ -162,6 +168,10 @@ Page({
 
   onPullDownRefresh() {
     this.loadDetail().finally(() => wx.stopPullDownRefresh())
+  },
+
+  onShow() {
+    app.applyTabBarLanguage()
   },
 
   refreshCopy() {
@@ -344,7 +354,7 @@ Page({
   },
 
   onLanguageTap() {
-    app.globalData.lang = this.data.lang === "zh-CN" ? "en-US" : "zh-CN"
+    app.setLanguage(this.data.lang === "zh-CN" ? "en-US" : "zh-CN")
     this.refreshCopy()
     this.loadDetail()
   },
@@ -413,6 +423,30 @@ Page({
       wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
     } catch (error) {
       wx.showToast({ title: this.data.copy.uploadFailed, icon: "none" })
+    }
+  },
+
+  async onNavigateTap() {
+    const spot = this.data.spot
+    if (!spot) return
+    try {
+      const location = this.data.userLocation || (await this.getLocation())
+      this.updateUserLocation(location)
+      this.startLocationWatch()
+      chooseNavigationApp({
+        spot,
+        location,
+        lang: this.data.lang,
+      })
+    } catch (error) {
+      wx.showModal({
+        title: this.data.copy.locationRequired,
+        content: this.data.copy.locationFailed,
+        confirmText: this.data.lang === "en-US" ? "Settings" : "去设置",
+        success: (res) => {
+          if (res.confirm) wx.openSetting()
+        },
+      })
     }
   },
 
@@ -517,5 +551,16 @@ Page({
         fail: reject,
       })
     })
+  },
+
+  hideShareMenu() {
+    if (wx.hideShareMenu) {
+      wx.hideShareMenu({
+        menus: ["shareAppMessage", "shareTimeline"],
+      })
+    }
+    if (wx.hideOptionMenu) {
+      wx.hideOptionMenu()
+    }
   },
 })

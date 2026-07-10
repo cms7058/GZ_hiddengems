@@ -4,7 +4,7 @@ from app.core.config import settings
 from app.models.content import LifestyleRecommendation, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotDetailOut, TagAdminOut
+from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import can_unlock_spot, mask_coordinate
 from app.services.localization import choose_text, normalize_language
 
@@ -52,6 +52,11 @@ def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
         is_active=spot.is_active,
         tag_ids=[tag.id for tag in spot.tags],
         tags=[tag_to_localized(tag, "zh-CN") for tag in spot.tags],
+        child_points=[
+            SpotChildPointOut.model_validate(point)
+            for point in getattr(spot, "child_points", [])
+            if point.is_active
+        ],
     )
 
 

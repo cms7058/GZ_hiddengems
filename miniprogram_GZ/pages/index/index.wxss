@@ -83,6 +83,8 @@ page {
   box-shadow: 0 -12rpx 40rpx rgba(31, 49, 39, 0.12);
   box-sizing: border-box;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
 }
 
 .tag-scroll {
@@ -126,8 +128,43 @@ page {
   font-size: 24rpx;
 }
 
+.mystery-card {
+  margin: 2rpx 0 18rpx;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  background: #fff7e6;
+  border: 1rpx solid #efd8a8;
+  box-sizing: border-box;
+}
+
+.mystery-title,
+.mystery-body,
+.mystery-meta {
+  display: block;
+}
+
+.mystery-title {
+  color: #805d35;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.mystery-body {
+  margin-top: 8rpx;
+  color: #3e352b;
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
+.mystery-meta {
+  margin-top: 6rpx;
+  color: #9a5d21;
+  font-size: 22rpx;
+}
+
 .spot-list {
-  height: calc(100% - 94rpx);
+  flex: 1;
+  height: auto;
   min-height: 0;
 }
 

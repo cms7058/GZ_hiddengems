@@ -5,8 +5,16 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
-from app.models.spot import ScenicSpot, Tag
-from app.schemas.spot import ReviewStatusUpdate, SpotAdminOut, SpotCreate, SpotUpdate
+from app.models.spot import ScenicSpot, SpotChildPoint, Tag
+from app.schemas.spot import (
+    ReviewStatusUpdate,
+    SpotAdminOut,
+    SpotChildPointCreate,
+    SpotChildPointOut,
+    SpotChildPointUpdate,
+    SpotCreate,
+    SpotUpdate,
+)
 from app.schemas.pagination import Page
 from app.services.pagination import build_page, paginated_scalars
 from app.services.spot_mapper import spot_to_admin_out
@@ -34,7 +42,7 @@ def list_admin_spots(
     result = paginated_scalars(
         db,
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
         .order_by(ScenicSpot.id.desc()),
         page,
         page_size,
@@ -73,7 +81,7 @@ def get_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -90,7 +98,7 @@ def update_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -119,7 +127,7 @@ def review_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -131,6 +139,67 @@ def review_admin_spot(
     db.refresh(spot)
     db.refresh(spot, attribute_names=["tags"])
     return spot_to_admin_out(spot)
+
+
+@router.post("/{spot_id}/child-points", response_model=SpotChildPointOut, status_code=201)
+def create_spot_child_point(
+    spot_id: int,
+    payload: SpotChildPointCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> SpotChildPointOut:
+    spot = db.get(ScenicSpot, spot_id)
+    if spot is None:
+        raise HTTPException(status_code=404, detail="Spot not found")
+    point = SpotChildPoint(spot_id=spot_id, **payload.model_dump())
+    db.add(point)
+    db.commit()
+    db.refresh(point)
+    return SpotChildPointOut.model_validate(point)
+
+
+@router.patch("/{spot_id}/child-points/{point_id}", response_model=SpotChildPointOut)
+def update_spot_child_point(
+    spot_id: int,
+    point_id: int,
+    payload: SpotChildPointUpdate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> SpotChildPointOut:
+    point = db.scalar(
+        select(SpotChildPoint).where(
+            SpotChildPoint.id == point_id,
+            SpotChildPoint.spot_id == spot_id,
+        )
+    )
+    if point is None:
+        raise HTTPException(status_code=404, detail="Child point not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(point, field, value)
+    db.add(point)
+    db.commit()
+    db.refresh(point)
+    return SpotChildPointOut.model_validate(point)
+
+
+@router.delete("/{spot_id}/child-points/{point_id}", status_code=204)
+def delete_spot_child_point(
+    spot_id: int,
+    point_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    point = db.scalar(
+        select(SpotChildPoint).where(
+            SpotChildPoint.id == point_id,
+            SpotChildPoint.spot_id == spot_id,
+        )
+    )
+    if point is None:
+        raise HTTPException(status_code=404, detail="Child point not found")
+    point.is_active = False
+    db.add(point)
+    db.commit()
 
 
 @router.delete("/{spot_id}", status_code=204)

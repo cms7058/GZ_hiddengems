@@ -16,6 +16,7 @@ const state = {
   recommendations: [],
   integrations: [],
   currentSpotImages: [],
+  currentSpotChildPoints: [],
   pagination: {},
   editingSpotId: null,
   editingTagId: null,
@@ -153,6 +154,18 @@ const I18N = {
   "打卡半径米": "Check-in Radius (m)",
   "启用": "Active",
   "秘境图片": "Spot Images",
+  "子景点坐标": "Sub-spot Coordinates",
+  "为同一秘境维护多个子景点坐标、备注说明，并选择是否获取天气。": "Maintain multiple sub-spot coordinates, notes, and weather-fetch settings for one spot.",
+  "点位名称": "Point Name",
+  "备注说明": "Note",
+  "获取天气": "Fetch Weather",
+  "新增子景点": "Add Sub-spot",
+  "暂无子景点坐标": "No sub-spot coordinates",
+  "请先保存秘境，再新增子景点": "Save the spot before adding sub-spots",
+  "子景点已新增": "Sub-spot added",
+  "子景点已删除": "Sub-spot deleted",
+  "天气": "Weather",
+  "不获取天气": "No weather",
   "支持 JPG、PNG、WebP、GIF，上传后可设为封面。": "Supports JPG, PNG, WebP, and GIF. Uploaded images can be set as cover.",
   "上传图片": "Upload Image",
   "图片说明": "Caption",
@@ -308,6 +321,7 @@ function renderAll() {
   renderCommunity();
   renderRecommendations();
   renderIntegrations();
+  renderChildPoints();
   applyLanguage();
 }
 
@@ -789,6 +803,36 @@ function renderSpotImages() {
   renderPagination("spotImagesList", "spotImages");
 }
 
+function clearChildPointForm() {
+  $("#childPointName").value = "";
+  $("#childPointLatitude").value = "";
+  $("#childPointLongitude").value = "";
+  $("#childPointNote").value = "";
+  $("#childPointSort").value = "0";
+  $("#childPointWeather").checked = false;
+}
+
+function renderChildPoints() {
+  $("#childPointsList").innerHTML = state.currentSpotChildPoints.length
+    ? state.currentSpotChildPoints
+        .map(
+          (point) => `
+            <article class="image-item">
+              <div class="cell-title">
+                <strong>${escapeHtml(point.name)}</strong>
+                <span class="muted">${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)} / ${t("排序")} ${point.sort_order}</span>
+                <span class="muted">${point.fetch_weather ? t("获取天气") : t("不获取天气")}${point.note ? ` / ${escapeHtml(point.note)}` : ""}</span>
+              </div>
+              <div class="row-actions">
+                <button class="small-btn danger" data-delete-child-point="${point.id}">${t("删除")}</button>
+              </div>
+            </article>
+          `,
+        )
+        .join("")
+    : `<p class="muted">${t("暂无子景点坐标")}</p>`;
+}
+
 function renderPagination(anchorId, key) {
   const meta = state.pagination[key] || { page: 1, page_size: PAGE_SIZE, pages: 0, total: 0 };
   const anchor = $(`#${anchorId}`);
@@ -943,7 +987,10 @@ function fillSpotForm(spot = null) {
 
   if (!spot) {
     state.currentSpotImages = [];
+    state.currentSpotChildPoints = [];
     renderSpotImages();
+    renderChildPoints();
+    clearChildPointForm();
     form.elements.review_status.value = "draft";
     form.elements.visibility_level.value = "public";
     form.elements.recommendation_level.value = 1;
@@ -955,6 +1002,9 @@ function fillSpotForm(spot = null) {
     form.elements.is_active.checked = true;
     return;
   }
+  state.currentSpotChildPoints = spot.child_points || [];
+  renderChildPoints();
+  clearChildPointForm();
 
   [
     "name_zh",
@@ -1143,6 +1193,13 @@ async function loadSpotImages(spotId) {
   }
   state.currentSpotImages = await requestPage("spotImages", `/admin/content/spots/${spotId}/images`);
   renderSpotImages();
+}
+
+async function refreshCurrentSpotChildPoints() {
+  await loadData();
+  const spot = state.spots.find((item) => item.id === state.editingSpotId);
+  state.currentSpotChildPoints = spot?.child_points || [];
+  renderChildPoints();
 }
 
 async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName = "image_url") {
@@ -1523,6 +1580,16 @@ $("#spotImagesList").addEventListener("click", async (event) => {
   }
 });
 
+$("#childPointsList").addEventListener("click", async (event) => {
+  const deleteId = event.target.dataset.deleteChildPoint;
+  if (!deleteId || !state.editingSpotId) return;
+  await request(`/admin/spots/${state.editingSpotId}/child-points/${deleteId}`, {
+    method: "DELETE",
+  });
+  await refreshCurrentSpotChildPoints();
+  showToast("子景点已删除");
+});
+
 $("#accountSettingsForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1610,6 +1677,35 @@ $("#uploadSpotImageBtn").addEventListener("click", async () => {
   $("#spotImageCover").checked = false;
   await loadSpotImages(state.editingSpotId);
   showToast("图片已上传");
+});
+
+$("#addChildPointBtn").addEventListener("click", async () => {
+  if (!state.editingSpotId) {
+    showToast("请先保存秘境，再新增子景点");
+    return;
+  }
+  const name = $("#childPointName").value.trim();
+  const latitude = $("#childPointLatitude").value;
+  const longitude = $("#childPointLongitude").value;
+  if (!name || !latitude || !longitude) {
+    showToast("请填写点位名称、纬度和经度");
+    return;
+  }
+  await request(`/admin/spots/${state.editingSpotId}/child-points`, {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      note: $("#childPointNote").value.trim() || null,
+      fetch_weather: $("#childPointWeather").checked,
+      sort_order: Number($("#childPointSort").value || 0),
+      is_active: true,
+    }),
+  });
+  clearChildPointForm();
+  await refreshCurrentSpotChildPoints();
+  showToast("子景点已新增");
 });
 
 $("#uploadUserAvatarBtn").addEventListener("click", () => {

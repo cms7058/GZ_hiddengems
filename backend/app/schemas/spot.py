@@ -84,9 +84,42 @@ class ReviewStatusUpdate(BaseModel):
     review_status: str = Field(..., pattern="^(draft|pending|approved|rejected)$")
 
 
+class SpotChildPointBase(BaseModel):
+    name: str = Field(..., max_length=128)
+    latitude: float
+    longitude: float
+    note: Optional[str] = Field(default=None, max_length=512)
+    fetch_weather: bool = False
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class SpotChildPointCreate(SpotChildPointBase):
+    pass
+
+
+class SpotChildPointUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=128)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    note: Optional[str] = Field(default=None, max_length=512)
+    fetch_weather: Optional[bool] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class SpotChildPointOut(SpotChildPointBase):
+    id: int
+    spot_id: int
+
+    class Config:
+        from_attributes = True
+
+
 class SpotAdminOut(SpotCreate):
     id: int
     tags: list[LocalizedTag] = Field(default_factory=list)
+    child_points: list[SpotChildPointOut] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

@@ -427,6 +427,24 @@
             <button id="uploadSpotImageBtn" type="button" class="secondary-btn">上传图片</button>
             <div id="spotImagesList" class="image-list"></div>
           </div>
+          <div class="full upload-panel">
+            <div class="section-head compact-head">
+              <div>
+                <h3>子景点坐标</h3>
+                <p class="muted">为同一秘境维护多个子景点坐标、备注说明，并选择是否获取天气。</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label><span>点位名称</span><input id="childPointName" maxlength="128" /></label>
+              <label><span>纬度</span><input id="childPointLatitude" type="number" step="0.000001" /></label>
+              <label><span>经度</span><input id="childPointLongitude" type="number" step="0.000001" /></label>
+              <label><span>排序</span><input id="childPointSort" type="number" value="0" /></label>
+              <label class="full"><span>备注说明</span><input id="childPointNote" maxlength="512" /></label>
+              <label class="switch-line"><input id="childPointWeather" type="checkbox" /> <span>获取天气</span></label>
+            </div>
+            <button id="addChildPointBtn" type="button" class="secondary-btn">新增子景点</button>
+            <div id="childPointsList" class="image-list"></div>
+          </div>
         </div>
         <footer>
           <button type="button" class="secondary-btn" data-close-dialog="spotDialog">取消</button>
@@ -699,6 +717,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260707-integrations"></script>
+    <script src="/admin/static/app.js?v=20260710-child-points"></script>
   </body>
 </html>

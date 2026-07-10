@@ -26,6 +26,7 @@ Page({
   },
 
   onShow() {
+    app.applyTabBarLanguage()
     const lang = app.globalData.lang || "zh-CN"
     this.setData({
       lang,

@@ -218,4 +218,5 @@
       </view>
     </block>
   </scroll-view>
+  <view wx:if="{{spot}}" class="floating-navigate" catchtap="onNavigateTap">{{copy.goThere}}</view>
 </view>

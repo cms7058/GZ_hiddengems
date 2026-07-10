@@ -1,7 +1,7 @@
 from app.models.admin import AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
-from app.models.spot import ScenicSpot, SpotTag, Tag
+from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag
 from app.models.user import (
     CheckinRecord,
     MembershipPlan,
@@ -19,6 +19,7 @@ __all__ = [
     "MiniProgramUser",
     "PassLevelSetting",
     "ScenicSpot",
+    "SpotChildPoint",
     "SpotImage",
     "SpotTag",
     "Tag",

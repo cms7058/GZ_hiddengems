@@ -55,3 +55,27 @@ class ScenicSpot(Base):
     travel_notes = relationship("TravelNote", back_populates="spot")
     comments = relationship("UserComment", back_populates="spot")
     lifestyle_recommendations = relationship("LifestyleRecommendation", back_populates="spot")
+    child_points = relationship(
+        "SpotChildPoint",
+        back_populates="spot",
+        cascade="all, delete-orphan",
+        order_by="SpotChildPoint.sort_order",
+    )
+
+
+class SpotChildPoint(Base):
+    __tablename__ = "spot_child_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    note = Column(String(512), nullable=True)
+    fetch_weather = Column(Boolean, default=False, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    spot = relationship("ScenicSpot", back_populates="child_points")

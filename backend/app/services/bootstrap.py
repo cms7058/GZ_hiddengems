@@ -11,7 +11,7 @@ from app.db.session import engine
 from app.models.admin import AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
-from app.models.spot import ScenicSpot, Tag
+from app.models.spot import ScenicSpot, SpotChildPoint, Tag
 from app.models.user import (
     CheckinRecord,
     MembershipPlan,

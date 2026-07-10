@@ -41,7 +41,18 @@
 
     <view wx:if="{{offline}}" class="notice">{{copy.offline}}</view>
     <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
-    <view wx:elif="{{filteredSpots.length === 0}}" class="notice">{{copy.empty}}</view>
+    <view wx:elif="{{filteredSpots.length === 0 && unlockHint.hiddenCount === 0}}" class="notice">{{copy.empty}}</view>
+
+    <view wx:if="{{unlockHint.hiddenCount > 0}}" class="mystery-card">
+      <text class="mystery-title">{{copy.mysteryTitle}}</text>
+      <text class="mystery-body">
+        {{copy.mysteryPrefix}}{{unlockHint.hiddenCount}}{{copy.mysterySuffix}}
+      </text>
+      <text wx:if="{{unlockHint.nextNeed > 0}}" class="mystery-meta">
+        {{copy.nextUnlockPrefix}}{{unlockHint.nextNeed}}{{copy.nextUnlockSuffix}}
+      </text>
+      <text wx:else class="mystery-meta">{{copy.allUnlocked}}</text>
+    </view>
 
     <scroll-view class="spot-list" scroll-y>
       <view
