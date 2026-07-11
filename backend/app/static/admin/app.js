@@ -80,6 +80,8 @@ const I18N = {
   "小程序数据时间管理": "Mini Program Data Hours",
   "对象存储管理": "Object Storage",
   "测试连接": "Test Connection",
+  "正在测试 OSS 连接...": "Testing OSS connection...",
+  "OSS 连接失败": "OSS connection failed",
   "OSS 连接成功": "OSS connection successful",
   "配置和风天气实时天气、气象预警接口。敏感字段列表中会脱敏显示。": "Configure QWeather live weather and warning APIs. Sensitive values are masked in lists.",
   "配置智能小助手后续使用的大模型服务。": "Configure model service used by the AI assistant.",
@@ -1355,17 +1357,28 @@ $$(".nav-btn").forEach((button) => {
 
 document.addEventListener("click", async (event) => {
   if (event.target.dataset.testObjectStorage) {
-    const form = event.target.closest("[data-integration-form]");
+    const button = event.target;
+    const form = button.closest("[data-integration-form]");
     const groupData = state.integrations.find((item) => item.group === "object_storage");
-    const updated = await request("/admin/integrations/object_storage", {
-      method: "PATCH",
-      body: JSON.stringify({ settings: collectIntegrationSettings(form, groupData) }),
-    });
-    state.integrations = state.integrations.map((item) => (item.group === "object_storage" ? updated : item));
-    renderIntegrations();
-    applyLanguage($("#integrationsSection"));
-    const result = await request("/admin/integrations/object-storage/test", { method: "POST" });
-    showToast(`${t("OSS 连接成功")}：${result.bucket} / ${result.region}`);
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = t("正在测试 OSS 连接...");
+    showToast("正在测试 OSS 连接...");
+    try {
+      const updated = await request("/admin/integrations/object_storage", {
+        method: "PATCH",
+        body: JSON.stringify({ settings: collectIntegrationSettings(form, groupData) }),
+      });
+      state.integrations = state.integrations.map((item) => (item.group === "object_storage" ? updated : item));
+      const result = await request("/admin/integrations/object-storage/test", { method: "POST" });
+      renderIntegrations();
+      applyLanguage($("#integrationsSection"));
+      showToast(`${t("OSS 连接成功")}：${result.bucket} / ${result.region}`);
+    } catch (error) {
+      showToast(`${t("OSS 连接失败")}：${error.message}`);
+      button.disabled = false;
+      button.textContent = originalText;
+    }
     return;
   }
 
