@@ -43,10 +43,18 @@ class AliyunOssMediaStorage:
         except ImportError as error:
             raise MediaStorageError("Aliyun OSS SDK is not installed") from error
 
+        access_key_id = self.config.get("access_key_id", "")
+        access_key_secret = self.config.get("access_key_secret", "")
+        if not access_key_id or not access_key_secret:
+            raise MediaStorageError("OSS AccessKey is missing. Set ALIYUN_ACCESS_KEY_ID and ALIYUN_ACCESS_KEY_SECRET in backend/.env")
+
         endpoint = self.config["endpoint"].replace("https://", "").replace("http://", "").rstrip("/")
         try:
             client_config = oss.config.load_default()
-            client_config.credentials_provider = oss.credentials.EnvironmentVariableCredentialsProvider()
+            client_config.credentials_provider = oss.credentials.StaticCredentialsProvider(
+                access_key_id,
+                access_key_secret,
+            )
             client_config.region = self.config["region"]
             client_config.endpoint = endpoint
             return oss, oss.Client(client_config), endpoint

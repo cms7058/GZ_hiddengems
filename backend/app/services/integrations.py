@@ -129,6 +129,8 @@ def get_object_storage_config(db: Session) -> dict[str, str]:
         "region": (config.get("ALIYUN_OSS_REGION") or settings.aliyun_oss_region).strip(),
         "bucket": (config.get("ALIYUN_OSS_BUCKET") or settings.aliyun_oss_bucket).strip(),
         "public_base_url": (config.get("ALIYUN_OSS_PUBLIC_BASE_URL") or settings.aliyun_oss_public_base_url).strip().rstrip("/"),
+        "access_key_id": settings.aliyun_access_key_id,
+        "access_key_secret": settings.aliyun_access_key_secret,
     }
 
 

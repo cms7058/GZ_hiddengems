@@ -338,7 +338,8 @@ function showToast(message) {
   toast.textContent = t(message);
   toast.classList.remove("hidden");
   window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), 2400);
+  const duration = String(message).length > 80 ? 10000 : 3200;
+  showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), duration);
 }
 
 function renderAdminInfo() {
