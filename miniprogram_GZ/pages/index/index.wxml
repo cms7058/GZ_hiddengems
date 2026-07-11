@@ -44,7 +44,7 @@
     <view wx:elif="{{loading}}" class="notice">{{copy.loading}}</view>
     <view wx:elif="{{filteredSpots.length === 0 && unlockHint.hiddenCount === 0}}" class="notice">{{copy.empty}}</view>
 
-    <view wx:if="{{unlockHint.hiddenCount > 0}}" class="mystery-card">
+    <view wx:if="{{showUnlockBubble && unlockHint.hiddenCount > 0}}" class="mystery-card">
       <text class="mystery-title">{{copy.mysteryTitle}}</text>
       <text class="mystery-body">
         {{copy.mysteryPrefix}}{{unlockHint.hiddenCount}}{{copy.mysterySuffix}}

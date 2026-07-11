@@ -150,6 +150,7 @@ Page({
       hiddenCount: 0,
       nextNeed: 0,
     },
+    showUnlockBubble: false,
     userLocation: null,
     hasUserLocation: false,
     user: app.globalData.user,
@@ -174,6 +175,7 @@ Page({
   },
 
   onUnload() {
+    clearTimeout(this.unlockBubbleTimer)
     if (this.handleLocationChange && wx.offLocationChange) {
       wx.offLocationChange(this.handleLocationChange)
     }
@@ -210,8 +212,17 @@ Page({
 
   showNextAgreementStep() {
     const hasProfileAuth = app.globalData.hasAcceptedProfileAuth || wx.getStorageSync("gzProfileAuthAccepted")
-    if (!hasProfileAuth) {
-      this.setData({ showProfileAuth: true, showSafetyAgreement: false })
+    const user = app.globalData.user || {}
+    const hasRealProfile = Boolean(user.avatar_url) && Boolean(user.nickname) && user.nickname !== "秘境探索者"
+    if (!hasProfileAuth || !hasRealProfile) {
+      this.setData({
+        showProfileAuth: true,
+        showSafetyAgreement: false,
+        profileAuthForm: {
+          nickname: hasRealProfile ? user.nickname : "",
+          avatar_url: user.avatar_url || "",
+        },
+      })
       return
     }
     this.setData({ showProfileAuth: false })
@@ -243,6 +254,7 @@ Page({
           selectedSpot: null,
           selectedSpotId: 0,
           unlockHint: { hiddenCount: 0, nextNeed: 0 },
+          showUnlockBubble: false,
           offline: false,
           serviceClosed: true,
           loading: false,
@@ -502,9 +514,32 @@ Page({
   },
 
   onTagTap(event) {
+    const selectedTagId = Number(event.currentTarget.dataset.id)
     this.mapAutoFit = true
-    this.setData({ selectedTagId: Number(event.currentTarget.dataset.id) })
+    this.setData({ selectedTagId })
     this.applyFilters()
+    if (selectedTagId === 0) {
+      this.showUnlockHintBubble()
+    } else {
+      this.hideUnlockHintBubble()
+    }
+  },
+
+  showUnlockHintBubble() {
+    clearTimeout(this.unlockBubbleTimer)
+    if (!this.data.unlockHint || this.data.unlockHint.hiddenCount <= 0) {
+      this.setData({ showUnlockBubble: false })
+      return
+    }
+    this.setData({ showUnlockBubble: true })
+    this.unlockBubbleTimer = setTimeout(() => {
+      this.setData({ showUnlockBubble: false })
+    }, 3000)
+  },
+
+  hideUnlockHintBubble() {
+    clearTimeout(this.unlockBubbleTimer)
+    this.setData({ showUnlockBubble: false })
   },
 
   onMarkerTap(event) {
@@ -606,7 +641,14 @@ Page({
       })
       wx.setStorageSync("gzProfileAuthAccepted", true)
       app.globalData.hasAcceptedProfileAuth = true
-      this.setData({ user, showProfileAuth: false })
+      this.setData({
+        user,
+        showProfileAuth: false,
+        profileAuthForm: {
+          nickname: user.nickname || "",
+          avatar_url: user.avatar_url || "",
+        },
+      })
       this.checkSafetyAgreement()
       this.loadHomeData()
     } catch (error) {

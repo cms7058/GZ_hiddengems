@@ -74,6 +74,7 @@ page {
 }
 
 .sheet {
+  position: relative;
   flex: 1;
   min-height: 0;
   margin-top: 0;
@@ -129,12 +130,19 @@ page {
 }
 
 .mystery-card {
-  margin: 2rpx 0 18rpx;
-  padding: 20rpx;
+  position: absolute;
+  top: 92rpx;
+  right: 24rpx;
+  z-index: 6;
+  width: 560rpx;
+  max-width: calc(100% - 48rpx);
+  padding: 18rpx 20rpx;
   border-radius: 8rpx;
   background: #fff7e6;
   border: 1rpx solid #efd8a8;
+  box-shadow: 0 12rpx 36rpx rgba(80, 55, 25, 0.18);
   box-sizing: border-box;
+  pointer-events: none;
 }
 
 .mystery-title,

@@ -17,12 +17,15 @@ router = APIRouter()
 @router.get("", response_model=Page[MiniProgramUserOut])
 def list_admin_users(
     keyword: str = Query(default=""),
+    include_inactive: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[MiniProgramUserOut]:
     statement = select(MiniProgramUser).order_by(MiniProgramUser.id.desc())
+    if not include_inactive:
+        statement = statement.where(MiniProgramUser.is_active.is_(True))
     if keyword:
         like_keyword = f"%{keyword}%"
         statement = statement.where(
@@ -54,8 +57,16 @@ def create_admin_user(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> MiniProgramUserOut:
     exists = db.scalar(select(MiniProgramUser).where(MiniProgramUser.openid == payload.openid))
-    if exists is not None:
+    if exists is not None and exists.is_active:
         raise HTTPException(status_code=409, detail="OpenID already exists")
+    if exists is not None:
+        for field, value in payload.model_dump().items():
+            setattr(exists, field, value)
+        exists.is_active = True
+        db.add(exists)
+        db.commit()
+        db.refresh(exists)
+        return exists
 
     user = MiniProgramUser(**payload.model_dump())
     db.add(user)

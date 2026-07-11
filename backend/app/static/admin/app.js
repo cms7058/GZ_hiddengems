@@ -36,6 +36,19 @@ const PAGE_SIZE_BY_KEY = {
   tags: 100,
 };
 
+const DEFAULT_SECTION = "spotsSection";
+const SECTION_IDS = new Set([
+  "spotsSection",
+  "tagsSection",
+  "usersSection",
+  "passSettingsSection",
+  "membershipsSection",
+  "checkinsSection",
+  "communitySection",
+  "recommendationsSection",
+  "integrationsSection",
+]);
+
 const I18N = {
   "贵州秘境管理后台": "Guizhou Hidden Gems Admin",
   "秘境点位、双语内容、标签和审核状态维护": "Manage hidden gem locations, bilingual content, tags, and review states",
@@ -266,6 +279,7 @@ const I18N = {
   "游记已保存": "Note saved",
   "留言已保存": "Comment saved",
   "用户已保存": "User saved",
+  "保存失败": "Save failed",
   "秘境已保存": "Spot saved",
   "标签已保存": "Tag saved",
   "审核状态已更新": "Review status updated",
@@ -385,6 +399,28 @@ function renderAdminInfo() {
   $("#adminInfo").textContent = state.admin ? `${state.admin.username} / ${state.admin.role}` : "-";
 }
 
+function getInitialSectionId() {
+  const hashSection = window.location.hash.replace("#", "");
+  const savedSection = localStorage.getItem("gz_admin_section") || "";
+  if (SECTION_IDS.has(hashSection)) return hashSection;
+  if (SECTION_IDS.has(savedSection)) return savedSection;
+  return DEFAULT_SECTION;
+}
+
+function setActiveSection(sectionId, options = {}) {
+  const nextSectionId = SECTION_IDS.has(sectionId) ? sectionId : DEFAULT_SECTION;
+  $$(".nav-btn").forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === nextSectionId);
+  });
+  $$(".panel-section").forEach((section) => {
+    section.classList.toggle("hidden", section.id !== nextSectionId);
+  });
+  localStorage.setItem("gz_admin_section", nextSectionId);
+  if (!options.skipHash && window.location.hash !== `#${nextSectionId}`) {
+    history.replaceState(null, "", `#${nextSectionId}`);
+  }
+}
+
 async function request(path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
@@ -454,11 +490,12 @@ function escapeHtml(value) {
 }
 
 function renderMetrics() {
+  const visibleUsers = state.users.filter((user) => user.is_active !== false);
   $("#spotCount").textContent = state.pagination.spots?.total ?? state.spots.length;
   $("#approvedCount").textContent = state.spots.filter((spot) => spot.review_status === "approved").length;
   $("#tagCount").textContent = state.pagination.tags?.total ?? state.tags.length;
   $("#protectedCount").textContent = state.spots.filter((spot) => spot.visibility_level !== "public").length;
-  $("#userCount").textContent = state.pagination.users?.total ?? state.users.length;
+  $("#userCount").textContent = state.pagination.users?.total ?? visibleUsers.length;
   $("#passLevelCount").textContent = state.pagination.passSettings?.total ?? state.passSettings.length;
   $("#membershipPlanCount").textContent = state.pagination.membershipPlans?.total ?? state.membershipPlans.length;
   $("#pendingCheckinCount").textContent = state.checkins.filter((checkin) => checkin.status === "pending").length;
@@ -586,6 +623,7 @@ function renderSpots() {
 
 function renderUsers() {
   $("#usersTable").innerHTML = state.users
+    .filter((user) => user.is_active !== false)
     .map(
       (user) => `
         <tr>
@@ -1141,7 +1179,7 @@ async function loadData() {
   ] = await Promise.all([
     requestPage("tags", "/admin/tags"),
     requestPage("spots", "/admin/spots"),
-    requestPage("users", "/admin/users"),
+    requestPage("users", "/admin/users?include_inactive=false"),
     requestPage("passSettings", "/admin/pass-settings"),
     requestPage("membershipPlans", "/admin/memberships/plans"),
     requestPage("membershipRecords", "/admin/memberships/records"),
@@ -1194,6 +1232,7 @@ async function bootstrap() {
     state.admin = await request("/admin/me");
     renderAdminInfo();
     setAuthenticated(true);
+    setActiveSection(getInitialSectionId(), { skipHash: Boolean(window.location.hash) });
     await loadData();
     applyLanguage();
   } catch (error) {
@@ -1517,6 +1556,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
     localStorage.setItem("gz_admin_token", state.token);
     renderAdminInfo();
     setAuthenticated(true);
+    setActiveSection(getInitialSectionId(), { skipHash: Boolean(window.location.hash) });
     await loadData();
   } catch (error) {
     $("#loginError").textContent = error.message;
@@ -1584,11 +1624,12 @@ $$("[data-close-dialog]").forEach((button) => {
 
 $$(".nav-btn").forEach((button) => {
   button.addEventListener("click", () => {
-    $$(".nav-btn").forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    $$(".panel-section").forEach((section) => section.classList.add("hidden"));
-    $(`#${button.dataset.section}`).classList.remove("hidden");
+    setActiveSection(button.dataset.section);
   });
+});
+
+window.addEventListener("hashchange", () => {
+  setActiveSection(getInitialSectionId(), { skipHash: true });
 });
 
 document.addEventListener("click", async (event) => {
@@ -1719,6 +1760,9 @@ $("#usersTable").addEventListener("click", async (event) => {
 
   if (deleteId) {
     await request(`/admin/users/${deleteId}`, { method: "DELETE" });
+    state.users = state.users.filter((user) => user.id !== Number(deleteId));
+    renderUsers();
+    renderMetrics();
     await loadData();
     showToast("用户已删除");
   }
@@ -2095,8 +2139,8 @@ $("#userForm").addEventListener("submit", async (event) => {
   const form = event.currentTarget;
   const data = formToObject(form);
   const payload = {
-    openid: data.openid,
-    nickname: data.nickname,
+    openid: String(data.openid || "").trim(),
+    nickname: String(data.nickname || "").trim(),
     avatar_url: data.avatar_url || null,
     phone: data.phone || null,
     language: data.language,
@@ -2114,13 +2158,20 @@ $("#userForm").addEventListener("submit", async (event) => {
   };
   const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
   const method = state.editingUserId ? "PATCH" : "POST";
-  await request(path, {
-    method,
-    body: JSON.stringify(payload),
-  });
-  $("#userDialog").close();
-  await loadData();
-  showToast("用户已保存");
+  try {
+    await request(path, {
+      method,
+      body: JSON.stringify(payload),
+    });
+    if (!state.editingUserId) {
+      state.pagination.users = { ...(state.pagination.users || {}), page: 1 };
+    }
+    $("#userDialog").close();
+    await loadData();
+    showToast("用户已保存");
+  } catch (error) {
+    showToast(`${t("保存失败")}：${error.message}`);
+  }
 });
 
 $("#travelNoteForm").addEventListener("submit", async (event) => {
