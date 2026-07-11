@@ -1,7 +1,7 @@
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -11,12 +11,12 @@ from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.content import TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
 from app.schemas.user import CheckinCreate, CheckinRecordOut
 from app.services.integrations import get_mini_program_service_hours
+from app.services.media_storage import MediaStorageError, save_media
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
 
 router = APIRouter()
 
-UPLOAD_BASE = Path(__file__).resolve().parents[3] / "static" / "uploads"
 ALLOWED_MEDIA_SUFFIXES = {
     ".jpg": "image",
     ".jpeg": "image",
@@ -27,6 +27,7 @@ ALLOWED_MEDIA_SUFFIXES = {
     ".mov": "video",
     ".m4v": "video",
 }
+MAX_MEDIA_UPLOAD_BYTES = 100 * 1024 * 1024
 
 
 @router.get("/service-hours")
@@ -67,19 +68,22 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
 
 
 @router.post("/uploads")
-async def upload_mini_media(file: UploadFile = File(...)) -> dict:
+async def upload_mini_media(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> dict:
     suffix = Path(file.filename or "").suffix.lower()
     media_type = ALLOWED_MEDIA_SUFFIXES.get(suffix)
     if media_type is None:
         raise HTTPException(status_code=400, detail="Unsupported media type")
 
-    upload_root = UPLOAD_BASE / "mini-shares"
-    upload_root.mkdir(parents=True, exist_ok=True)
-    filename = f"{uuid4().hex}{suffix}"
-    target = upload_root / filename
     content = await file.read()
-    target.write_bytes(content)
-    media_url = f"/media/mini-shares/{filename}"
+    if len(content) > MAX_MEDIA_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Media must not exceed 100 MB")
+    try:
+        media_url = await run_in_threadpool(save_media, db, "mini-shares", suffix, content, file.content_type)
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
     return {
         "media_url": media_url,
         "media_type": media_type,

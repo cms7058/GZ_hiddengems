@@ -1,7 +1,5 @@
-from pathlib import Path
-from uuid import uuid4
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -25,28 +23,29 @@ from app.schemas.content import (
     UserCommentUpdate,
 )
 from app.schemas.pagination import Page
+from app.services.media_storage import MediaStorageError, save_media
 from app.services.pagination import build_page, paginated_scalars
 
 
 router = APIRouter()
 
 
-UPLOAD_BASE = Path(__file__).resolve().parents[3] / "static" / "uploads"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
-async def save_upload(file: UploadFile, folder: str) -> str:
+async def save_upload(file: UploadFile, folder: str, db: Session) -> str:
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only image files are supported")
 
-    suffix = Path(file.filename or "").suffix.lower() or ".jpg"
-    filename = f"{uuid4().hex}{suffix}"
-    upload_root = UPLOAD_BASE / folder
-    upload_root.mkdir(parents=True, exist_ok=True)
-    target = upload_root / filename
     content = await file.read()
-    target.write_bytes(content)
-    return f"/media/{folder}/{filename}"
+    if len(content) > MAX_IMAGE_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Image must not exceed 10 MB")
+    suffix = (file.filename or "").rsplit(".", 1)[-1] if "." in (file.filename or "") else "jpg"
+    try:
+        return await run_in_threadpool(save_media, db, folder, suffix, content, file.content_type)
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
 
 def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
@@ -156,7 +155,7 @@ async def upload_spot_image(
     spot = db.get(ScenicSpot, spot_id)
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
-    image_url = await save_upload(file, "spots")
+    image_url = await save_upload(file, "spots", db)
 
     if is_cover:
         for existing in db.scalars(select(SpotImage).where(SpotImage.spot_id == spot_id)).all():
@@ -179,12 +178,13 @@ async def upload_spot_image(
 async def upload_content_image(
     folder: str,
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> dict[str, str]:
     allowed_folders = {"travel-notes", "comments", "recommendations", "avatars"}
     if folder not in allowed_folders:
         raise HTTPException(status_code=404, detail="Upload folder not found")
-    return {"image_url": await save_upload(file, folder)}
+    return {"image_url": await save_upload(file, folder, db)}
 
 
 @router.patch("/spot-images/{image_id}", response_model=SpotImageOut)

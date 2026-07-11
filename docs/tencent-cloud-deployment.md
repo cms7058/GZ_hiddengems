@@ -187,6 +187,37 @@ docker compose -f docker-compose.prod.yml down -v
 
 不要执行会删除 volume 的命令，除非确认要清空数据。
 
+## 阿里云 OSS 媒体存储
+
+当前版本支持两种媒体存储方式：
+
+- `local`：默认方式，上传文件保存在 Docker volume `uploads_data`。
+- `aliyun_oss`：管理员上传图片、小程序上传图片或视频时，由后台转存到阿里云 OSS。
+
+OSS 的 AccessKey 只保存在服务器 `backend/.env`，不要填写到后台管理页面或提交到 Git：
+
+```env
+ALIYUN_ACCESS_KEY_ID=你的 RAM 用户 AccessKey ID
+ALIYUN_ACCESS_KEY_SECRET=你的 RAM 用户 AccessKey Secret
+```
+
+部署新版本并登录后台后，进入“接口管理 > 对象存储管理”，依次配置：
+
+- 存储方式：`aliyun_oss`
+- OSS Endpoint，例如 `oss-cn-guangzhou.aliyuncs.com`
+- OSS 地域 ID，例如 `cn-guangzhou`
+- OSS Bucket 名称
+- 媒体访问域名，例如 `https://media.hiddengems.pebs.tech`
+
+当前阶段数据库保存的是媒体访问 URL，因此该媒体域名必须能让小程序和后台浏览器读取对应 OSS 对象。受保护秘境的私有媒体签名访问、客户端直传和历史文件迁移将在后续阶段接入。
+
+首次启用 OSS 后，重新构建 API 镜像以安装 OSS SDK：
+
+```bash
+cd ~/GZ_hiddengems/backend
+docker compose -f docker-compose.prod.yml up -d --build api
+```
+
 ## 备份 MySQL
 
 ```bash

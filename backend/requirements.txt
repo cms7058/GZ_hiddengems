@@ -7,3 +7,4 @@ python-jose[cryptography]==3.3.0
 passlib==1.7.4
 redis==5.0.7
 python-dotenv==1.0.1
+alibabacloud-oss-v2

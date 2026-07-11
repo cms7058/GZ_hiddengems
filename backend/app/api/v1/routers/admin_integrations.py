@@ -7,10 +7,25 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.integration import IntegrationSetting
 from app.schemas.integration import IntegrationGroupOut, IntegrationGroupUpdate, IntegrationSettingOut
-from app.services.integrations import GROUP_META, mask_secret
+from app.services.integrations import GROUP_META, get_object_storage_config, mask_secret
+from app.services.media_storage import AliyunOssMediaStorage, MediaStorageError
 
 
 router = APIRouter()
+
+
+@router.post("/object-storage/test")
+def test_object_storage_connection(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict[str, str]:
+    config = get_object_storage_config(db)
+    if config["provider"] != "aliyun_oss":
+        raise HTTPException(status_code=400, detail="Set storage provider to aliyun_oss before testing")
+    try:
+        return AliyunOssMediaStorage(config).test_connection()
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
 
 @router.get("", response_model=list[IntegrationGroupOut])
@@ -67,6 +82,15 @@ def update_integration_settings(
             raise HTTPException(status_code=400, detail="Service hours must be integers") from error
         if not (0 <= open_hour < close_hour <= 24):
             raise HTTPException(status_code=400, detail="Service hours must satisfy 0 <= start < end <= 24")
+    if group == "object_storage":
+        provider_row = by_key.get("MEDIA_STORAGE_PROVIDER")
+        provider = (
+            payload.settings.get("MEDIA_STORAGE_PROVIDER")
+            or (provider_row.value if provider_row else "")
+            or "local"
+        ).strip().lower()
+        if provider not in {"local", "aliyun_oss"}:
+            raise HTTPException(status_code=400, detail="Storage provider must be local or aliyun_oss")
     for key, value in payload.settings.items():
         row = by_key.get(key)
         if row is None:

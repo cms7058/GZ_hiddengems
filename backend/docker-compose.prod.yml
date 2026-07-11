@@ -9,6 +9,9 @@ services:
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.cloud.tencent.com}
     env_file:
       - .env
+    environment:
+      OSS_ACCESS_KEY_ID: ${ALIYUN_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${ALIYUN_ACCESS_KEY_SECRET:-}
     depends_on:
       mysql:
         condition: service_healthy

@@ -23,6 +23,12 @@ class Settings:
     default_language: str = os.getenv("DEFAULT_LANGUAGE", "zh-CN")
     coordinate_mask_decimals: int = int(os.getenv("COORDINATE_MASK_DECIMALS", "2"))
 
+    media_storage_provider: str = os.getenv("MEDIA_STORAGE_PROVIDER", "local").strip().lower()
+    aliyun_oss_endpoint: str = os.getenv("ALIYUN_OSS_ENDPOINT", "").strip()
+    aliyun_oss_region: str = os.getenv("ALIYUN_OSS_REGION", "").strip()
+    aliyun_oss_bucket: str = os.getenv("ALIYUN_OSS_BUCKET", "").strip()
+    aliyun_oss_public_base_url: str = os.getenv("ALIYUN_OSS_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
     qweather_api_host: str = os.getenv("QWEATHER_API_HOST", "").strip()
     qweather_api_key: str = os.getenv("QWEATHER_API_KEY", "").strip()
     qweather_key_id: str = os.getenv("QWEATHER_KEY_ID", "").strip()

@@ -78,10 +78,14 @@ const I18N = {
   "大模型接口管理": "AI Model API",
   "河流洪水接口管理": "Flood API",
   "小程序数据时间管理": "Mini Program Data Hours",
+  "对象存储管理": "Object Storage",
+  "测试连接": "Test Connection",
+  "OSS 连接成功": "OSS connection successful",
   "配置和风天气实时天气、气象预警接口。敏感字段列表中会脱敏显示。": "Configure QWeather live weather and warning APIs. Sensitive values are masked in lists.",
   "配置智能小助手后续使用的大模型服务。": "Configure model service used by the AI assistant.",
   "配置河流、水文、洪水预警数据接口。未配置时以人工提示和气象预警为兜底。": "Configure river, hydrology, and flood warning APIs. Weather alerts are used as fallback when unconfigured.",
   "设置小程序后台数据的开放时间。启用后，超出时间范围的小程序请求会被拒绝并显示提示。": "Set the time window for mini program data access. When enabled, requests outside the window are rejected with a notice.",
+  "配置图片和视频的存储位置。AccessKey 仅从服务器环境变量读取，不会保存到后台数据库。": "Configure media storage. Access keys are read only from server environment variables and are not saved in the admin database.",
   "新增标签": "New Tag",
   "新增用户": "New User",
   "新增游记": "New Note",
@@ -748,6 +752,7 @@ function renderIntegrations() {
             ${group.settings.map((setting) => renderIntegrationField(setting)).join("")}
           </div>
           <footer>
+            ${group.group === "object_storage" ? '<button type="button" class="secondary-btn" data-test-object-storage="true">测试连接</button>' : ""}
             <button type="submit" class="primary-btn">${t("保存")}</button>
           </footer>
         </form>
@@ -791,6 +796,24 @@ function renderIntegrationField(setting) {
       />
     </label>
   `;
+}
+
+function collectIntegrationSettings(form, groupData) {
+  const formData = new FormData(form);
+  const settings = {};
+  (groupData?.settings || []).forEach((setting) => {
+    if (setting.input_type === "checkbox") {
+      settings[setting.key] = Boolean(form.elements[setting.key]?.checked) ? "true" : "false";
+      return;
+    }
+    const value = formData.get(setting.key);
+    if (setting.is_secret && !value) {
+      settings[setting.key] = null;
+      return;
+    }
+    settings[setting.key] = String(value || "").trim();
+  });
+  return settings;
 }
 
 function renderSpotImages() {
@@ -1331,6 +1354,21 @@ $$(".nav-btn").forEach((button) => {
 });
 
 document.addEventListener("click", async (event) => {
+  if (event.target.dataset.testObjectStorage) {
+    const form = event.target.closest("[data-integration-form]");
+    const groupData = state.integrations.find((item) => item.group === "object_storage");
+    const updated = await request("/admin/integrations/object_storage", {
+      method: "PATCH",
+      body: JSON.stringify({ settings: collectIntegrationSettings(form, groupData) }),
+    });
+    state.integrations = state.integrations.map((item) => (item.group === "object_storage" ? updated : item));
+    renderIntegrations();
+    applyLanguage($("#integrationsSection"));
+    const result = await request("/admin/integrations/object-storage/test", { method: "POST" });
+    showToast(`${t("OSS 连接成功")}：${result.bucket} / ${result.region}`);
+    return;
+  }
+
   const pageKey = event.target.dataset.pageKey;
   const pageTarget = event.target.dataset.pageTarget;
   if (!pageKey || !pageTarget) return;
@@ -1352,20 +1390,7 @@ document.addEventListener("submit", async (event) => {
   event.preventDefault();
   const group = form.dataset.integrationForm;
   const groupData = state.integrations.find((item) => item.group === group);
-  const formData = new FormData(form);
-  const settings = {};
-  (groupData?.settings || []).forEach((setting) => {
-    if (setting.input_type === "checkbox") {
-      settings[setting.key] = Boolean(form.elements[setting.key]?.checked) ? "true" : "false";
-      return;
-    }
-    const value = formData.get(setting.key);
-    if (setting.is_secret && !value) {
-      settings[setting.key] = null;
-      return;
-    }
-    settings[setting.key] = String(value || "").trim();
-  });
+  const settings = collectIntegrationSettings(form, groupData);
   const updated = await request(`/admin/integrations/${group}`, {
     method: "PATCH",
     body: JSON.stringify({ settings }),
