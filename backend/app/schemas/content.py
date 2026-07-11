@@ -7,6 +7,7 @@ class SpotImageOut(BaseModel):
     id: int
     spot_id: int
     image_url: str
+    display_url: Optional[str] = None
     media_type: str = "image"
     caption: Optional[str] = None
     sort_order: int
@@ -58,6 +59,7 @@ class TravelNoteOut(BaseModel):
     title: str
     content: str
     image_url: Optional[str] = None
+    display_url: Optional[str] = None
     status: str
     is_featured: bool
 
@@ -86,6 +88,7 @@ class UserCommentOut(BaseModel):
     spot_name_zh: Optional[str] = None
     content: str
     image_url: Optional[str] = None
+    display_url: Optional[str] = None
     status: str
 
 
@@ -126,6 +129,8 @@ class RecommendationUpdate(BaseModel):
 class RecommendationOut(RecommendationCreate):
     id: int
     spot_name_zh: Optional[str] = None
+    image_url: Optional[str] = None
+    display_url: Optional[str] = None
 
     class Config:
         from_attributes = True

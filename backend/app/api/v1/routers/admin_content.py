@@ -66,7 +66,8 @@ async def save_upload(file: UploadFile, folder: str, db: Session, allow_video: b
         raise HTTPException(status_code=502, detail=str(error)) from error
 
 
-def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
+def travel_note_to_out(note: TravelNote, db: Session) -> TravelNoteOut:
+    display_url = get_media_display_url(db, note.image_url)
     return TravelNoteOut(
         id=note.id,
         user_id=note.user_id,
@@ -75,13 +76,15 @@ def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
         spot_name_zh=note.spot.name_zh if note.spot else None,
         title=note.title,
         content=note.content,
-        image_url=get_media_display_url(note._sa_instance_state.session, note.image_url) or note.image_url,
+        image_url=note.image_url,
+        display_url=display_url,
         status=note.status,
         is_featured=note.is_featured,
     )
 
 
-def comment_to_out(comment: UserComment) -> UserCommentOut:
+def comment_to_out(comment: UserComment, db: Session) -> UserCommentOut:
+    display_url = get_media_display_url(db, comment.image_url)
     return UserCommentOut(
         id=comment.id,
         user_id=comment.user_id,
@@ -89,12 +92,14 @@ def comment_to_out(comment: UserComment) -> UserCommentOut:
         spot_id=comment.spot_id,
         spot_name_zh=comment.spot.name_zh if comment.spot else None,
         content=comment.content,
-        image_url=get_media_display_url(comment._sa_instance_state.session, comment.image_url) or comment.image_url,
+        image_url=comment.image_url,
+        display_url=display_url,
         status=comment.status,
     )
 
 
-def recommendation_to_out(recommendation: LifestyleRecommendation) -> RecommendationOut:
+def recommendation_to_out(recommendation: LifestyleRecommendation, db: Session) -> RecommendationOut:
+    display_url = get_media_display_url(db, recommendation.image_url)
     return RecommendationOut(
         id=recommendation.id,
         spot_id=recommendation.spot_id,
@@ -108,7 +113,8 @@ def recommendation_to_out(recommendation: LifestyleRecommendation) -> Recommenda
         county=recommendation.county,
         address=recommendation.address,
         contact=recommendation.contact,
-        image_url=get_media_display_url(recommendation._sa_instance_state.session, recommendation.image_url) or recommendation.image_url,
+        image_url=recommendation.image_url,
+        display_url=display_url,
         price_level=recommendation.price_level,
         recommendation_level=recommendation.recommendation_level,
         is_active=recommendation.is_active,
@@ -116,10 +122,12 @@ def recommendation_to_out(recommendation: LifestyleRecommendation) -> Recommenda
 
 
 def spot_image_to_out(image: SpotImage, db: Session) -> SpotImageOut:
+    display_url = get_media_display_url(db, image.image_url)
     return SpotImageOut(
         id=image.id,
         spot_id=image.spot_id,
-        image_url=get_media_display_url(db, image.image_url) or image.image_url,
+        image_url=image.image_url,
+        display_url=display_url,
         media_type=image.media_type,
         caption=image.caption,
         sort_order=image.sort_order,
@@ -232,7 +240,10 @@ async def upload_content_image(
     if folder not in allowed_folders:
         raise HTTPException(status_code=404, detail="Upload folder not found")
     image_url, _ = await save_upload(file, folder, db, allow_video=folder != "avatars")
-    return {"image_url": image_url}
+    return {
+        "image_url": image_url,
+        "display_url": get_media_display_url(db, image_url) or image_url,
+    }
 
 
 @router.patch("/spot-images/{image_id}", response_model=SpotImageOut)
@@ -291,7 +302,7 @@ def list_travel_notes(
         page_size,
     )
     return build_page(
-        [travel_note_to_out(note) for note in result.items],
+        [travel_note_to_out(note, db) for note in result.items],
         result.total,
         result.page,
         result.page_size,
@@ -309,7 +320,7 @@ def create_travel_note(
     db.add(note)
     db.commit()
     db.refresh(note)
-    return travel_note_to_out(get_note(db, note.id))
+    return travel_note_to_out(get_note(db, note.id), db)
 
 
 @router.patch("/travel-notes/{note_id}", response_model=TravelNoteOut)
@@ -329,7 +340,7 @@ def update_travel_note(
         setattr(note, field, value)
     db.add(note)
     db.commit()
-    return travel_note_to_out(get_note(db, note_id))
+    return travel_note_to_out(get_note(db, note_id), db)
 
 
 @router.patch("/travel-notes/{note_id}/status", response_model=TravelNoteOut)
@@ -346,7 +357,7 @@ def update_travel_note_status(
     db.add(note)
     db.commit()
     db.refresh(note)
-    return travel_note_to_out(note)
+    return travel_note_to_out(note, db)
 
 
 @router.delete("/travel-notes/{note_id}", status_code=204)
@@ -377,7 +388,7 @@ def list_comments(
         page_size,
     )
     return build_page(
-        [comment_to_out(comment) for comment in result.items],
+        [comment_to_out(comment, db) for comment in result.items],
         result.total,
         result.page,
         result.page_size,
@@ -395,7 +406,7 @@ def create_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    return comment_to_out(get_comment(db, comment.id))
+    return comment_to_out(get_comment(db, comment.id), db)
 
 
 @router.patch("/comments/{comment_id}", response_model=UserCommentOut)
@@ -415,7 +426,7 @@ def update_comment(
         setattr(comment, field, value)
     db.add(comment)
     db.commit()
-    return comment_to_out(get_comment(db, comment_id))
+    return comment_to_out(get_comment(db, comment_id), db)
 
 
 @router.patch("/comments/{comment_id}/status", response_model=UserCommentOut)
@@ -430,7 +441,7 @@ def update_comment_status(
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    return comment_to_out(comment)
+    return comment_to_out(comment, db)
 
 
 @router.delete("/comments/{comment_id}", status_code=204)
@@ -465,7 +476,7 @@ def list_recommendations(
         page_size,
     )
     return build_page(
-        [recommendation_to_out(recommendation) for recommendation in result.items],
+        [recommendation_to_out(recommendation, db) for recommendation in result.items],
         result.total,
         result.page,
         result.page_size,
@@ -487,7 +498,8 @@ def create_recommendation(
             select(LifestyleRecommendation)
             .options(joinedload(LifestyleRecommendation.spot))
             .where(LifestyleRecommendation.id == recommendation.id)
-        )
+        ),
+        db,
     )
 
 
@@ -529,5 +541,6 @@ def update_recommendation(
             select(LifestyleRecommendation)
             .options(joinedload(LifestyleRecommendation.spot))
             .where(LifestyleRecommendation.id == recommendation_id)
-        )
+        ),
+        db,
     )

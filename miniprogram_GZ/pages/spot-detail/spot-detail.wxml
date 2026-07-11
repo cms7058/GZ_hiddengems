@@ -177,7 +177,7 @@
           <view wx:for="{{groupedRecommendations}}" wx:key="category" class="rec-group">
             <text class="rec-category">{{item.label}}</text>
             <view wx:for="{{item.items}}" wx:for-item="rec" wx:key="id" class="rec-item">
-              <image wx:if="{{rec.image_url}}" class="rec-image" src="{{rec.image_url}}" mode="aspectFill"></image>
+              <image wx:if="{{rec.display_url || rec.image_url}}" class="rec-image" src="{{rec.display_url || rec.image_url}}" mode="aspectFill"></image>
               <view class="rec-body">
                 <text class="rec-title">{{rec.displayName}}</text>
                 <text class="rec-summary">{{rec.displaySummary}}</text>
@@ -195,7 +195,7 @@
           </view>
           <view wx:if="{{spot.travel_notes.length === 0}}" class="empty">{{copy.emptyNotes}}</view>
           <view wx:for="{{spot.travel_notes}}" wx:key="id" class="note-item">
-            <image wx:if="{{item.image_url}}" class="content-image" src="{{item.image_url}}" mode="aspectFill"></image>
+            <image wx:if="{{item.display_url || item.image_url}}" class="content-image" src="{{item.display_url || item.image_url}}" mode="aspectFill"></image>
             <view class="note-head">
               <text class="note-title">{{item.title}}</text>
               <text wx:if="{{item.is_featured}}" class="featured">{{copy.featured}}</text>
@@ -212,7 +212,7 @@
           </view>
           <view wx:if="{{spot.comments.length === 0}}" class="empty">{{copy.emptyComments}}</view>
           <view wx:for="{{spot.comments}}" wx:key="id" class="comment-item">
-            <image wx:if="{{item.image_url}}" class="content-image" src="{{item.image_url}}" mode="aspectFill"></image>
+            <image wx:if="{{item.display_url || item.image_url}}" class="content-image" src="{{item.display_url || item.image_url}}" mode="aspectFill"></image>
             <text class="author">{{item.nickname}}</text>
             <text class="body-text">{{item.content}}</text>
           </view>

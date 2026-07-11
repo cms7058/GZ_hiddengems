@@ -161,7 +161,7 @@ def _extract_oss_key(url: str, config: dict[str, str]) -> Optional[str]:
     for base_url in [item for item in base_urls if item]:
         prefix = f"{base_url}/"
         if url.startswith(prefix):
-            return url[len(prefix) :]
+            return url[len(prefix) :].split("?", 1)[0].split("#", 1)[0]
 
     parsed = urlparse(url)
     if parsed.netloc == f"{config['bucket']}.{endpoint}":

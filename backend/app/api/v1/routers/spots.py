@@ -109,4 +109,5 @@ def get_spot_detail(
         user_level=user_level,
         is_member=is_member,
         user_explore_points=user_explore_points,
+        db=db,
     )

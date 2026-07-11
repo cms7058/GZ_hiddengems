@@ -519,6 +519,14 @@ function imageCell(url, alt = "图片") {
   return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" />`;
 }
 
+function displayMediaUrl(itemOrUrl) {
+  if (!itemOrUrl) return "";
+  if (typeof itemOrUrl === "object") {
+    return itemOrUrl.display_url || itemOrUrl.image_url || "";
+  }
+  return itemOrUrl;
+}
+
 function mediaPreviewHtml(url, alt = "图片") {
   if (!url) return `<span class="muted">${t("未上传")}</span>`;
   const cleanUrl = String(url).split("?")[0].toLowerCase();
@@ -558,7 +566,7 @@ function renderFormMediaPreview(formSelector, previewSelector, alt = "图片") {
   const form = $(formSelector);
   const preview = $(previewSelector);
   if (!form || !preview) return;
-  preview.innerHTML = mediaPreviewHtml(form.elements.image_url.value, alt);
+  preview.innerHTML = mediaPreviewHtml(form.dataset.mediaDisplayUrl || form.elements.image_url.value, alt);
 }
 
 function renderTags() {
@@ -794,7 +802,7 @@ function renderCommunity() {
               <span class="muted">${escapeHtml(note.content)}</span>
             </div>
           </td>
-          <td>${imageCell(note.image_url, note.title)}</td>
+          <td>${imageCell(displayMediaUrl(note), note.title)}</td>
           <td>${escapeHtml(note.nickname)}</td>
           <td>${escapeHtml(note.spot_name_zh || "-")}</td>
           <td>${statusPill(note.status)}</td>
@@ -819,7 +827,7 @@ function renderCommunity() {
       (comment) => `
         <tr>
           <td>${escapeHtml(comment.content)}</td>
-          <td>${imageCell(comment.image_url, t("留言图片"))}</td>
+          <td>${imageCell(displayMediaUrl(comment), t("留言图片"))}</td>
           <td>${escapeHtml(comment.nickname)}</td>
           <td>${escapeHtml(comment.spot_name_zh || "-")}</td>
           <td>${statusPill(comment.status)}</td>
@@ -850,7 +858,7 @@ function renderRecommendations() {
               <span class="muted">${escapeHtml(item.name_en)}</span>
             </div>
           </td>
-          <td>${imageCell(item.image_url, item.name_zh)}</td>
+          <td>${imageCell(displayMediaUrl(item), item.name_zh)}</td>
           <td>${escapeHtml(item.spot_name_zh || t("未设置"))}</td>
           <td>${escapeHtml(item.city)} / ${escapeHtml(item.county)}</td>
           <td>${escapeHtml(item.price_level)}</td>
@@ -951,7 +959,7 @@ function collectIntegrationSettings(form, groupData) {
 }
 
 function renderSpotMediaPreview(image) {
-  const url = escapeHtml(image.image_url);
+  const url = escapeHtml(displayMediaUrl(image));
   const caption = escapeHtml(image.caption || t("秘境图片/视频"));
   if (image.media_type === "video") {
     return `<video class="image-thumb media-preview" src="${url}" controls preload="metadata"></video>`;
@@ -1374,6 +1382,7 @@ function fillUserForm(user) {
 function fillTravelNoteForm(note = null) {
   const form = $("#travelNoteForm");
   form.reset();
+  form.dataset.mediaDisplayUrl = "";
   state.editingTravelNoteId = note?.id || null;
   $("#travelNoteDialogTitle").textContent = note ? `${t("编辑游记")}：${note.title}` : t("新增游记");
   if (!note) {
@@ -1385,6 +1394,7 @@ function fillTravelNoteForm(note = null) {
   ["user_id", "spot_id", "title", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = note[field] ?? "";
   });
+  form.dataset.mediaDisplayUrl = displayMediaUrl(note);
   form.elements.is_featured.checked = Boolean(note.is_featured);
   renderFormMediaPreview("#travelNoteForm", "#travelNoteMediaPreview", note.title);
 }
@@ -1392,6 +1402,7 @@ function fillTravelNoteForm(note = null) {
 function fillCommentForm(comment = null) {
   const form = $("#commentForm");
   form.reset();
+  form.dataset.mediaDisplayUrl = "";
   state.editingCommentId = comment?.id || null;
   $("#commentDialogTitle").textContent = comment ? `${t("编辑留言")}：${comment.nickname}` : t("新增留言");
   if (!comment) {
@@ -1402,6 +1413,7 @@ function fillCommentForm(comment = null) {
   ["user_id", "spot_id", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = comment[field] ?? "";
   });
+  form.dataset.mediaDisplayUrl = displayMediaUrl(comment);
   renderFormMediaPreview("#commentForm", "#commentMediaPreview", t("留言图片"));
 }
 
@@ -1448,6 +1460,7 @@ function fillCheckinForm(checkin) {
 function fillRecommendationForm(item = null) {
   const form = $("#recommendationForm");
   form.reset();
+  form.dataset.mediaDisplayUrl = "";
   state.editingRecommendationId = item?.id || null;
   $("#recommendationDialogTitle").textContent = item ? `${t("编辑推荐")}：${item.name_zh}` : t("新增推荐");
   renderSpotOptions(form.elements.spot_id, item?.spot_id || state.spots[0]?.id);
@@ -1476,6 +1489,7 @@ function fillRecommendationForm(item = null) {
   ].forEach((field) => {
     form.elements[field].value = item[field] ?? "";
   });
+  form.dataset.mediaDisplayUrl = displayMediaUrl(item);
   form.elements.is_active.checked = Boolean(item.is_active);
   renderFormMediaPreview("#recommendationForm", "#recommendationMediaPreview", item.name_zh);
 }
@@ -1515,7 +1529,11 @@ async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName 
   const formData = new FormData();
   formData.append("file", file);
   const data = await uploadWithProgress(`${API}/admin/content/uploads/${folder}`, formData, statusSelector);
-  $(formSelector).elements[fieldName].value = data.image_url;
+  const form = $(formSelector);
+  form.elements[fieldName].value = data.image_url;
+  if (fieldName === "image_url") {
+    form.dataset.mediaDisplayUrl = data.display_url || data.image_url || "";
+  }
   if (previewSelector) renderFormMediaPreview(formSelector, previewSelector);
   fileInput.value = "";
   updateUploadFileStatus(fileInputSelector, statusSelector, clearButtonSelector, allowVideo);
@@ -1535,6 +1553,7 @@ async function deleteFormMedia(formSelector, resourcePath, editingId, statusSele
     await loadData();
   }
   form.elements.image_url.value = "";
+  form.dataset.mediaDisplayUrl = "";
   if (previewSelector) renderFormMediaPreview(formSelector, previewSelector);
   if (statusSelector) setUploadStatus(statusSelector, t("OSS文件已删除"), "ok");
   showToast("媒体已删除");

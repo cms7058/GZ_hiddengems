@@ -1,5 +1,7 @@
 from typing import Optional
 
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.models.content import LifestyleRecommendation, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
@@ -7,6 +9,7 @@ from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
 from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import can_unlock_spot, mask_coordinate
 from app.services.localization import choose_text, normalize_language
+from app.services.media_storage import get_media_display_url
 
 
 def tag_to_localized(tag: Tag, lang: str) -> LocalizedTag:
@@ -101,6 +104,7 @@ def spot_to_detail_out(
     user_level: int = 0,
     is_member: bool = False,
     user_explore_points: int = 0,
+    db: Optional[Session] = None,
 ) -> SpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     base = spot_to_map_out(spot, normalized_lang, user_level, is_member, user_explore_points)
@@ -109,24 +113,25 @@ def spot_to_detail_out(
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
         travel_notes=[
-            travel_note_to_out(note)
+            travel_note_to_out(note, db)
             for note in getattr(spot, "travel_notes", [])
             if note.status == "approved"
         ],
         comments=[
-            comment_to_out(comment)
+            comment_to_out(comment, db)
             for comment in getattr(spot, "comments", [])
             if comment.status == "approved"
         ],
         lifestyle_recommendations=[
-            recommendation_to_out(recommendation)
+            recommendation_to_out(recommendation, db)
             for recommendation in getattr(spot, "lifestyle_recommendations", [])
             if recommendation.is_active
         ],
     )
 
 
-def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
+def travel_note_to_out(note: TravelNote, db: Optional[Session] = None) -> TravelNoteOut:
+    display_url = get_media_display_url(db, note.image_url) if db else note.image_url
     return TravelNoteOut(
         id=note.id,
         user_id=note.user_id,
@@ -136,12 +141,14 @@ def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
         title=note.title,
         content=note.content,
         image_url=note.image_url,
+        display_url=display_url,
         status=note.status,
         is_featured=note.is_featured,
     )
 
 
-def comment_to_out(comment: UserComment) -> UserCommentOut:
+def comment_to_out(comment: UserComment, db: Optional[Session] = None) -> UserCommentOut:
+    display_url = get_media_display_url(db, comment.image_url) if db else comment.image_url
     return UserCommentOut(
         id=comment.id,
         user_id=comment.user_id,
@@ -150,11 +157,13 @@ def comment_to_out(comment: UserComment) -> UserCommentOut:
         spot_name_zh=comment.spot.name_zh if comment.spot else None,
         content=comment.content,
         image_url=comment.image_url,
+        display_url=display_url,
         status=comment.status,
     )
 
 
-def recommendation_to_out(recommendation: LifestyleRecommendation) -> RecommendationOut:
+def recommendation_to_out(recommendation: LifestyleRecommendation, db: Optional[Session] = None) -> RecommendationOut:
+    display_url = get_media_display_url(db, recommendation.image_url) if db else recommendation.image_url
     return RecommendationOut(
         id=recommendation.id,
         spot_id=recommendation.spot_id,
@@ -169,6 +178,7 @@ def recommendation_to_out(recommendation: LifestyleRecommendation) -> Recommenda
         address=recommendation.address,
         contact=recommendation.contact,
         image_url=recommendation.image_url,
+        display_url=display_url,
         price_level=recommendation.price_level,
         recommendation_level=recommendation.recommendation_level,
         is_active=recommendation.is_active,
