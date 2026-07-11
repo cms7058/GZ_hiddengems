@@ -7,6 +7,7 @@ class SpotImageOut(BaseModel):
     id: int
     spot_id: int
     image_url: str
+    media_type: str = "image"
     caption: Optional[str] = None
     sort_order: int
     is_cover: bool

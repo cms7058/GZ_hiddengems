@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -27,6 +28,11 @@ class LocalMediaStorage:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
         return f"/media/{key}"
+
+    def delete(self, key: str) -> None:
+        target = LOCAL_UPLOAD_BASE / key
+        if target.exists() and target.is_file():
+            target.unlink()
 
 
 class AliyunOssMediaStorage:
@@ -78,6 +84,29 @@ class AliyunOssMediaStorage:
         base_url = self.config["public_base_url"] or f"https://{self.config['bucket']}.{endpoint}"
         return f"{base_url}/{key}"
 
+    def presign_url(self, key: str, expires: timedelta = timedelta(minutes=15)) -> str:
+        try:
+            oss, client, _ = self._create_client()
+            result = client.presign(
+                oss.GetObjectRequest(bucket=self.config["bucket"], key=key),
+                expires=expires,
+            )
+            return result.url
+        except Exception as error:
+            raise MediaStorageError(f"OSS signed URL generation failed: {error}") from error
+
+    def delete(self, key: str) -> None:
+        try:
+            oss, client, _ = self._create_client()
+            client.delete_object(
+                oss.DeleteObjectRequest(
+                    bucket=self.config["bucket"],
+                    key=key,
+                )
+            )
+        except Exception as error:
+            raise MediaStorageError(f"OSS delete failed: {error}") from error
+
     def test_connection(self) -> dict[str, str]:
         try:
             oss, client, endpoint = self._create_client()
@@ -113,3 +142,70 @@ def save_media(
 ) -> str:
     storage = get_media_storage(db)
     return storage.save(build_object_key(folder, suffix), content, content_type)
+
+
+def _strip_oss_endpoint(endpoint: str) -> str:
+    return endpoint.replace("https://", "").replace("http://", "").rstrip("/")
+
+
+def _extract_oss_key(url: str, config: dict[str, str]) -> Optional[str]:
+    if not url or url.startswith("/"):
+        return None
+
+    endpoint = _strip_oss_endpoint(config["endpoint"])
+    base_urls = [
+        config.get("public_base_url", "").rstrip("/"),
+        f"https://{config['bucket']}.{endpoint}",
+        f"http://{config['bucket']}.{endpoint}",
+    ]
+    for base_url in [item for item in base_urls if item]:
+        prefix = f"{base_url}/"
+        if url.startswith(prefix):
+            return url[len(prefix) :]
+
+    parsed = urlparse(url)
+    if parsed.netloc == f"{config['bucket']}.{endpoint}":
+        return parsed.path.lstrip("/")
+    return None
+
+
+def _extract_local_key(url: str) -> Optional[str]:
+    if not url.startswith("/media/"):
+        return None
+    return url[len("/media/") :]
+
+
+def get_media_display_url(db: Session, url: Optional[str], expires: timedelta = timedelta(minutes=15)) -> Optional[str]:
+    if not url:
+        return url
+    config = get_object_storage_config(db)
+    if config["provider"] != "aliyun_oss":
+        return url
+
+    key = _extract_oss_key(url, config)
+    if not key:
+        return url
+    try:
+        storage = AliyunOssMediaStorage(config)
+        return storage.presign_url(key, expires)
+    except MediaStorageError:
+        return url
+
+
+def delete_media(db: Session, url: Optional[str]) -> None:
+    if not url:
+        return
+    config = get_object_storage_config(db)
+    try:
+        if config["provider"] in {"", "local"}:
+            key = _extract_local_key(url)
+            if key:
+                LocalMediaStorage().delete(key)
+            return
+
+        if config["provider"] == "aliyun_oss":
+            key = _extract_oss_key(url, config)
+            if key:
+                AliyunOssMediaStorage(config).delete(key)
+    except MediaStorageError:
+        raise

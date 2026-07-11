@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260707-integrations" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260711-upload-btn-sidebar" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -178,6 +178,7 @@
                   <th>语言</th>
                   <th>等级</th>
                   <th>数据</th>
+                  <th>权限</th>
                   <th>会员</th>
                   <th>状态</th>
                   <th>操作</th>
@@ -414,17 +415,21 @@
           <div class="full upload-panel">
             <div class="section-head compact-head">
               <div>
-                <h3>秘境图片</h3>
-                <p class="muted">支持 JPG、PNG、WebP、GIF，上传后可设为封面。</p>
+                <h3>秘境图片/视频</h3>
+                <p class="muted">图片支持 JPG、PNG、WebP、GIF，最大 2MB；视频支持 MP4、MOV、M4V，最大 8MB。仅图片可设为封面。</p>
               </div>
             </div>
-            <label><span>上传图片</span><input id="spotImageFile" type="file" accept="image/*" /></label>
+            <label><span>上传图片/视频</span><input id="spotImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" /></label>
+            <div class="upload-file-state">
+              <p id="spotImageFileStatus" class="upload-file-info muted">未选择文件</p>
+              <button id="clearSpotImageFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
+            </div>
             <div class="form-grid">
-              <label><span>图片说明</span><input id="spotImageCaption" maxlength="256" /></label>
+              <label><span>媒体说明</span><input id="spotImageCaption" maxlength="256" /></label>
               <label><span>排序</span><input id="spotImageSort" type="number" value="0" /></label>
               <label class="switch-line"><input id="spotImageCover" type="checkbox" /> <span>设为封面</span></label>
             </div>
-            <button id="uploadSpotImageBtn" type="button" class="secondary-btn">上传图片</button>
+            <button id="uploadSpotImageBtn" type="button" class="secondary-btn upload-btn">上传媒体</button>
             <div id="spotImagesList" class="image-list"></div>
           </div>
           <div class="full upload-panel">
@@ -504,7 +509,9 @@
           <label class="full"><span>微信头像 URL</span><input name="avatar_url" maxlength="512" /></label>
           <div class="full upload-inline">
             <input id="userAvatarFile" type="file" accept="image/*" />
-            <button id="uploadUserAvatarBtn" type="button" class="secondary-btn">上传头像</button>
+            <span id="userAvatarFileStatus" class="upload-file-info muted">未选择文件</span>
+            <button id="clearUserAvatarFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
+            <button id="uploadUserAvatarBtn" type="button" class="secondary-btn upload-btn">上传头像</button>
           </div>
           <label><span>手机号</span><input name="phone" maxlength="32" /></label>
           <label>
@@ -521,6 +528,12 @@
           <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" /></label>
           <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+          <div class="full checks permission-checks">
+            <label><input name="can_upload_image" type="checkbox" checked /> <span>允许上传图片</span></label>
+            <label><input name="can_upload_video" type="checkbox" checked /> <span>允许上传视频</span></label>
+            <label><input name="can_comment" type="checkbox" checked /> <span>允许留言游记</span></label>
+            <label><input name="can_checkin" type="checkbox" checked /> <span>允许打卡通关</span></label>
+          </div>
         </div>
         <footer>
           <button type="button" class="secondary-btn" data-close-dialog="userDialog">取消</button>
@@ -540,10 +553,17 @@
           <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" required /></label>
           <label class="full"><span>标题</span><input name="title" required maxlength="128" /></label>
           <label class="full"><span>内容</span><textarea name="content" rows="4" required></textarea></label>
-          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <input name="image_url" type="hidden" />
+          <div class="full media-preview-panel">
+            <span class="field-label">已上传媒体</span>
+            <div id="travelNoteMediaPreview" class="form-media-preview muted">未上传</div>
+          </div>
           <div class="full upload-inline">
-            <input id="travelNoteImageFile" type="file" accept="image/*" />
-            <button id="uploadTravelNoteImageBtn" type="button" class="secondary-btn">上传图片</button>
+            <input id="travelNoteImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" />
+            <span id="travelNoteImageFileStatus" class="upload-file-info muted">未选择文件</span>
+            <button id="clearTravelNoteImageFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
+            <button id="uploadTravelNoteImageBtn" type="button" class="secondary-btn upload-btn">上传媒体</button>
+            <button id="deleteTravelNoteMediaBtn" type="button" class="danger-btn">删除媒体</button>
           </div>
           <label>
             <span>状态</span>
@@ -573,10 +593,17 @@
           <label><span>用户 ID</span><input name="user_id" type="number" min="1" required /></label>
           <label><span>秘境 ID</span><input name="spot_id" type="number" min="1" required /></label>
           <label class="full"><span>留言内容</span><textarea name="content" rows="3" required maxlength="512"></textarea></label>
-          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <input name="image_url" type="hidden" />
+          <div class="full media-preview-panel">
+            <span class="field-label">已上传媒体</span>
+            <div id="commentMediaPreview" class="form-media-preview muted">未上传</div>
+          </div>
           <div class="full upload-inline">
-            <input id="commentImageFile" type="file" accept="image/*" />
-            <button id="uploadCommentImageBtn" type="button" class="secondary-btn">上传图片</button>
+            <input id="commentImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" />
+            <span id="commentImageFileStatus" class="upload-file-info muted">未选择文件</span>
+            <button id="clearCommentImageFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
+            <button id="uploadCommentImageBtn" type="button" class="secondary-btn upload-btn">上传媒体</button>
+            <button id="deleteCommentMediaBtn" type="button" class="danger-btn">删除媒体</button>
           </div>
           <label>
             <span>状态</span>
@@ -694,10 +721,17 @@
           <label><span>区县</span><input name="county" required maxlength="64" /></label>
           <label><span>地址</span><input name="address" maxlength="256" /></label>
           <label><span>联系方式</span><input name="contact" maxlength="128" /></label>
-          <label class="full"><span>图片 URL</span><input name="image_url" maxlength="512" /></label>
+          <input name="image_url" type="hidden" />
+          <div class="full media-preview-panel">
+            <span class="field-label">已上传媒体</span>
+            <div id="recommendationMediaPreview" class="form-media-preview muted">未上传</div>
+          </div>
           <div class="full upload-inline">
-            <input id="recommendationImageFile" type="file" accept="image/*" />
-            <button id="uploadRecommendationImageBtn" type="button" class="secondary-btn">上传图片</button>
+            <input id="recommendationImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" />
+            <span id="recommendationImageFileStatus" class="upload-file-info muted">未选择文件</span>
+            <button id="clearRecommendationImageFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
+            <button id="uploadRecommendationImageBtn" type="button" class="secondary-btn upload-btn">上传媒体</button>
+            <button id="deleteRecommendationMediaBtn" type="button" class="danger-btn">删除媒体</button>
           </div>
           <label>
             <span>价格级别</span>
@@ -717,6 +751,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260711-oss-test-feedback-2"></script>
+    <script src="/admin/static/app.js?v=20260711-form-media-delete"></script>
   </body>
 </html>

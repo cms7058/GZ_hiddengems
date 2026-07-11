@@ -95,6 +95,26 @@
     </scroll-view>
   </view>
 
+  <view wx:if="{{showProfileAuth}}" class="agreement-mask">
+    <view class="agreement-panel">
+      <text class="agreement-title">{{copy.profileTitle}}</text>
+      <text class="agreement-body">{{copy.profileBody}}</text>
+      <button class="profile-avatar-button" open-type="chooseAvatar" bindchooseavatar="onProfileAvatar">
+        <image wx:if="{{profileAuthForm.avatar_url}}" class="profile-avatar-image" src="{{profileAuthForm.avatar_url}}" mode="aspectFill"></image>
+        <text wx:else>{{copy.profileAvatar}}</text>
+      </button>
+      <input
+        class="profile-nickname-input"
+        type="nickname"
+        value="{{profileAuthForm.nickname}}"
+        placeholder="{{copy.profileNicknamePlaceholder}}"
+        bindinput="onProfileNicknameInput"
+      />
+      <button class="agreement-button" bindtap="onAuthorizeProfile">{{copy.profileButton}}</button>
+      <button class="agreement-button secondary" bindtap="onSkipProfileAuth">{{copy.profileSkip}}</button>
+    </view>
+  </view>
+
   <view wx:if="{{showSafetyAgreement}}" class="agreement-mask">
     <view class="agreement-panel">
       <text class="agreement-title">安全协议</text>

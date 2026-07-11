@@ -10,6 +10,7 @@ class SpotImage(Base):
     id = Column(Integer, primary_key=True, index=True)
     spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=False, index=True)
     image_url = Column(String(512), nullable=False)
+    media_type = Column(String(32), default="image", nullable=False)
     caption = Column(String(256), nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
     is_cover = Column(Boolean, default=False, nullable=False)

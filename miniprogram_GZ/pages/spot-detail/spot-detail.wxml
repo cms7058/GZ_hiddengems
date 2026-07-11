@@ -121,10 +121,11 @@
               <view class="location-chip {{userLocation ? 'active' : ''}}">
                 {{userLocation ? copy.currentLocation : copy.locationFailed}}
               </view>
-              <button class="media-button" loading="{{submitting}}" bindtap="onChooseCheckinMedia">{{copy.chooseMedia}}</button>
+              <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseCheckinMedia">{{copy.chooseMedia}}</button>
             </view>
             <view wx:if="{{checkinMedia}}" class="media-state">
               <image wx:if="{{checkinMedia.media_type === 'image'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" mode="aspectFill"></image>
+              <video wx:elif="{{checkinMedia.media_type === 'video'}}" class="media-preview media-video" src="{{checkinMedia.tempFilePath}}" controls></video>
               <view class="media-info">
                 <text class="media-title">{{copy.mediaReady}}</text>
                 <text class="media-meta">{{checkinMedia.media_type}}</text>
@@ -137,9 +138,9 @@
               placeholder="{{copy.checkinPlaceholder}}"
               bindinput="onCheckinNoteInput"
             ></textarea>
-            <button class="action-button" loading="{{submitting}}" bindtap="onSubmitCheckin">{{copy.checkin}}</button>
+            <button wx:if="{{user.can_checkin}}" class="action-button" loading="{{submitting}}" bindtap="onSubmitCheckin">{{copy.checkin}}</button>
           </view>
-          <view class="action-block">
+          <view wx:if="{{user.can_comment}}" class="action-block">
             <input
               class="form-input"
               value="{{noteForm.title}}"
@@ -155,7 +156,7 @@
             ></textarea>
             <button class="action-button secondary-action" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
           </view>
-          <view class="action-block last">
+          <view wx:if="{{user.can_comment}}" class="action-block last">
             <textarea
               class="form-textarea"
               value="{{commentForm.content}}"

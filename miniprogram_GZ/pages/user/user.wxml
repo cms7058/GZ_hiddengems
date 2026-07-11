@@ -52,6 +52,29 @@
     </view>
   </view>
 
+  <view class="panel">
+    <view class="row">
+      <text>{{copy.permissions}}</text>
+      <text></text>
+    </view>
+    <view class="row">
+      <text>{{copy.uploadImage}}</text>
+      <text>{{user.can_upload_image ? copy.allowed : copy.denied}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.uploadVideo}}</text>
+      <text>{{user.can_upload_video ? copy.allowed : copy.denied}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.comment}}</text>
+      <text>{{user.can_comment ? copy.allowed : copy.denied}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.checkin}}</text>
+      <text>{{user.can_checkin ? copy.allowed : copy.denied}}</text>
+    </view>
+  </view>
+
   <view class="tip">
     <text class="tip-title">{{copy.next}}</text>
     <text>{{copy.tip}}</text>

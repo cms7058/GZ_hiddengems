@@ -157,6 +157,27 @@ function request(path, options = {}) {
   })
 }
 
+function miniLogin(payload) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${config.apiBaseUrl}/mini/login`,
+      method: "POST",
+      data: payload,
+      header: {
+        "content-type": "application/json",
+      },
+      success(res) {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data)
+          return
+        }
+        reject(new Error(`login failed: ${res.statusCode}`))
+      },
+      fail: reject,
+    })
+  })
+}
+
 function uploadMedia(filePath) {
   return preloadServiceHours().then(() => {
     const serviceClosedError = checkServiceHours()
@@ -167,6 +188,9 @@ function uploadMedia(filePath) {
         url: `${config.apiBaseUrl}/mini/uploads`,
         filePath,
         name: "file",
+        formData: {
+          user_id: getApp().globalData.user.id,
+        },
         success(res) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {
@@ -197,6 +221,7 @@ function uploadMedia(filePath) {
 module.exports = {
   isServiceOpen,
   isServiceClosedError,
+  miniLogin,
   notifyServiceClosedIfNeeded,
   preloadServiceHours,
   request,

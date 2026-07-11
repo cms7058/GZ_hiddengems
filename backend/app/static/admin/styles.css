@@ -7,6 +7,8 @@
   --muted: #66746b;
   --primary: #1f7a4d;
   --primary-strong: #155c39;
+  --sidebar-bg: #0f261b;
+  --sidebar-bg-strong: #173828;
   --danger: #b42318;
   --warning: #a15c07;
   --soft: #edf4ee;
@@ -149,6 +151,27 @@ textarea:focus {
   color: var(--text);
 }
 
+.upload-btn {
+  background: var(--sidebar-bg);
+  border-color: var(--sidebar-bg);
+  color: #fff;
+}
+
+.upload-btn:hover {
+  background: var(--sidebar-bg-strong);
+  border-color: var(--sidebar-bg-strong);
+}
+
+.danger-btn {
+  min-height: 38px;
+  border-radius: 6px;
+  border: 1px solid #f0c3b8;
+  padding: 8px 13px;
+  background: #fff7f4;
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .ghost-btn {
   width: 100%;
   background: transparent;
@@ -167,7 +190,7 @@ textarea:focus {
   grid-template-rows: auto 1fr auto;
   gap: 24px;
   padding: 24px 16px;
-  background: #0f261b;
+  background: var(--sidebar-bg);
   color: #fff;
 }
 
@@ -456,6 +479,52 @@ button:disabled {
   width: auto;
 }
 
+.upload-file-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.upload-file-info {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.upload-file-info.error {
+  color: var(--danger);
+}
+
+.upload-file-info.ok {
+  color: var(--primary-strong);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.media-preview-panel {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fbf8;
+}
+
+.form-media-preview {
+  min-height: 76px;
+}
+
+.form-media-card {
+  max-width: 220px;
+}
+
 .image-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -477,6 +546,21 @@ button:disabled {
   object-fit: cover;
   border-radius: 6px;
   background: #eef4ef;
+}
+
+.media-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.media-preview {
+  cursor: pointer;
+}
+
+video.image-thumb {
+  display: block;
+  background: #111;
 }
 
 td .image-thumb {

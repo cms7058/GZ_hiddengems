@@ -11,6 +11,13 @@ const COPY = {
     regular: "普通用户",
     checkins: "打卡次数",
     contributions: "贡献内容",
+    permissions: "账号权限",
+    uploadImage: "上传图片",
+    uploadVideo: "上传视频",
+    comment: "留言游记",
+    checkin: "打卡通关",
+    allowed: "允许",
+    denied: "不允许",
     next: "下一阶段",
     tip: "完成打卡、发布优质游记后可继续累积探秘积分。",
     editProfile: "获取微信用户信息",
@@ -29,6 +36,13 @@ const COPY = {
     regular: "Regular",
     checkins: "Check-ins",
     contributions: "Contributions",
+    permissions: "Permissions",
+    uploadImage: "Upload Image",
+    uploadVideo: "Upload Video",
+    comment: "Notes/Comments",
+    checkin: "Check-in/Pass",
+    allowed: "Allowed",
+    denied: "Denied",
     next: "Next Stage",
     tip: "Earn more points by completing check-ins and sharing useful notes.",
     editProfile: "Get WeChat Profile",
@@ -78,13 +92,18 @@ Page({
     })
   },
 
-  onSaveProfile() {
+  async onSaveProfile() {
     const nickname = (this.data.profileForm.nickname || "").trim() || this.data.user.nickname
-    const nextUser = {
+    let nextUser = {
       ...app.globalData.user,
       nickname,
       avatar_url: this.data.profileForm.avatar_url,
     }
+    nextUser = await app.bootstrapUser({
+      force: true,
+      nickname: nextUser.nickname,
+      avatar_url: nextUser.avatar_url,
+    })
     app.globalData.user = nextUser
     wx.setStorageSync("gzHiddenGemsUser", nextUser)
     this.setData({

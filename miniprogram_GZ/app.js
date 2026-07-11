@@ -5,9 +5,13 @@ const DEFAULT_USER = {
   explore_points: 80,
   explorer_level: 1,
   is_member: false,
+  can_upload_image: true,
+  can_upload_video: true,
+  can_comment: true,
+  can_checkin: true,
 }
 
-const { notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
+const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
 
 const TAB_BAR_TEXT = {
   "zh-CN": ["首页", "小助手", "用户"],
@@ -32,7 +36,40 @@ App({
       }
     }
     this.globalData.hasAcceptedSafetyAgreement = Boolean(wx.getStorageSync("gzSafetyAgreementAccepted"))
+    this.globalData.hasAcceptedProfileAuth = Boolean(wx.getStorageSync("gzProfileAuthAccepted"))
+    this.bootstrapUser()
     preloadServiceHours().then(() => notifyServiceClosedIfNeeded())
+  },
+
+  bootstrapUser(profile = {}) {
+    if (this.globalData.userLoginPromise && !profile.force) return this.globalData.userLoginPromise
+    this.globalData.userLoginPromise = new Promise((resolve) => {
+      wx.login({
+        success: ({ code }) => {
+          if (!code) {
+            resolve(this.globalData.user)
+            return
+          }
+          miniLogin({
+            code,
+            nickname: profile.nickname || this.globalData.user.nickname,
+            avatar_url: profile.avatar_url || this.globalData.user.avatar_url,
+            language: this.globalData.lang || "zh-CN",
+          })
+            .then((user) => {
+              this.globalData.user = {
+                ...this.globalData.user,
+                ...user,
+              }
+              wx.setStorageSync("gzHiddenGemsUser", this.globalData.user)
+              resolve(this.globalData.user)
+            })
+            .catch(() => resolve(this.globalData.user))
+        },
+        fail: () => resolve(this.globalData.user),
+      })
+    })
+    return this.globalData.userLoginPromise
   },
 
   setLanguage(lang) {
@@ -54,7 +91,9 @@ App({
   globalData: {
     lang: "zh-CN",
     hasAcceptedSafetyAgreement: false,
+    hasAcceptedProfileAuth: false,
     currentSpot: null,
     user: DEFAULT_USER,
+    userLoginPromise: null,
   },
 })

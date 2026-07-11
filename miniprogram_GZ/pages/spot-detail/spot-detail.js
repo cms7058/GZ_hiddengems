@@ -2,6 +2,8 @@ const { isServiceClosedError, request, uploadMedia } = require("../../utils/requ
 const { chooseNavigationApp } = require("../../utils/navigation")
 
 const app = getApp()
+const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
+const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 const COPY = {
   "zh-CN": {
@@ -45,6 +47,8 @@ const COPY = {
     chooseMedia: "上传图片/视频",
     mediaReady: "素材已上传",
     mediaEmpty: "可选择图片或视频后再打卡",
+    mediaImageTooLarge: "图片不能超过 2MB",
+    mediaVideoTooLarge: "视频不能超过 8MB",
     noteTitle: "游记标题",
     noteContent: "游记内容",
     commentContent: "留言内容",
@@ -58,6 +62,7 @@ const COPY = {
     submitFailed: "提交失败，请稍后重试",
     locationFailed: "定位失败，请检查定位权限",
     uploadFailed: "上传失败，请稍后重试",
+    permissionDenied: "当前账号暂无此操作权限",
     goThere: "到这去",
     locationRequired: "请先允许位置权限",
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
@@ -103,6 +108,8 @@ const COPY = {
     chooseMedia: "Upload Photo/Video",
     mediaReady: "Media uploaded",
     mediaEmpty: "Choose photo or video before check-in",
+    mediaImageTooLarge: "Image must not exceed 2MB",
+    mediaVideoTooLarge: "Video must not exceed 8MB",
     noteTitle: "Note Title",
     noteContent: "Travel Note",
     commentContent: "Comment",
@@ -116,6 +123,7 @@ const COPY = {
     submitFailed: "Submit failed. Try again later",
     locationFailed: "Location failed. Check permission",
     uploadFailed: "Upload failed. Try again later",
+    permissionDenied: "This account does not have permission",
     goThere: "Go",
     locationRequired: "Allow location first",
     serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
@@ -413,11 +421,18 @@ Page({
 
   async onChooseCheckinMedia() {
     if (this.data.submitting) return
+    const allowedMediaTypes = []
+    if (this.data.user.can_upload_image !== false) allowedMediaTypes.push("image")
+    if (this.data.user.can_upload_video !== false) allowedMediaTypes.push("video")
+    if (allowedMediaTypes.length === 0) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
     try {
       const result = await new Promise((resolve, reject) => {
         wx.chooseMedia({
           count: 1,
-          mediaType: ["image", "video"],
+          mediaType: allowedMediaTypes,
           sourceType: ["album", "camera"],
           maxDuration: 30,
           camera: "back",
@@ -427,11 +442,30 @@ Page({
       })
       const file = result.tempFiles && result.tempFiles[0]
       if (!file || !file.tempFilePath) return
+      const fileType = file.fileType || result.type || (/\.(mp4|mov|m4v)$/i.test(file.tempFilePath) ? "video" : "image")
+      const fileSize = Number(file.size || 0)
+      if (fileType === "video" && this.data.user.can_upload_video === false) {
+        wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+        return
+      }
+      if (fileType !== "video" && this.data.user.can_upload_image === false) {
+        wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+        return
+      }
+      if (fileType === "video" && fileSize > MAX_VIDEO_UPLOAD_BYTES) {
+        wx.showToast({ title: this.data.copy.mediaVideoTooLarge, icon: "none" })
+        return
+      }
+      if (fileType !== "video" && fileSize > MAX_IMAGE_UPLOAD_BYTES) {
+        wx.showToast({ title: this.data.copy.mediaImageTooLarge, icon: "none" })
+        return
+      }
       const uploaded = await uploadMedia(file.tempFilePath)
       this.setData({
         checkinMedia: {
           ...uploaded,
           tempFilePath: file.tempFilePath,
+          media_type: uploaded.media_type || fileType,
         },
       })
       wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
@@ -481,6 +515,10 @@ Page({
 
   async onSubmitCheckin() {
     if (this.data.submitting || !this.data.spot) return
+    if (this.data.user.can_checkin === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
     this.setData({ submitting: true })
     try {
       let location
@@ -519,6 +557,10 @@ Page({
     const title = this.data.noteForm.title.trim()
     const content = this.data.noteForm.content.trim()
     if (this.data.submitting || !title || !content || !this.data.spot) return
+    if (this.data.user.can_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
     this.setData({ submitting: true })
     try {
       await request("/mini/travel-notes", {
@@ -543,6 +585,10 @@ Page({
   async onSubmitComment() {
     const content = this.data.commentForm.content.trim()
     if (this.data.submitting || !content || !this.data.spot) return
+    if (this.data.user.can_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
     this.setData({ submitting: true })
     try {
       await request("/mini/comments", {

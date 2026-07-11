@@ -30,6 +30,8 @@ const state = {
 };
 
 const PAGE_SIZE = 10;
+const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024;
 const PAGE_SIZE_BY_KEY = {
   tags: 100,
 };
@@ -114,6 +116,7 @@ const I18N = {
   "语言": "Language",
   "等级": "Level",
   "数据": "Stats",
+  "权限": "Permissions",
   "会员": "Member",
   "条件": "Rules",
   "解锁权益": "Benefits",
@@ -162,6 +165,7 @@ const I18N = {
   "打卡半径米": "Check-in Radius (m)",
   "启用": "Active",
   "秘境图片": "Spot Images",
+  "秘境图片/视频": "Spot Images/Videos",
   "子景点坐标": "Sub-spot Coordinates",
   "为同一秘境维护多个子景点坐标、备注说明，并选择是否获取天气。": "Maintain multiple sub-spot coordinates, notes, and weather-fetch settings for one spot.",
   "点位名称": "Point Name",
@@ -175,8 +179,14 @@ const I18N = {
   "天气": "Weather",
   "不获取天气": "No weather",
   "支持 JPG、PNG、WebP、GIF，上传后可设为封面。": "Supports JPG, PNG, WebP, and GIF. Uploaded images can be set as cover.",
+  "图片支持 JPG、PNG、WebP、GIF，最大 2MB；视频支持 MP4、MOV、M4V，最大 8MB。仅图片可设为封面。": "Images: JPG, PNG, WebP, GIF, max 2MB. Videos: MP4, MOV, M4V, max 8MB. Only images can be set as cover.",
   "上传图片": "Upload Image",
+  "上传图片/视频": "Upload Image/Video",
   "图片说明": "Caption",
+  "媒体说明": "Media Caption",
+  "上传媒体": "Upload Media",
+  "媒体": "Media",
+  "视频": "Video",
   "设为封面": "Set as Cover",
   "取消": "Cancel",
   "保存": "Save",
@@ -186,6 +196,14 @@ const I18N = {
   "手机号": "Phone",
   "微信头像 URL": "WeChat Avatar URL",
   "上传头像": "Upload Avatar",
+  "允许上传图片": "Allow Image Upload",
+  "允许上传视频": "Allow Video Upload",
+  "允许留言游记": "Allow Notes/Comments",
+  "允许打卡通关": "Allow Check-in/Pass",
+  "图片权限": "Image",
+  "视频权限": "Video",
+  "留言权限": "Comment",
+  "打卡权限": "Check-in",
   "中文权益": "Chinese Benefits",
   "英文权益": "English Benefits",
   "所需打卡": "Required Check-ins",
@@ -222,6 +240,8 @@ const I18N = {
   "普通": "Regular",
   "有效": "Active",
   "非有效": "Inactive",
+  "允许": "Allowed",
+  "不允许": "Denied",
   "需要": "Required",
   "不需要": "Not Required",
   "已隐藏": "Hidden",
@@ -229,6 +249,7 @@ const I18N = {
   "未绑定手机": "No phone",
   "未设置": "Not Set",
   "暂无图片": "No Images",
+  "暂无媒体": "No Media",
   "未填写说明": "No Caption",
   "封面": "Cover",
   "上一页": "Previous",
@@ -261,9 +282,27 @@ const I18N = {
   "推荐已删除": "Recommendation deleted",
   "封面已更新": "Cover updated",
   "图片已停用": "Image disabled",
+  "媒体已删除": "Media deleted",
   "图片已上传": "Image uploaded",
   "请选择图片": "Please choose an image",
   "请先保存秘境，再上传图片": "Save the spot before uploading images",
+  "媒体已上传": "Media uploaded",
+  "已选择": "Selected",
+  "未选择文件": "No file selected",
+  "文件类型": "Type",
+  "文件大小": "Size",
+  "文件类型不支持": "Unsupported file type",
+  "移除已选文件": "Remove Selected File",
+  "上传进度": "Upload Progress",
+  "正在上传": "Uploading",
+  "上传完成": "Upload complete",
+  "正在删除OSS文件": "Deleting OSS file",
+  "OSS文件已删除": "OSS file deleted",
+  "请选择图片或视频": "Please choose an image or video",
+  "请先保存秘境，再上传媒体": "Save the spot before uploading media",
+  "图片大小不能超过 2MB": "Image must not exceed 2MB",
+  "视频大小不能超过 8MB": "Video must not exceed 8MB",
+  "视频不能设为封面": "Video cannot be set as cover",
   "通关设置已保存": "Pass setting saved",
   "会员套餐已保存": "Membership plan saved",
   "打卡审核已保存": "Check-in review saved",
@@ -434,9 +473,55 @@ function memberPill(isMember) {
 }
 
 function imageCell(url, alt = "图片") {
-  return url
-    ? `<img class="image-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
-    : `<span class="muted">${t("未上传")}</span>`;
+  if (!url) return `<span class="muted">${t("未上传")}</span>`;
+  const cleanUrl = String(url).split("?")[0].toLowerCase();
+  const escapedUrl = escapeHtml(url);
+  if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".m4v")) {
+    return `<video class="image-thumb" src="${escapedUrl}" controls preload="metadata"></video>`;
+  }
+  return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" />`;
+}
+
+function mediaPreviewHtml(url, alt = "图片") {
+  if (!url) return `<span class="muted">${t("未上传")}</span>`;
+  const cleanUrl = String(url).split("?")[0].toLowerCase();
+  const escapedUrl = escapeHtml(url);
+  const caption = escapeHtml(alt);
+  if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".m4v")) {
+    return `
+      <article class="image-item form-media-card">
+        <video class="image-thumb media-preview" src="${escapedUrl}" controls preload="metadata"></video>
+        <div class="cell-title">
+          <strong>${caption}</strong>
+          <span class="muted">${t("视频")}</span>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="small-btn danger" data-delete-form-media="true">${t("删除")}</button>
+        </div>
+      </article>
+    `;
+  }
+  return `
+    <article class="image-item form-media-card">
+      <a class="media-link" href="${escapedUrl}" target="_blank" rel="noopener">
+        <img class="image-thumb media-preview" src="${escapedUrl}" alt="${caption}" />
+      </a>
+      <div class="cell-title">
+        <strong>${caption}</strong>
+        <span class="muted">${t("图片")}</span>
+      </div>
+      <div class="row-actions">
+        <button type="button" class="small-btn danger" data-delete-form-media="true">${t("删除")}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderFormMediaPreview(formSelector, previewSelector, alt = "图片") {
+  const form = $(formSelector);
+  const preview = $(previewSelector);
+  if (!form || !preview) return;
+  preview.innerHTML = mediaPreviewHtml(form.elements.image_url.value, alt);
 }
 
 function renderTags() {
@@ -519,6 +604,14 @@ function renderUsers() {
               <span>${t("打卡")} ${user.checkin_count} / ${t("贡献")} ${user.contribution_count}</span>
               <span class="muted">${t("探秘积分")} ${user.explore_points || 0}</span>
               <span class="muted">${t("环保信用")} ${user.eco_credit}</span>
+            </div>
+          </td>
+          <td>
+            <div class="cell-title">
+              <span>${t("图片权限")}：${user.can_upload_image ? t("允许") : t("不允许")}</span>
+              <span>${t("视频权限")}：${user.can_upload_video ? t("允许") : t("不允许")}</span>
+              <span>${t("留言权限")}：${user.can_comment ? t("允许") : t("不允许")}</span>
+              <span>${t("打卡权限")}：${user.can_checkin ? t("允许") : t("不允许")}</span>
             </div>
           </td>
           <td>${memberPill(user.is_member)}</td>
@@ -819,27 +912,138 @@ function collectIntegrationSettings(form, groupData) {
   return settings;
 }
 
+function renderSpotMediaPreview(image) {
+  const url = escapeHtml(image.image_url);
+  const caption = escapeHtml(image.caption || t("秘境图片/视频"));
+  if (image.media_type === "video") {
+    return `<video class="image-thumb media-preview" src="${url}" controls preload="metadata"></video>`;
+  }
+  return `
+    <a class="media-link" href="${url}" target="_blank" rel="noopener">
+      <img class="image-thumb media-preview" src="${url}" alt="${caption}" />
+    </a>
+  `;
+}
+
 function renderSpotImages() {
   $("#spotImagesList").innerHTML = state.currentSpotImages.length
     ? state.currentSpotImages
         .map(
           (image) => `
             <article class="image-item">
-              <img class="image-thumb" src="${escapeHtml(image.image_url)}" alt="${escapeHtml(image.caption || t("秘境图片"))}" />
+              ${renderSpotMediaPreview(image)}
               <div class="cell-title">
                 <strong>${escapeHtml(image.caption || t("未填写说明"))}</strong>
-                <span class="muted">${t("排序")} ${image.sort_order} ${image.is_cover ? ` / ${t("封面")}` : ""}</span>
+                <span class="muted">${image.media_type === "video" ? t("视频") : t("图片")} / ${t("排序")} ${image.sort_order} ${image.is_cover ? ` / ${t("封面")}` : ""}</span>
               </div>
               <div class="row-actions">
-                <button class="small-btn" data-cover-image="${image.id}">${t("设为封面")}</button>
-                <button class="small-btn danger" data-disable-image="${image.id}">${t("停用")}</button>
+                ${
+                  image.media_type === "video"
+                    ? ""
+                    : `<button type="button" class="small-btn" data-cover-image="${image.id}">${t("设为封面")}</button>`
+                }
+                <button type="button" class="small-btn danger" data-delete-image="${image.id}">${t("删除")}</button>
               </div>
             </article>
           `,
         )
         .join("")
-    : `<p class="muted">${t("暂无图片")}</p>`;
+    : `<p class="muted">${t("暂无媒体")}</p>`;
   renderPagination("spotImagesList", "spotImages");
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes)) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function validateUploadFile(file, allowVideo = true) {
+  if (!file) {
+    return { valid: false, message: t("未选择文件"), isImage: false, isVideo: false };
+  }
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  if (!isImage && (!allowVideo || !isVideo)) {
+    return { valid: false, message: allowVideo ? t("请选择图片或视频") : t("请选择图片"), isImage, isVideo };
+  }
+  if (isImage && file.size > MAX_IMAGE_UPLOAD_BYTES) {
+    return { valid: false, message: t("图片大小不能超过 2MB"), isImage, isVideo };
+  }
+  if (isVideo && file.size > MAX_VIDEO_UPLOAD_BYTES) {
+    return { valid: false, message: t("视频大小不能超过 8MB"), isImage, isVideo };
+  }
+  return { valid: true, message: "", isImage, isVideo };
+}
+
+function updateUploadFileStatus(fileInputSelector, statusSelector, clearButtonSelector, allowVideo = true) {
+  const fileInput = $(fileInputSelector);
+  const status = $(statusSelector);
+  const clearButton = $(clearButtonSelector);
+  if (!fileInput || !status) return false;
+  const file = fileInput.files[0];
+  if (!file) {
+    status.textContent = t("未选择文件");
+    status.classList.remove("ok", "error");
+    if (clearButton) clearButton.classList.add("hidden");
+    return false;
+  }
+  const validation = validateUploadFile(file, allowVideo);
+  const typeText = file.type || t("文件类型不支持");
+  const baseText = `${t("已选择")}：${file.name} / ${t("文件类型")}：${typeText} / ${t("文件大小")}：${formatFileSize(file.size)}`;
+  status.textContent = validation.valid ? baseText : `${baseText} / ${validation.message}`;
+  status.classList.toggle("ok", validation.valid);
+  status.classList.toggle("error", !validation.valid);
+  if (clearButton) clearButton.classList.remove("hidden");
+  return validation.valid;
+}
+
+function clearUploadFile(fileInputSelector, statusSelector, clearButtonSelector) {
+  const fileInput = $(fileInputSelector);
+  if (fileInput) fileInput.value = "";
+  updateUploadFileStatus(fileInputSelector, statusSelector, clearButtonSelector);
+}
+
+function setUploadStatus(statusSelector, message, stateClass = "") {
+  const status = $(statusSelector);
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("ok", stateClass === "ok");
+  status.classList.toggle("error", stateClass === "error");
+}
+
+function uploadWithProgress(url, formData, statusSelector) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Authorization", `Bearer ${state.token}`);
+    xhr.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable) {
+        setUploadStatus(statusSelector, t("正在上传"), "ok");
+        return;
+      }
+      const percent = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      setUploadStatus(statusSelector, `${t("上传进度")}：${percent}%`, "ok");
+    });
+    xhr.addEventListener("load", () => {
+      const data = (() => {
+        try {
+          return JSON.parse(xhr.responseText || "{}");
+        } catch (error) {
+          return {};
+        }
+      })();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadStatus(statusSelector, t("上传完成"), "ok");
+        resolve(data);
+        return;
+      }
+      reject(new Error(data.detail || "上传失败"));
+    });
+    xhr.addEventListener("error", () => reject(new Error("上传失败")));
+    xhr.send(formData);
+  });
 }
 
 function clearChildPointForm() {
@@ -1100,6 +1304,10 @@ function fillUserForm(user) {
     form.elements.eco_credit.value = 100;
     form.elements.is_member.checked = false;
     form.elements.is_active.checked = true;
+    form.elements.can_upload_image.checked = true;
+    form.elements.can_upload_video.checked = true;
+    form.elements.can_comment.checked = true;
+    form.elements.can_checkin.checked = true;
     return;
   }
   [
@@ -1118,6 +1326,10 @@ function fillUserForm(user) {
   });
   form.elements.is_member.checked = Boolean(user.is_member);
   form.elements.is_active.checked = Boolean(user.is_active);
+  form.elements.can_upload_image.checked = user.can_upload_image !== false;
+  form.elements.can_upload_video.checked = user.can_upload_video !== false;
+  form.elements.can_comment.checked = user.can_comment !== false;
+  form.elements.can_checkin.checked = user.can_checkin !== false;
 }
 
 function fillTravelNoteForm(note = null) {
@@ -1128,12 +1340,14 @@ function fillTravelNoteForm(note = null) {
   if (!note) {
     form.elements.status.value = "pending";
     form.elements.is_featured.checked = false;
+    renderFormMediaPreview("#travelNoteForm", "#travelNoteMediaPreview", t("游记"));
     return;
   }
   ["user_id", "spot_id", "title", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = note[field] ?? "";
   });
   form.elements.is_featured.checked = Boolean(note.is_featured);
+  renderFormMediaPreview("#travelNoteForm", "#travelNoteMediaPreview", note.title);
 }
 
 function fillCommentForm(comment = null) {
@@ -1143,11 +1357,13 @@ function fillCommentForm(comment = null) {
   $("#commentDialogTitle").textContent = comment ? `${t("编辑留言")}：${comment.nickname}` : t("新增留言");
   if (!comment) {
     form.elements.status.value = "pending";
+    renderFormMediaPreview("#commentForm", "#commentMediaPreview", t("留言图片"));
     return;
   }
   ["user_id", "spot_id", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = comment[field] ?? "";
   });
+  renderFormMediaPreview("#commentForm", "#commentMediaPreview", t("留言图片"));
 }
 
 function fillPassSettingForm(setting) {
@@ -1201,6 +1417,7 @@ function fillRecommendationForm(item = null) {
     form.elements.price_level.value = "mid";
     form.elements.recommendation_level.value = 1;
     form.elements.is_active.checked = true;
+    renderFormMediaPreview("#recommendationForm", "#recommendationMediaPreview", t("推荐"));
     return;
   }
   [
@@ -1221,6 +1438,7 @@ function fillRecommendationForm(item = null) {
     form.elements[field].value = item[field] ?? "";
   });
   form.elements.is_active.checked = Boolean(item.is_active);
+  renderFormMediaPreview("#recommendationForm", "#recommendationMediaPreview", item.name_zh);
 }
 
 async function loadSpotImages(spotId) {
@@ -1241,29 +1459,46 @@ async function refreshCurrentSpotChildPoints() {
   renderChildPoints();
 }
 
-async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName = "image_url") {
+async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName = "image_url", allowVideo = true, previewSelector = "") {
   const fileInput = $(fileInputSelector);
+  const statusSelector = `${fileInputSelector}Status`;
+  const clearButtonSelector = `#clear${fileInput.id[0].toUpperCase()}${fileInput.id.slice(1)}Btn`;
   const file = fileInput.files[0];
   if (!file) {
-    showToast("请选择图片");
+    showToast(allowVideo ? "请选择图片或视频" : "请选择图片");
+    return;
+  }
+  const validation = validateUploadFile(file, allowVideo);
+  if (!validation.valid) {
+    showToast(validation.message);
     return;
   }
   const formData = new FormData();
   formData.append("file", file);
-  const response = await fetch(`${API}/admin/content/uploads/${folder}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${state.token}`,
-    },
-    body: formData,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || "上传失败");
-  }
+  const data = await uploadWithProgress(`${API}/admin/content/uploads/${folder}`, formData, statusSelector);
   $(formSelector).elements[fieldName].value = data.image_url;
+  if (previewSelector) renderFormMediaPreview(formSelector, previewSelector);
   fileInput.value = "";
-  showToast("图片已上传");
+  updateUploadFileStatus(fileInputSelector, statusSelector, clearButtonSelector, allowVideo);
+  setUploadStatus(statusSelector, t("上传完成"), "ok");
+  showToast("媒体已上传");
+}
+
+async function deleteFormMedia(formSelector, resourcePath, editingId, statusSelector = "", previewSelector = "") {
+  const form = $(formSelector);
+  if (!form.elements.image_url.value) return;
+  if (editingId) {
+    if (statusSelector) setUploadStatus(statusSelector, t("正在删除OSS文件"), "ok");
+    await request(`${resourcePath}/${editingId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ image_url: null }),
+    });
+    await loadData();
+  }
+  form.elements.image_url.value = "";
+  if (previewSelector) renderFormMediaPreview(formSelector, previewSelector);
+  if (statusSelector) setUploadStatus(statusSelector, t("OSS文件已删除"), "ok");
+  showToast("媒体已删除");
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
@@ -1614,8 +1849,10 @@ $("#recommendationsTable").addEventListener("click", async (event) => {
 });
 
 $("#spotImagesList").addEventListener("click", async (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   const coverId = event.target.dataset.coverImage;
-  const disableId = event.target.dataset.disableImage;
+  const deleteId = event.target.dataset.deleteImage;
 
   if (coverId) {
     await request(`/admin/content/spot-images/${coverId}`, {
@@ -1626,13 +1863,13 @@ $("#spotImagesList").addEventListener("click", async (event) => {
     showToast("封面已更新");
   }
 
-  if (disableId) {
-    await request(`/admin/content/spot-images/${disableId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ is_active: false }),
+  if (deleteId) {
+    showToast("正在删除OSS文件");
+    await request(`/admin/content/spot-images/${deleteId}`, {
+      method: "DELETE",
     });
     await loadSpotImages(state.editingSpotId);
-    showToast("图片已停用");
+    showToast("OSS文件已删除");
   }
 });
 
@@ -1702,12 +1939,21 @@ $("#spotForm").addEventListener("submit", async (event) => {
 
 $("#uploadSpotImageBtn").addEventListener("click", async () => {
   if (!state.editingSpotId) {
-    showToast("请先保存秘境，再上传图片");
+    showToast("请先保存秘境，再上传媒体");
     return;
   }
   const file = $("#spotImageFile").files[0];
   if (!file) {
-    showToast("请选择图片");
+    showToast("请选择图片或视频");
+    return;
+  }
+  const validation = validateUploadFile(file, true);
+  if (!validation.valid) {
+    showToast(validation.message);
+    return;
+  }
+  if (validation.isVideo && $("#spotImageCover").checked) {
+    showToast("视频不能设为封面");
     return;
   }
 
@@ -1717,22 +1963,14 @@ $("#uploadSpotImageBtn").addEventListener("click", async () => {
   formData.append("sort_order", $("#spotImageSort").value || "0");
   formData.append("is_cover", $("#spotImageCover").checked ? "true" : "false");
 
-  const response = await fetch(`${API}/admin/content/spots/${state.editingSpotId}/images`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${state.token}`,
-    },
-    body: formData,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || "上传失败");
-  }
+  await uploadWithProgress(`${API}/admin/content/spots/${state.editingSpotId}/images`, formData, "#spotImageFileStatus");
   $("#spotImageFile").value = "";
   $("#spotImageCaption").value = "";
   $("#spotImageCover").checked = false;
+  updateUploadFileStatus("#spotImageFile", "#spotImageFileStatus", "#clearSpotImageFileBtn", true);
+  setUploadStatus("#spotImageFileStatus", t("上传完成"), "ok");
   await loadSpotImages(state.editingSpotId);
-  showToast("图片已上传");
+  showToast("媒体已上传");
 });
 
 $("#addChildPointBtn").addEventListener("click", async () => {
@@ -1765,19 +2003,74 @@ $("#addChildPointBtn").addEventListener("click", async () => {
 });
 
 $("#uploadUserAvatarBtn").addEventListener("click", () => {
-  uploadImageTo("avatars", "#userAvatarFile", "#userForm", "avatar_url");
+  uploadImageTo("avatars", "#userAvatarFile", "#userForm", "avatar_url", false);
+});
+
+[
+  ["#spotImageFile", "#spotImageFileStatus", "#clearSpotImageFileBtn", true],
+  ["#userAvatarFile", "#userAvatarFileStatus", "#clearUserAvatarFileBtn", false],
+  ["#travelNoteImageFile", "#travelNoteImageFileStatus", "#clearTravelNoteImageFileBtn", true],
+  ["#commentImageFile", "#commentImageFileStatus", "#clearCommentImageFileBtn", true],
+  ["#recommendationImageFile", "#recommendationImageFileStatus", "#clearRecommendationImageFileBtn", true],
+].forEach(([fileSelector, statusSelector, clearSelector, allowVideo]) => {
+  const input = $(fileSelector);
+  const button = $(clearSelector);
+  if (input) {
+    input.addEventListener("change", () => {
+      updateUploadFileStatus(fileSelector, statusSelector, clearSelector, allowVideo);
+    });
+  }
+  if (button) {
+    button.addEventListener("click", () => {
+      clearUploadFile(fileSelector, statusSelector, clearSelector);
+    });
+  }
 });
 
 $("#uploadTravelNoteImageBtn").addEventListener("click", () => {
-  uploadImageTo("travel-notes", "#travelNoteImageFile", "#travelNoteForm", "image_url");
+  uploadImageTo("travel-notes", "#travelNoteImageFile", "#travelNoteForm", "image_url", true, "#travelNoteMediaPreview");
+});
+
+$("#deleteTravelNoteMediaBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  deleteFormMedia("#travelNoteForm", "/admin/content/travel-notes", state.editingTravelNoteId, "#travelNoteImageFileStatus", "#travelNoteMediaPreview");
 });
 
 $("#uploadCommentImageBtn").addEventListener("click", () => {
-  uploadImageTo("comments", "#commentImageFile", "#commentForm", "image_url");
+  uploadImageTo("comments", "#commentImageFile", "#commentForm", "image_url", true, "#commentMediaPreview");
+});
+
+$("#deleteCommentMediaBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  deleteFormMedia("#commentForm", "/admin/content/comments", state.editingCommentId, "#commentImageFileStatus", "#commentMediaPreview");
 });
 
 $("#uploadRecommendationImageBtn").addEventListener("click", () => {
-  uploadImageTo("recommendations", "#recommendationImageFile", "#recommendationForm", "image_url");
+  uploadImageTo("recommendations", "#recommendationImageFile", "#recommendationForm", "image_url", true, "#recommendationMediaPreview");
+});
+
+$("#deleteRecommendationMediaBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  deleteFormMedia("#recommendationForm", "/admin/content/recommendations", state.editingRecommendationId, "#recommendationImageFileStatus", "#recommendationMediaPreview");
+});
+
+[
+  ["#travelNoteMediaPreview", "#travelNoteForm", "/admin/content/travel-notes", () => state.editingTravelNoteId, "#travelNoteImageFileStatus"],
+  ["#commentMediaPreview", "#commentForm", "/admin/content/comments", () => state.editingCommentId, "#commentImageFileStatus"],
+  ["#recommendationMediaPreview", "#recommendationForm", "/admin/content/recommendations", () => state.editingRecommendationId, "#recommendationImageFileStatus"],
+].forEach(([previewSelector, formSelector, resourcePath, getEditingId, statusSelector]) => {
+  const preview = $(previewSelector);
+  if (!preview) return;
+  preview.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-form-media]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    deleteFormMedia(formSelector, resourcePath, getEditingId(), statusSelector, previewSelector);
+  });
 });
 
 $("#tagForm").addEventListener("submit", async (event) => {
@@ -1814,6 +2107,10 @@ $("#userForm").addEventListener("submit", async (event) => {
     eco_credit: Number(data.eco_credit),
     is_member: form.elements.is_member.checked,
     is_active: form.elements.is_active.checked,
+    can_upload_image: form.elements.can_upload_image.checked,
+    can_upload_video: form.elements.can_upload_video.checked,
+    can_comment: form.elements.can_comment.checked,
+    can_checkin: form.elements.can_checkin.checked,
   };
   const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
   const method = state.editingUserId ? "PATCH" : "POST";

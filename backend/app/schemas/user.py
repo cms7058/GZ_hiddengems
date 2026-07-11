@@ -16,6 +16,10 @@ class MiniProgramUserUpdate(BaseModel):
     eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
     is_member: Optional[bool] = None
     is_active: Optional[bool] = None
+    can_upload_image: Optional[bool] = None
+    can_upload_video: Optional[bool] = None
+    can_comment: Optional[bool] = None
+    can_checkin: Optional[bool] = None
 
 
 class MiniProgramUserCreate(BaseModel):
@@ -31,6 +35,10 @@ class MiniProgramUserCreate(BaseModel):
     eco_credit: int = Field(default=100, ge=0, le=100)
     is_member: bool = False
     is_active: bool = True
+    can_upload_image: bool = True
+    can_upload_video: bool = True
+    can_comment: bool = True
+    can_checkin: bool = True
 
 
 class MiniProgramUserOut(BaseModel):
@@ -47,9 +55,20 @@ class MiniProgramUserOut(BaseModel):
     eco_credit: int
     is_member: bool
     is_active: bool
+    can_upload_image: bool
+    can_upload_video: bool
+    can_comment: bool
+    can_checkin: bool
 
     class Config:
         from_attributes = True
+
+
+class MiniProgramLoginIn(BaseModel):
+    code: str = Field(..., max_length=128)
+    nickname: Optional[str] = Field(default=None, max_length=64)
+    avatar_url: Optional[str] = Field(default=None, max_length=512)
+    language: str = Field(default="zh-CN", max_length=16)
 
 
 class PassLevelSettingUpdate(BaseModel):

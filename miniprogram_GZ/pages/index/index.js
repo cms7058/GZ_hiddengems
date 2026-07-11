@@ -43,6 +43,13 @@ const COPY = {
     nextUnlockPrefix: "还差",
     nextUnlockSuffix: "积分可以解锁下一个秘境",
     allUnlocked: "当前可探索秘境已全部解锁",
+    profileTitle: "获取微信用户信息",
+    profileBody: "用于同步你的昵称、头像和 OPENID，后台会根据用户权限自动开放上传、留言和打卡功能。",
+    profileNicknamePlaceholder: "请输入微信昵称",
+    profileAvatar: "选择微信头像",
+    profileButton: "允许并继续",
+    profileSkip: "暂不授权",
+    profileFailed: "获取用户信息失败",
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
   },
   "en-US": {
@@ -75,6 +82,13 @@ const COPY = {
     nextUnlockPrefix: "Need ",
     nextUnlockSuffix: " more pts to unlock the next gem",
     allUnlocked: "All visible gems are unlocked",
+    profileTitle: "Get WeChat Profile",
+    profileBody: "Used to sync nickname, avatar, and OpenID. The admin permissions control uploads, comments, and check-ins.",
+    profileNicknamePlaceholder: "Enter WeChat nickname",
+    profileAvatar: "Choose WeChat Avatar",
+    profileButton: "Allow and Continue",
+    profileSkip: "Skip",
+    profileFailed: "Failed to get profile",
     serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
   },
 }
@@ -142,6 +156,11 @@ Page({
     loading: true,
     offline: false,
     serviceClosed: false,
+    profileAuthForm: {
+      nickname: "",
+      avatar_url: "",
+    },
+    showProfileAuth: false,
     showSafetyAgreement: false,
   },
 
@@ -150,8 +169,7 @@ Page({
     this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
-    this.checkSafetyAgreement()
-    this.loadHomeData()
+    this.bootstrapLogin()
     this.tryShowUserLocation()
   },
 
@@ -181,6 +199,23 @@ Page({
   checkSafetyAgreement() {
     const accepted = app.globalData.hasAcceptedSafetyAgreement || wx.getStorageSync("gzSafetyAgreementAccepted")
     this.setData({ showSafetyAgreement: !accepted })
+  },
+
+  async bootstrapLogin() {
+    const user = await app.bootstrapUser()
+    this.setData({ user })
+    this.showNextAgreementStep()
+    this.loadHomeData()
+  },
+
+  showNextAgreementStep() {
+    const hasProfileAuth = app.globalData.hasAcceptedProfileAuth || wx.getStorageSync("gzProfileAuthAccepted")
+    if (!hasProfileAuth) {
+      this.setData({ showProfileAuth: true, showSafetyAgreement: false })
+      return
+    }
+    this.setData({ showProfileAuth: false })
+    this.checkSafetyAgreement()
   },
 
   async loadHomeData() {
@@ -524,6 +559,59 @@ Page({
     wx.setStorageSync("gzSafetyAgreementAccepted", true)
     app.globalData.hasAcceptedSafetyAgreement = true
     this.setData({ showSafetyAgreement: false })
+  },
+
+  onSkipProfileAuth() {
+    wx.setStorageSync("gzProfileAuthAccepted", true)
+    app.globalData.hasAcceptedProfileAuth = true
+    this.setData({ showProfileAuth: false })
+    this.checkSafetyAgreement()
+  },
+
+  onProfileAvatar(event) {
+    this.setData({ "profileAuthForm.avatar_url": event.detail.avatarUrl || "" })
+  },
+
+  onProfileNicknameInput(event) {
+    this.setData({ "profileAuthForm.nickname": event.detail.value || "" })
+  },
+
+  async onAuthorizeProfile() {
+    try {
+      let userInfo = {
+        nickName: this.data.profileAuthForm.nickname,
+        avatarUrl: this.data.profileAuthForm.avatar_url,
+      }
+      if ((!userInfo.nickName || !userInfo.avatarUrl) && wx.getUserProfile) {
+        try {
+          const profile = await new Promise((resolve, reject) => {
+            wx.getUserProfile({
+              desc: this.data.copy.profileBody,
+              success: resolve,
+              fail: reject,
+            })
+          })
+          userInfo = {
+            nickName: userInfo.nickName || (profile.userInfo && profile.userInfo.nickName),
+            avatarUrl: userInfo.avatarUrl || (profile.userInfo && profile.userInfo.avatarUrl),
+          }
+        } catch (error) {
+          // Newer WeChat clients require chooseAvatar and nickname input; continue with entered values.
+        }
+      }
+      const user = await app.bootstrapUser({
+        force: true,
+        nickname: userInfo.nickName,
+        avatar_url: userInfo.avatarUrl,
+      })
+      wx.setStorageSync("gzProfileAuthAccepted", true)
+      app.globalData.hasAcceptedProfileAuth = true
+      this.setData({ user, showProfileAuth: false })
+      this.checkSafetyAgreement()
+      this.loadHomeData()
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.profileFailed, icon: "none" })
+    }
   },
 
   async tryShowUserLocation() {

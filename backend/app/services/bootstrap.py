@@ -49,9 +49,16 @@ def ensure_runtime_columns() -> None:
             "image_url": "VARCHAR(512) NULL",
             "spot_id": "INT NULL",
         },
+        "spot_images": {
+            "media_type": "VARCHAR(32) NOT NULL DEFAULT 'image'",
+        },
         "mini_program_users": {
             "avatar_url": "VARCHAR(512) NULL",
             "explore_points": "INT NOT NULL DEFAULT 0",
+            "can_upload_image": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "can_upload_video": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "can_comment": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "can_checkin": "BOOLEAN NOT NULL DEFAULT TRUE",
         },
         "checkin_records": {
             "media_url": "VARCHAR(512) NULL",

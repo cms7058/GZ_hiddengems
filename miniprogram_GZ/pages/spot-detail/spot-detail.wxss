@@ -444,6 +444,10 @@ page {
   flex: none;
 }
 
+.media-video {
+  display: block;
+}
+
 .media-info {
   flex: 1;
   min-width: 0;

@@ -61,6 +61,9 @@ class Settings:
     qweather_private_key_file: str = os.getenv("QWEATHER_PRIVATE_KEY_FILE", "").strip()
     qweather_jwt_expire_seconds: int = int(os.getenv("QWEATHER_JWT_EXPIRE_SECONDS", "900"))
 
+    wechat_mini_appid: str = os.getenv("WECHAT_MINI_APPID", "").strip()
+    wechat_mini_secret: str = os.getenv("WECHAT_MINI_SECRET", "").strip()
+
     cors_origins: list[str] = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "*").split(",")

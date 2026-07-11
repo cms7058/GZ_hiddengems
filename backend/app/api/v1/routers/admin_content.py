@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
@@ -23,7 +25,7 @@ from app.schemas.content import (
     UserCommentUpdate,
 )
 from app.schemas.pagination import Page
-from app.services.media_storage import MediaStorageError, save_media
+from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
 from app.services.pagination import build_page, paginated_scalars
 
 
@@ -31,19 +33,35 @@ router = APIRouter()
 
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v"}
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
+MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
+MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
-async def save_upload(file: UploadFile, folder: str, db: Session) -> str:
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="Only image files are supported")
+def detect_media_type(file: UploadFile, allow_video: bool = False) -> tuple[str, str]:
+    filename = file.filename or ""
+    suffix = f".{filename.rsplit('.', 1)[-1].lower()}" if "." in filename else ".jpg"
+    if file.content_type in ALLOWED_IMAGE_TYPES and suffix in IMAGE_SUFFIXES:
+        return "image", suffix
+    if allow_video and file.content_type in ALLOWED_VIDEO_TYPES and suffix in VIDEO_SUFFIXES:
+        return "video", suffix
+    supported = "JPG, PNG, WebP, GIF, MP4, MOV, M4V" if allow_video else "JPG, PNG, WebP, GIF"
+    raise HTTPException(status_code=400, detail=f"Only {supported} files are supported")
+
+
+async def save_upload(file: UploadFile, folder: str, db: Session, allow_video: bool = False) -> tuple[str, str]:
+    media_type, suffix = detect_media_type(file, allow_video)
 
     content = await file.read()
-    if len(content) > MAX_IMAGE_UPLOAD_BYTES:
-        raise HTTPException(status_code=400, detail="Image must not exceed 10 MB")
-    suffix = (file.filename or "").rsplit(".", 1)[-1] if "." in (file.filename or "") else "jpg"
+    max_bytes = MAX_VIDEO_UPLOAD_BYTES if media_type == "video" else MAX_IMAGE_UPLOAD_BYTES
+    if len(content) > max_bytes:
+        limit = "8 MB" if media_type == "video" else "2 MB"
+        raise HTTPException(status_code=400, detail=f"{media_type.capitalize()} must not exceed {limit}")
     try:
-        return await run_in_threadpool(save_media, db, folder, suffix, content, file.content_type)
+        media_url = await run_in_threadpool(save_media, db, folder, suffix, content, file.content_type)
+        return media_url, media_type
     except MediaStorageError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
@@ -57,7 +75,7 @@ def travel_note_to_out(note: TravelNote) -> TravelNoteOut:
         spot_name_zh=note.spot.name_zh if note.spot else None,
         title=note.title,
         content=note.content,
-        image_url=note.image_url,
+        image_url=get_media_display_url(note._sa_instance_state.session, note.image_url) or note.image_url,
         status=note.status,
         is_featured=note.is_featured,
     )
@@ -71,7 +89,7 @@ def comment_to_out(comment: UserComment) -> UserCommentOut:
         spot_id=comment.spot_id,
         spot_name_zh=comment.spot.name_zh if comment.spot else None,
         content=comment.content,
-        image_url=comment.image_url,
+        image_url=get_media_display_url(comment._sa_instance_state.session, comment.image_url) or comment.image_url,
         status=comment.status,
     )
 
@@ -90,11 +108,31 @@ def recommendation_to_out(recommendation: LifestyleRecommendation) -> Recommenda
         county=recommendation.county,
         address=recommendation.address,
         contact=recommendation.contact,
-        image_url=recommendation.image_url,
+        image_url=get_media_display_url(recommendation._sa_instance_state.session, recommendation.image_url) or recommendation.image_url,
         price_level=recommendation.price_level,
         recommendation_level=recommendation.recommendation_level,
         is_active=recommendation.is_active,
     )
+
+
+def spot_image_to_out(image: SpotImage, db: Session) -> SpotImageOut:
+    return SpotImageOut(
+        id=image.id,
+        spot_id=image.spot_id,
+        image_url=get_media_display_url(db, image.image_url) or image.image_url,
+        media_type=image.media_type,
+        caption=image.caption,
+        sort_order=image.sort_order,
+        is_cover=image.is_cover,
+        is_active=image.is_active,
+    )
+
+
+def delete_media_or_502(db: Session, url: Optional[str]) -> None:
+    try:
+        delete_media(db, url)
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
 
 def ensure_spot_exists(db: Session, spot_id: int) -> None:
@@ -132,13 +170,19 @@ def list_spot_images(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[SpotImageOut]:
-    return paginated_scalars(
+    result = paginated_scalars(
         db,
         select(SpotImage)
         .where(SpotImage.spot_id == spot_id)
         .order_by(SpotImage.sort_order.asc(), SpotImage.id.desc()),
         page,
         page_size,
+    )
+    return build_page(
+        [spot_image_to_out(item, db) for item in result.items],
+        result.total,
+        result.page,
+        result.page_size,
     )
 
 
@@ -155,8 +199,10 @@ async def upload_spot_image(
     spot = db.get(ScenicSpot, spot_id)
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
-    image_url = await save_upload(file, "spots", db)
+    image_url, media_type = await save_upload(file, "spots", db, allow_video=True)
 
+    if is_cover and media_type == "video":
+        raise HTTPException(status_code=400, detail="Video cannot be set as cover")
     if is_cover:
         for existing in db.scalars(select(SpotImage).where(SpotImage.spot_id == spot_id)).all():
             existing.is_cover = False
@@ -164,6 +210,7 @@ async def upload_spot_image(
     image = SpotImage(
         spot_id=spot_id,
         image_url=image_url,
+        media_type=media_type,
         caption=caption or None,
         sort_order=sort_order,
         is_cover=is_cover,
@@ -171,7 +218,7 @@ async def upload_spot_image(
     db.add(image)
     db.commit()
     db.refresh(image)
-    return image
+    return spot_image_to_out(image, db)
 
 
 @router.post("/uploads/{folder}")
@@ -184,7 +231,8 @@ async def upload_content_image(
     allowed_folders = {"travel-notes", "comments", "recommendations", "avatars"}
     if folder not in allowed_folders:
         raise HTTPException(status_code=404, detail="Upload folder not found")
-    return {"image_url": await save_upload(file, folder, db)}
+    image_url, _ = await save_upload(file, folder, db, allow_video=folder != "avatars")
+    return {"image_url": image_url}
 
 
 @router.patch("/spot-images/{image_id}", response_model=SpotImageOut)
@@ -200,6 +248,8 @@ def update_spot_image(
 
     update_data = payload.model_dump(exclude_unset=True)
     if update_data.get("is_cover") is True:
+        if image.media_type == "video":
+            raise HTTPException(status_code=400, detail="Video cannot be set as cover")
         for existing in db.scalars(select(SpotImage).where(SpotImage.spot_id == image.spot_id)).all():
             existing.is_cover = False
     for field, value in update_data.items():
@@ -208,7 +258,21 @@ def update_spot_image(
     db.add(image)
     db.commit()
     db.refresh(image)
-    return image
+    return spot_image_to_out(image, db)
+
+
+@router.delete("/spot-images/{image_id}", status_code=204)
+def delete_spot_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    image = db.get(SpotImage, image_id)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    delete_media_or_502(db, image.image_url)
+    db.delete(image)
+    db.commit()
 
 
 @router.get("/travel-notes", response_model=Page[TravelNoteOut])
@@ -259,6 +323,8 @@ def update_travel_note(
     update_data = payload.model_dump(exclude_unset=True)
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
+    if "image_url" in update_data and update_data["image_url"] != note.image_url:
+        delete_media_or_502(db, note.image_url)
     for field, value in update_data.items():
         setattr(note, field, value)
     db.add(note)
@@ -290,6 +356,7 @@ def delete_travel_note(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> None:
     note = get_note(db, note_id)
+    delete_media_or_502(db, note.image_url)
     db.delete(note)
     db.commit()
 
@@ -342,6 +409,8 @@ def update_comment(
     update_data = payload.model_dump(exclude_unset=True)
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
+    if "image_url" in update_data and update_data["image_url"] != comment.image_url:
+        delete_media_or_502(db, comment.image_url)
     for field, value in update_data.items():
         setattr(comment, field, value)
     db.add(comment)
@@ -371,6 +440,7 @@ def delete_comment(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> None:
     comment = get_comment(db, comment_id)
+    delete_media_or_502(db, comment.image_url)
     db.delete(comment)
     db.commit()
 
@@ -430,6 +500,7 @@ def delete_recommendation(
     recommendation = db.get(LifestyleRecommendation, recommendation_id)
     if recommendation is None:
         raise HTTPException(status_code=404, detail="Recommendation not found")
+    delete_media_or_502(db, recommendation.image_url)
     db.delete(recommendation)
     db.commit()
 
@@ -447,6 +518,8 @@ def update_recommendation(
     update_data = payload.model_dump(exclude_unset=True)
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
+    if "image_url" in update_data and update_data["image_url"] != recommendation.image_url:
+        delete_media_or_502(db, recommendation.image_url)
     for field, value in update_data.items():
         setattr(recommendation, field, value)
     db.add(recommendation)

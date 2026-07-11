@@ -20,6 +20,10 @@ class MiniProgramUser(Base):
     eco_credit = Column(Integer, default=100, nullable=False)
     is_member = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    can_upload_image = Column(Boolean, default=True, nullable=False)
+    can_upload_video = Column(Boolean, default=True, nullable=False)
+    can_comment = Column(Boolean, default=True, nullable=False)
+    can_checkin = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

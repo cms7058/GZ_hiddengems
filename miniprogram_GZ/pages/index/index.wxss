@@ -377,6 +377,37 @@ page {
   line-height: 1.6;
 }
 
+.profile-avatar-button {
+  width: 100%;
+  height: 88rpx;
+  margin-top: 24rpx;
+  border-radius: 8rpx;
+  background: #eef2e8;
+  color: #496251;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar-image {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+}
+
+.profile-nickname-input {
+  width: 100%;
+  height: 82rpx;
+  margin-top: 16rpx;
+  padding: 0 22rpx;
+  border-radius: 8rpx;
+  background: #f4f1e8;
+  color: #193127;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
 .agreement-button {
   height: 82rpx;
   margin-top: 28rpx;
@@ -388,4 +419,10 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.agreement-button.secondary {
+  margin-top: 16rpx;
+  background: #eef2e8;
+  color: #496251;
 }
