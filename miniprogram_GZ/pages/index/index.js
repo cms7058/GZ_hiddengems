@@ -45,9 +45,7 @@ const COPY = {
     allUnlocked: "当前可探索秘境已全部解锁",
     profileTitle: "获取微信用户信息",
     profileBody: "用于同步你的昵称、头像和 OPENID，后台会根据用户权限自动开放上传、留言和打卡功能。",
-    profileNicknamePlaceholder: "请输入微信昵称",
-    profileAvatar: "选择微信头像",
-    profileButton: "允许并继续",
+    profileButton: "微信授权获取",
     profileSkip: "暂不授权",
     profileFailed: "获取用户信息失败",
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
@@ -84,9 +82,7 @@ const COPY = {
     allUnlocked: "All visible gems are unlocked",
     profileTitle: "Get WeChat Profile",
     profileBody: "Used to sync nickname, avatar, and OpenID. The admin permissions control uploads, comments, and check-ins.",
-    profileNicknamePlaceholder: "Enter WeChat nickname",
-    profileAvatar: "Choose WeChat Avatar",
-    profileButton: "Allow and Continue",
+    profileButton: "Use WeChat Profile",
     profileSkip: "Skip",
     profileFailed: "Failed to get profile",
     serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
@@ -161,6 +157,7 @@ Page({
       nickname: "",
       avatar_url: "",
     },
+    profileLoading: false,
     showProfileAuth: false,
     showSafetyAgreement: false,
   },
@@ -219,7 +216,7 @@ Page({
         showProfileAuth: true,
         showSafetyAgreement: false,
         profileAuthForm: {
-          nickname: hasRealProfile ? user.nickname : "",
+          nickname: user.nickname && user.nickname !== "秘境探索者" ? user.nickname : "",
           avatar_url: user.avatar_url || "",
         },
       })
@@ -603,57 +600,89 @@ Page({
     this.checkSafetyAgreement()
   },
 
-  onProfileAvatar(event) {
-    this.setData({ "profileAuthForm.avatar_url": event.detail.avatarUrl || "" })
-  },
-
-  onProfileNicknameInput(event) {
-    this.setData({ "profileAuthForm.nickname": event.detail.value || "" })
-  },
-
   async onAuthorizeProfile() {
+    if (this.data.profileLoading) return
+    this.setData({ profileLoading: true })
+    wx.showLoading({
+      title: this.data.lang === "en-US" ? "Syncing..." : "正在同步",
+      mask: true,
+    })
+    let userInfo = this.getFallbackProfileInfo()
     try {
-      let userInfo = {
-        nickName: this.data.profileAuthForm.nickname,
-        avatarUrl: this.data.profileAuthForm.avatar_url,
-      }
-      if ((!userInfo.nickName || !userInfo.avatarUrl) && wx.getUserProfile) {
-        try {
-          const profile = await new Promise((resolve, reject) => {
-            wx.getUserProfile({
-              desc: this.data.copy.profileBody,
-              success: resolve,
-              fail: reject,
-            })
-          })
-          userInfo = {
-            nickName: userInfo.nickName || (profile.userInfo && profile.userInfo.nickName),
-            avatarUrl: userInfo.avatarUrl || (profile.userInfo && profile.userInfo.avatarUrl),
-          }
-        } catch (error) {
-          // Newer WeChat clients require chooseAvatar and nickname input; continue with entered values.
-        }
-      }
-      const user = await app.bootstrapUser({
-        force: true,
-        nickname: userInfo.nickName,
-        avatar_url: userInfo.avatarUrl,
-      })
-      wx.setStorageSync("gzProfileAuthAccepted", true)
-      app.globalData.hasAcceptedProfileAuth = true
-      this.setData({
-        user,
-        showProfileAuth: false,
-        profileAuthForm: {
-          nickname: user.nickname || "",
-          avatar_url: user.avatar_url || "",
-        },
-      })
-      this.checkSafetyAgreement()
-      this.loadHomeData()
+      userInfo = await this.getWechatProfileInfo()
     } catch (error) {
-      wx.showToast({ title: this.data.copy.profileFailed, icon: "none" })
+      console.warn("wx.getUserProfile failed, continue with login profile", error)
     }
+    try {
+      await this.saveProfileInfo(userInfo)
+    } catch (error) {
+      console.warn("save profile failed", error)
+      this.setData({ profileLoading: false })
+      wx.hideLoading()
+      wx.showModal({
+        title: this.data.copy.profileFailed,
+        content: error && error.message ? error.message : this.data.copy.profileFailed,
+        showCancel: false,
+      })
+    }
+  },
+
+  getFallbackProfileInfo() {
+    const user = app.globalData.user || {}
+    return {
+      nickName: this.data.profileAuthForm.nickname || user.nickname || "秘境探索者",
+      avatarUrl: this.data.profileAuthForm.avatar_url || user.avatar_url || "",
+    }
+  },
+
+  getWechatProfileInfo() {
+    return new Promise((resolve, reject) => {
+      if (!wx.getUserProfile) {
+        resolve(this.getFallbackProfileInfo())
+        return
+      }
+      wx.getUserProfile({
+        desc: this.data.copy.profileBody,
+        success: (profile) => {
+          const info = profile.userInfo || {}
+          resolve({
+            nickName: info.nickName || this.data.profileAuthForm.nickname,
+            avatarUrl: info.avatarUrl || this.data.profileAuthForm.avatar_url,
+          })
+        },
+        fail: reject,
+      })
+    })
+  },
+
+  async saveProfileInfo(userInfo) {
+    const fallback = this.getFallbackProfileInfo()
+    const user = await app.bootstrapUser({
+      force: true,
+      nickname: userInfo.nickName || fallback.nickName,
+      avatar_url: userInfo.avatarUrl || fallback.avatarUrl,
+    })
+    if (!user || !user.openid) {
+      throw new Error("后台未返回用户 OpenID，请检查 /mini/login 接口和微信 AppID/Secret 配置")
+    }
+    wx.setStorageSync("gzProfileAuthAccepted", true)
+    app.globalData.hasAcceptedProfileAuth = true
+    this.setData({
+      user,
+      profileLoading: false,
+      showProfileAuth: false,
+      profileAuthForm: {
+        nickname: user.nickname || "",
+        avatar_url: user.avatar_url || "",
+      },
+    })
+    wx.hideLoading()
+    wx.showToast({
+      title: this.data.lang === "en-US" ? "User synced" : "用户已同步",
+      icon: "success",
+    })
+    this.checkSafetyAgreement()
+    this.loadHomeData()
   },
 
   async tryShowUserLocation() {

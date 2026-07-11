@@ -115,6 +115,7 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
             language=payload.language or "zh-CN",
         )
     else:
+        user.is_active = True
         if payload.nickname:
             user.nickname = payload.nickname
         if payload.avatar_url:

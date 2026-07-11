@@ -159,8 +159,9 @@ function request(path, options = {}) {
 
 function miniLogin(payload) {
   return new Promise((resolve, reject) => {
+    const url = `${config.apiBaseUrl}/mini/login`
     wx.request({
-      url: `${config.apiBaseUrl}/mini/login`,
+      url,
       method: "POST",
       data: payload,
       header: {
@@ -171,9 +172,12 @@ function miniLogin(payload) {
           resolve(res.data)
           return
         }
-        reject(new Error(`login failed: ${res.statusCode}`))
+        const detail = res.data && (res.data.detail || res.data.message)
+        reject(new Error(detail || `login failed: ${res.statusCode}`))
       },
-      fail: reject,
+      fail(error) {
+        reject(new Error(`login request failed: ${url} ${error.errMsg || ""}`))
+      },
     })
   })
 }

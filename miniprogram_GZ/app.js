@@ -43,10 +43,14 @@ App({
 
   bootstrapUser(profile = {}) {
     if (this.globalData.userLoginPromise && !profile.force) return this.globalData.userLoginPromise
-    this.globalData.userLoginPromise = new Promise((resolve) => {
+    const loginPromise = new Promise((resolve, reject) => {
       wx.login({
         success: ({ code }) => {
           if (!code) {
+            if (profile.force) {
+              reject(new Error("wx.login did not return code"))
+              return
+            }
             resolve(this.globalData.user)
             return
           }
@@ -57,6 +61,10 @@ App({
             language: this.globalData.lang || "zh-CN",
           })
             .then((user) => {
+              if (profile.force && (!user || !user.openid)) {
+                reject(new Error("mini login returned no openid"))
+                return
+              }
               this.globalData.user = {
                 ...this.globalData.user,
                 ...user,
@@ -64,12 +72,28 @@ App({
               wx.setStorageSync("gzHiddenGemsUser", this.globalData.user)
               resolve(this.globalData.user)
             })
-            .catch(() => resolve(this.globalData.user))
+            .catch((error) => {
+              console.warn("mini login failed", error)
+              if (profile.force) {
+                reject(error)
+                return
+              }
+              resolve(this.globalData.user)
+            })
         },
-        fail: () => resolve(this.globalData.user),
+        fail: (error) => {
+          if (profile.force) {
+            reject(error)
+            return
+          }
+          resolve(this.globalData.user)
+        },
       })
     })
-    return this.globalData.userLoginPromise
+    if (!profile.force) {
+      this.globalData.userLoginPromise = loginPromise
+    }
+    return loginPromise
   },
 
   setLanguage(lang) {
