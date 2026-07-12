@@ -139,6 +139,7 @@ class MapSpotOut(BaseModel):
     is_unlocked: bool
     is_precise_location: bool
     recommendation_level: int
+    marker_color: str = "#2f6b4f"
     tags: list[LocalizedTag]
 
 

@@ -69,6 +69,7 @@ def spot_to_map_out(
     user_level: int = 0,
     is_member: bool = False,
     user_explore_points: int = 0,
+    marker_colors_by_level: Optional[dict[int, str]] = None,
 ) -> MapSpotOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     is_unlocked = can_unlock_spot(spot.required_explore_points, user_explore_points)
@@ -94,6 +95,7 @@ def spot_to_map_out(
         is_unlocked=is_unlocked,
         is_precise_location=coordinate.is_precise,
         recommendation_level=spot.recommendation_level,
+        marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
     )
 
@@ -105,9 +107,17 @@ def spot_to_detail_out(
     is_member: bool = False,
     user_explore_points: int = 0,
     db: Optional[Session] = None,
+    marker_colors_by_level: Optional[dict[int, str]] = None,
 ) -> SpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
-    base = spot_to_map_out(spot, normalized_lang, user_level, is_member, user_explore_points)
+    base = spot_to_map_out(
+        spot,
+        normalized_lang,
+        user_level,
+        is_member,
+        user_explore_points,
+        marker_colors_by_level,
+    )
     return SpotDetailOut(
         **base.model_dump(),
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),

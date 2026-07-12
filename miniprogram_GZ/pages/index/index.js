@@ -484,6 +484,7 @@ Page({
 
   spotToMarker(spot) {
     const locked = !spot.is_unlocked
+    const markerColor = this.normalizeMarkerColor(spot.marker_color)
     return {
       id: spot.id,
       latitude: spot.latitude,
@@ -492,22 +493,26 @@ Page({
       height: 34,
       callout: {
         content: `${locked ? "🔒 " : ""}${spot.name}`,
-        color: locked ? "#7b6651" : "#1d3f31",
+        color: locked ? "#7b6651" : "#ffffff",
         fontSize: 13,
         borderRadius: 8,
-        bgColor: locked ? "#fff2d8" : "#e7f3e8",
+        bgColor: locked ? "#fff2d8" : markerColor,
         padding: 8,
         display: "BYCLICK",
       },
       label: {
-        content: locked ? "锁" : `${spot.recommendation_level}`,
+        content: locked ? "锁" : `L${spot.recommendation_level}`,
         color: "#ffffff",
         fontSize: 12,
-        bgColor: locked ? "#9a6a43" : "#2f6b4f",
+        bgColor: locked ? "#9a6a43" : markerColor,
         borderRadius: 12,
         padding: 6,
       },
     }
+  },
+
+  normalizeMarkerColor(color) {
+    return /^#[0-9a-fA-F]{6}$/.test(color || "") ? color : "#2f6b4f"
   },
 
   onTagTap(event) {

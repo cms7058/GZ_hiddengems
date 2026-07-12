@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260711-upload-btn-sidebar" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260712-pass-color-save" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -193,8 +193,9 @@
           <div class="section-head">
             <div>
               <h2>通关设置</h2>
-              <p class="muted">配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。</p>
+              <p class="muted">配置探索等级的通关条件、会员要求、地图标识颜色和解锁权益。</p>
             </div>
+            <button id="newPassSettingBtn" class="primary-btn">新增等级</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -203,6 +204,7 @@
                   <th>等级</th>
                   <th>名称</th>
                   <th>条件</th>
+                  <th>标识颜色</th>
                   <th>会员</th>
                   <th>解锁权益</th>
                   <th>状态</th>
@@ -629,6 +631,14 @@
           <button type="button" class="icon-btn" data-close-dialog="passSettingDialog">×</button>
         </header>
         <div class="form-grid">
+          <label><span>等级</span><input name="level" type="number" min="0" max="99" required /></label>
+          <label>
+            <span>标识颜色</span>
+            <span class="color-input-row">
+              <input name="marker_color" class="color-picker-input" type="color" value="#2f6b4f" />
+              <input id="passMarkerColorText" class="color-hex-input" type="text" value="#2f6b4f" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" />
+            </span>
+          </label>
           <label><span>中文名称</span><input name="name_zh" required maxlength="64" /></label>
           <label><span>英文名称</span><input name="name_en" required maxlength="64" /></label>
           <label><span>所需打卡</span><input name="required_checkins" type="number" min="0" /></label>
@@ -751,6 +761,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260711-user-create-save"></script>
+    <script src="/admin/static/app.js?v=20260712-pass-color-save"></script>
   </body>
 </html>

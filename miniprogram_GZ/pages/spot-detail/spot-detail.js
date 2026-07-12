@@ -312,6 +312,7 @@ Page({
   },
 
   buildMarkers(spot) {
+    const markerColor = this.normalizeMarkerColor(spot.marker_color)
     const markers = [
       {
         id: spot.id,
@@ -325,8 +326,16 @@ Page({
           fontSize: 13,
           borderRadius: 8,
           padding: 8,
-          bgColor: "#e7f3e8",
-          color: "#193127",
+          bgColor: markerColor,
+          color: "#ffffff",
+        },
+        label: {
+          content: `L${spot.recommendation_level || ""}`,
+          color: "#ffffff",
+          fontSize: 12,
+          bgColor: markerColor,
+          borderRadius: 12,
+          padding: 6,
         },
       },
     ]
@@ -349,6 +358,10 @@ Page({
       })
     }
     return markers
+  },
+
+  normalizeMarkerColor(color) {
+    return /^#[0-9a-fA-F]{6}$/.test(color || "") ? color : "#2f6b4f"
   },
 
   countUsers(spot) {

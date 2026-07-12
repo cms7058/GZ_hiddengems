@@ -71,6 +71,20 @@ class MiniProgramLoginIn(BaseModel):
     language: str = Field(default="zh-CN", max_length=16)
 
 
+class PassLevelSettingCreate(BaseModel):
+    level: int = Field(..., ge=0, le=99)
+    name_zh: str = Field(..., max_length=64)
+    name_en: str = Field(..., max_length=64)
+    required_checkins: int = Field(default=0, ge=0)
+    required_contributions: int = Field(default=0, ge=0)
+    required_eco_credit: int = Field(default=0, ge=0, le=100)
+    requires_membership: bool = False
+    unlock_benefit_zh: str = Field(..., max_length=512)
+    unlock_benefit_en: str = Field(..., max_length=512)
+    marker_color: str = Field(default="#2f6b4f", pattern=r"^#[0-9A-Fa-f]{6}$")
+    is_active: bool = True
+
+
 class PassLevelSettingUpdate(BaseModel):
     name_zh: Optional[str] = Field(default=None, max_length=64)
     name_en: Optional[str] = Field(default=None, max_length=64)
@@ -80,6 +94,7 @@ class PassLevelSettingUpdate(BaseModel):
     requires_membership: Optional[bool] = None
     unlock_benefit_zh: Optional[str] = Field(default=None, max_length=512)
     unlock_benefit_en: Optional[str] = Field(default=None, max_length=512)
+    marker_color: Optional[str] = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     is_active: Optional[bool] = None
 
 
@@ -94,6 +109,7 @@ class PassLevelSettingOut(BaseModel):
     requires_membership: bool
     unlock_benefit_zh: str
     unlock_benefit_en: str
+    marker_color: str
     is_active: bool
 
     class Config:

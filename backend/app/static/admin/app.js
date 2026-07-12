@@ -84,6 +84,9 @@ const I18N = {
   "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
   "管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。": "Manage registered users, membership status, explorer levels, explore points, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
+  "配置探索等级的通关条件、会员要求、地图标识颜色和解锁权益。": "Configure pass requirements, membership rules, map marker colors, and unlock benefits.",
+  "新增等级": "New Level",
+  "标识颜色": "Marker Color",
   "维护会员套餐、价格、周期、权益，并查看用户会员记录。": "Maintain membership plans, prices, periods, benefits, and user membership records.",
   "审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。": "Review GPS and image check-ins; approvals increase user check-in counts.",
   "审核用户游记和留言，支持推荐精选游记或隐藏违规内容。": "Review user notes and comments, feature good notes, or hide inappropriate content.",
@@ -271,6 +274,7 @@ const I18N = {
   "编辑标签": "Edit Tag",
   "编辑用户": "Edit User",
   "编辑通关设置": "Edit Pass Setting",
+  "新增通关等级": "New Pass Level",
   "编辑会员套餐": "Edit Membership Plan",
   "编辑游记": "Edit Note",
   "编辑留言": "Edit Comment",
@@ -693,6 +697,12 @@ function renderPassSettings() {
               <span>${t("打卡")} ${setting.required_checkins} / ${t("贡献")} ${setting.required_contributions}</span>
               <span class="muted">${t("环保信用")} ${setting.required_eco_credit}</span>
             </div>
+          </td>
+          <td>
+            <span class="color-chip">
+              <span class="color-swatch" style="background:${escapeHtml(setting.marker_color || "#2f6b4f")}"></span>
+              ${escapeHtml(setting.marker_color || "#2f6b4f")}
+            </span>
           </td>
           <td>${setting.requires_membership ? `<span class="pill warning">${t("需要")}</span>` : `<span class="pill">${t("不需要")}</span>`}</td>
           <td>
@@ -1211,6 +1221,12 @@ async function loadData() {
   renderAll();
 }
 
+async function loadPassSettings() {
+  state.passSettings = await requestPage("passSettings", "/admin/pass-settings");
+  renderPassSettings();
+  renderMetrics();
+}
+
 async function requestPage(key, path) {
   const meta = state.pagination[key] || { page: 1 };
   const pageSize = meta.page_size || PAGE_SIZE_BY_KEY[key] || PAGE_SIZE;
@@ -1420,8 +1436,21 @@ function fillCommentForm(comment = null) {
 function fillPassSettingForm(setting) {
   const form = $("#passSettingForm");
   form.reset();
-  state.editingPassSettingId = setting.id;
-  $("#passSettingDialogTitle").textContent = `${t("编辑通关设置")}：L${setting.level}`;
+  state.editingPassSettingId = setting?.id || null;
+  $("#passSettingDialogTitle").textContent = setting ? `${t("编辑通关设置")}：L${setting.level}` : t("新增通关等级");
+  const nextLevel = state.passSettings.length ? Math.max(...state.passSettings.map((item) => Number(item.level) || 0)) + 1 : 0;
+  const markerColor = normalizeHexColor(setting?.marker_color || "#2f6b4f");
+  form.elements.level.value = setting?.level ?? nextLevel;
+  form.elements.level.disabled = Boolean(setting);
+  setPassMarkerColorInputs(markerColor);
+  if (!setting) {
+    form.elements.required_checkins.value = 0;
+    form.elements.required_contributions.value = 0;
+    form.elements.required_eco_credit.value = 0;
+    form.elements.requires_membership.checked = false;
+    form.elements.is_active.checked = true;
+    return;
+  }
   [
     "name_zh",
     "name_en",
@@ -1435,6 +1464,18 @@ function fillPassSettingForm(setting) {
   });
   form.elements.requires_membership.checked = Boolean(setting.requires_membership);
   form.elements.is_active.checked = Boolean(setting.is_active);
+}
+
+function normalizeHexColor(color) {
+  const value = String(color || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : "#2F6B4F";
+}
+
+function setPassMarkerColorInputs(color) {
+  const normalized = normalizeHexColor(color);
+  const form = $("#passSettingForm");
+  form.elements.marker_color.value = normalized;
+  $("#passMarkerColorText").value = normalized;
 }
 
 function fillMembershipPlanForm(plan) {
@@ -1618,6 +1659,26 @@ $("#newTagBtn").addEventListener("click", () => {
 $("#newUserBtn").addEventListener("click", () => {
   fillUserForm();
   $("#userDialog").showModal();
+});
+
+$("#newPassSettingBtn").addEventListener("click", () => {
+  fillPassSettingForm();
+  $("#passSettingDialog").showModal();
+});
+
+$("#passSettingForm").elements.marker_color.addEventListener("input", (event) => {
+  setPassMarkerColorInputs(event.target.value);
+});
+
+$("#passMarkerColorText").addEventListener("input", (event) => {
+  const value = event.target.value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+    $("#passSettingForm").elements.marker_color.value = value;
+  }
+});
+
+$("#passMarkerColorText").addEventListener("blur", (event) => {
+  setPassMarkerColorInputs(event.target.value);
 });
 
 $("#newTravelNoteBtn").addEventListener("click", () => {
@@ -2239,7 +2300,9 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const data = formToObject(form);
+  const markerColor = normalizeHexColor(form.elements.marker_color.value);
   const payload = {
+    level: Number(form.elements.level.value),
     name_zh: data.name_zh,
     name_en: data.name_en,
     required_checkins: Number(data.required_checkins),
@@ -2248,15 +2311,47 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
     requires_membership: form.elements.requires_membership.checked,
     unlock_benefit_zh: data.unlock_benefit_zh,
     unlock_benefit_en: data.unlock_benefit_en,
+    marker_color: markerColor,
     is_active: form.elements.is_active.checked,
   };
-  await request(`/admin/pass-settings/${state.editingPassSettingId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-  $("#passSettingDialog").close();
-  await loadData();
-  showToast("通关设置已保存");
+  const path = state.editingPassSettingId ? `/admin/pass-settings/${state.editingPassSettingId}` : "/admin/pass-settings";
+  const method = state.editingPassSettingId ? "PATCH" : "POST";
+  if (state.editingPassSettingId) {
+    delete payload.level;
+  }
+  try {
+    const savedSetting = await request(path, {
+      method,
+      body: JSON.stringify(payload),
+    });
+
+    const updatedSetting = {
+      ...savedSetting,
+      marker_color: normalizeHexColor(savedSetting.marker_color || markerColor),
+    };
+
+    if (state.editingPassSettingId) {
+      state.passSettings = state.passSettings.map((setting) =>
+        setting.id === updatedSetting.id ? updatedSetting : setting,
+      );
+    } else {
+      state.passSettings = [...state.passSettings, updatedSetting].sort((left, right) => left.level - right.level);
+    }
+    renderPassSettings();
+    renderMetrics();
+    $("#passSettingDialog").close();
+    if (!state.editingPassSettingId) {
+      state.pagination.passSettings = { ...(state.pagination.passSettings || {}), page: 1 };
+    }
+    try {
+      await loadPassSettings();
+    } catch (refreshError) {
+      console.warn("Pass settings saved but could not be refreshed", refreshError);
+    }
+    showToast("通关设置已保存");
+  } catch (error) {
+    showToast(`${t("保存失败")}：${error.message}`);
+  }
 });
 
 $("#membershipPlanForm").addEventListener("submit", async (event) => {

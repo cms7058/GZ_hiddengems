@@ -10,6 +10,7 @@ from app.models.spot import ScenicSpot, Tag
 from app.models.user import MiniProgramUser
 from app.schemas.spot import MapSpotOut, SpotDetailOut
 from app.services.geo import can_unlock_spot
+from app.services.pass_levels import get_marker_colors_by_level
 from app.services.spot_mapper import spot_to_detail_out, spot_to_map_out
 
 
@@ -53,6 +54,7 @@ def list_map_spots(
         statement = statement.join(ScenicSpot.tags).where(Tag.id.in_(tag_ids)).distinct()
 
     spots = db.scalars(statement).all()
+    marker_colors_by_level = get_marker_colors_by_level(db)
     return [
         spot_to_map_out(
             spot,
@@ -60,6 +62,7 @@ def list_map_spots(
             user_level=user_level,
             is_member=is_member,
             user_explore_points=user_explore_points,
+            marker_colors_by_level=marker_colors_by_level,
         )
         for spot in spots
     ]
@@ -103,6 +106,7 @@ def get_spot_detail(
                 "user_explore_points": user_explore_points,
             },
         )
+    marker_colors_by_level = get_marker_colors_by_level(db)
     return spot_to_detail_out(
         spot,
         lang=lang,
@@ -110,4 +114,5 @@ def get_spot_detail(
         is_member=is_member,
         user_explore_points=user_explore_points,
         db=db,
+        marker_colors_by_level=marker_colors_by_level,
     )

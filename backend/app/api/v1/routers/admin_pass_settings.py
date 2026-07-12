@@ -7,8 +7,9 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.user import PassLevelSetting
 from app.schemas.pagination import Page
-from app.schemas.user import PassLevelSettingOut, PassLevelSettingUpdate
+from app.schemas.user import PassLevelSettingCreate, PassLevelSettingOut, PassLevelSettingUpdate
 from app.services.pagination import paginated_scalars
+from app.services.pass_levels import ensure_pass_level_marker_color_column
 
 
 router = APIRouter()
@@ -21,7 +22,26 @@ def list_pass_settings(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[PassLevelSettingOut]:
+    ensure_pass_level_marker_color_column(db)
     return paginated_scalars(db, select(PassLevelSetting).order_by(PassLevelSetting.level.asc()), page, page_size)
+
+
+@router.post("", response_model=PassLevelSettingOut, status_code=201)
+def create_pass_setting(
+    payload: PassLevelSettingCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> PassLevelSettingOut:
+    ensure_pass_level_marker_color_column(db)
+    existing = db.scalar(select(PassLevelSetting).where(PassLevelSetting.level == payload.level))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Pass level already exists")
+
+    setting = PassLevelSetting(**payload.model_dump())
+    db.add(setting)
+    db.commit()
+    db.refresh(setting)
+    return setting
 
 
 @router.patch("/{setting_id}", response_model=PassLevelSettingOut)
@@ -31,6 +51,7 @@ def update_pass_setting(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> PassLevelSettingOut:
+    ensure_pass_level_marker_color_column(db)
     setting = db.get(PassLevelSetting, setting_id)
     if setting is None:
         raise HTTPException(status_code=404, detail="Pass setting not found")
