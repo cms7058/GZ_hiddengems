@@ -67,6 +67,9 @@ def ensure_runtime_columns() -> None:
         "pass_level_settings": {
             "marker_color": "VARCHAR(16) NOT NULL DEFAULT '#2f6b4f'",
         },
+        "membership_plans": {
+            "required_explore_points": "INT NOT NULL DEFAULT 0",
+        },
         "scenic_spots": {
             "required_explore_points": "INT NOT NULL DEFAULT 0",
             "river_name": "VARCHAR(128) NULL",
@@ -295,6 +298,7 @@ def seed_memberships(db: Session) -> None:
         name_en="Monthly Explorer",
         duration_days=30,
         price_cents=1900,
+        required_explore_points=100,
         benefits_zh="解锁会员秘境区域、会员任务和路线建议。",
         benefits_en="Unlock member spot areas, member tasks, and route suggestions.",
     )
@@ -304,6 +308,7 @@ def seed_memberships(db: Session) -> None:
         name_en="Annual Guardian",
         duration_days=365,
         price_cents=19900,
+        required_explore_points=500,
         benefits_zh="包含全年会员权益、保护级秘境申请和达人共创资格。",
         benefits_en="Includes annual benefits, protected spot requests, and expert co-creation access.",
     )

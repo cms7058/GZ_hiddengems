@@ -11,6 +11,7 @@ from app.models.user import CheckinRecord
 from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut, CheckinReviewUpdate
 from app.services.pagination import build_page, paginated_scalars
+from app.services.memberships import sync_user_membership_by_points
 
 
 router = APIRouter()
@@ -83,6 +84,7 @@ def review_checkin(
         record.user.checkin_count -= 1
         record.user.explore_points = max(record.user.explore_points - CHECKIN_EXPLORE_POINTS, 0)
 
+    sync_user_membership_by_points(db, record.user)
     db.add(record)
     db.commit()
     db.refresh(record)

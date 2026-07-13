@@ -34,6 +34,7 @@ const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024;
 const PAGE_SIZE_BY_KEY = {
   tags: 100,
+  passSettings: 100,
 };
 
 const DEFAULT_SECTION = "spotsSection";
@@ -87,6 +88,11 @@ const I18N = {
   "配置探索等级的通关条件、会员要求、地图标识颜色和解锁权益。": "Configure pass requirements, membership rules, map marker colors, and unlock benefits.",
   "新增等级": "New Level",
   "标识颜色": "Marker Color",
+  "请先配置通关等级": "Configure a pass level first",
+  "新增会员套餐": "New Membership Plan",
+  "升级积分": "Upgrade Points",
+  "删除后数据不可恢复，确认删除吗？": "Deleted data cannot be recovered. Continue?",
+  "删除失败": "Delete failed",
   "维护会员套餐、价格、周期、权益，并查看用户会员记录。": "Maintain membership plans, prices, periods, benefits, and user membership records.",
   "审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。": "Review GPS and image check-ins; approvals increase user check-in counts.",
   "审核用户游记和留言，支持推荐精选游记或隐藏违规内容。": "Review user notes and comments, feature good notes, or hide inappropriate content.",
@@ -399,6 +405,10 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), duration);
 }
 
+function confirmDeletion() {
+  return window.confirm(t("删除后数据不可恢复，确认删除吗？"));
+}
+
 function renderAdminInfo() {
   $("#adminInfo").textContent = state.admin ? `${state.admin.username} / ${state.admin.role}` : "-";
 }
@@ -471,13 +481,10 @@ function visibilityText(level) {
 }
 
 function spotLevelText(level) {
-  return {
-    1: t("L1 入门"),
-    2: t("L2 轻探秘"),
-    3: t("L3 深度"),
-    4: t("L4 高阶"),
-    5: t("L5 守护者"),
-  }[Number(level)] || `L${level}`;
+  const setting = state.passSettings.find((item) => Number(item.level) === Number(level));
+  if (!setting) return `L${level}`;
+  const name = state.lang === "en-US" ? setting.name_en : setting.name_zh;
+  return `L${setting.level} ${name}`;
 }
 
 function activePill(active) {
@@ -586,7 +593,7 @@ function renderTags() {
           <td>
             <div class="row-actions">
               <button class="small-btn" data-edit-tag="${tag.id}">编辑</button>
-              <button class="small-btn danger" data-disable-tag="${tag.id}">停用</button>
+              <button class="small-btn danger" data-delete-tag="${tag.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -623,7 +630,7 @@ function renderSpots() {
               <button class="small-btn" data-edit-spot="${spot.id}">编辑</button>
               <button class="small-btn" data-review-spot="${spot.id}" data-review-status="approved">通过</button>
               <button class="small-btn" data-review-spot="${spot.id}" data-review-status="rejected">拒绝</button>
-              <button class="small-btn danger" data-disable-spot="${spot.id}">停用</button>
+              <button class="small-btn danger" data-delete-spot="${spot.id}">${t("删除")}</button>
             </div>
           </td>
         </tr>
@@ -712,7 +719,12 @@ function renderPassSettings() {
             </div>
           </td>
           <td>${activePill(setting.is_active)}</td>
-          <td><button class="small-btn" data-edit-pass="${setting.id}">${t("编辑")}</button></td>
+          <td>
+            <div class="row-actions">
+              <button class="small-btn" data-edit-pass="${setting.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-delete-pass="${setting.id}">${t("删除")}</button>
+            </div>
+          </td>
         </tr>
       `,
     )
@@ -732,6 +744,7 @@ function renderMemberships() {
             </div>
           </td>
           <td>${plan.duration_days} ${state.lang === "en-US" ? "days" : "天"}</td>
+          <td>${plan.required_explore_points || 0}</td>
           <td>¥${(plan.price_cents / 100).toFixed(2)}</td>
           <td>
             <div class="cell-title">
@@ -740,7 +753,12 @@ function renderMemberships() {
             </div>
           </td>
           <td>${activePill(plan.is_active)}</td>
-          <td><button class="small-btn" data-edit-plan="${plan.id}">${t("编辑")}</button></td>
+          <td>
+            <div class="row-actions">
+              <button class="small-btn" data-edit-plan="${plan.id}">${t("编辑")}</button>
+              <button class="small-btn danger" data-delete-plan="${plan.id}">${t("删除")}</button>
+            </div>
+          </td>
         </tr>
       `,
     )
@@ -1290,6 +1308,7 @@ function fillSpotForm(spot = null) {
   state.editingSpotId = spot?.id || null;
   $("#spotDialogTitle").textContent = spot ? t("编辑秘境") : t("新增秘境");
   renderTagChecks(spot?.tag_ids || []);
+  renderSpotLevelOptions(spot?.recommendation_level);
 
   if (!spot) {
     state.currentSpotImages = [];
@@ -1299,7 +1318,6 @@ function fillSpotForm(spot = null) {
     clearChildPointForm();
     form.elements.review_status.value = "draft";
     form.elements.visibility_level.value = "public";
-    form.elements.recommendation_level.value = 1;
     form.elements.required_explore_points.value = 0;
     form.elements.checkin_radius_meters.value = 300;
     form.elements.river_name.value = "";
@@ -1335,6 +1353,28 @@ function fillSpotForm(spot = null) {
     form.elements[field].value = spot[field] ?? "";
   });
   form.elements.is_active.checked = Boolean(spot.is_active);
+}
+
+function renderSpotLevelOptions(selectedLevel = null) {
+  const select = $("#spotForm").elements.recommendation_level;
+  const settings = [...state.passSettings].sort((left, right) => Number(left.level) - Number(right.level));
+  if (!settings.length) {
+    select.disabled = true;
+    select.innerHTML = `<option value="">${t("请先配置通关等级")}</option>`;
+    return;
+  }
+
+  select.disabled = false;
+  select.innerHTML = settings
+    .map((setting) => {
+      const name = state.lang === "en-US" ? setting.name_en : setting.name_zh;
+      const status = setting.is_active ? "" : ` (${t("停用")})`;
+      return `<option value="${setting.level}">L${setting.level} ${escapeHtml(name)}${status}</option>`;
+    })
+    .join("");
+
+  const defaultLevel = settings.find((setting) => setting.is_active)?.level ?? settings[0].level;
+  select.value = String(selectedLevel ?? defaultLevel);
 }
 
 function fillTagForm(tag = null) {
@@ -1478,12 +1518,19 @@ function setPassMarkerColorInputs(color) {
   $("#passMarkerColorText").value = normalized;
 }
 
-function fillMembershipPlanForm(plan) {
+function fillMembershipPlanForm(plan = null) {
   const form = $("#membershipPlanForm");
   form.reset();
-  state.editingMembershipPlanId = plan.id;
-  $("#membershipPlanDialogTitle").textContent = `${t("编辑会员套餐")}：${plan.name_zh}`;
-  ["name_zh", "name_en", "duration_days", "price_cents", "benefits_zh", "benefits_en"].forEach((field) => {
+  state.editingMembershipPlanId = plan?.id || null;
+  $("#membershipPlanDialogTitle").textContent = plan ? `${t("编辑会员套餐")}：${plan.name_zh}` : t("新增会员套餐");
+  if (!plan) {
+    form.elements.duration_days.value = 30;
+    form.elements.price_cents.value = 0;
+    form.elements.required_explore_points.value = 0;
+    form.elements.is_active.checked = true;
+    return;
+  }
+  ["name_zh", "name_en", "duration_days", "price_cents", "required_explore_points", "benefits_zh", "benefits_en"].forEach((field) => {
     form.elements[field].value = plan[field] ?? "";
   });
   form.elements.is_active.checked = Boolean(plan.is_active);
@@ -1585,6 +1632,7 @@ async function uploadImageTo(folder, fileInputSelector, formSelector, fieldName 
 async function deleteFormMedia(formSelector, resourcePath, editingId, statusSelector = "", previewSelector = "") {
   const form = $(formSelector);
   if (!form.elements.image_url.value) return;
+  if (!confirmDeletion()) return;
   if (editingId) {
     if (statusSelector) setUploadStatus(statusSelector, t("正在删除OSS文件"), "ok");
     await request(`${resourcePath}/${editingId}`, {
@@ -1664,6 +1712,11 @@ $("#newUserBtn").addEventListener("click", () => {
 $("#newPassSettingBtn").addEventListener("click", () => {
   fillPassSettingForm();
   $("#passSettingDialog").showModal();
+});
+
+$("#newMembershipPlanBtn").addEventListener("click", () => {
+  fillMembershipPlanForm();
+  $("#membershipPlanDialog").showModal();
 });
 
 $("#passSettingForm").elements.marker_color.addEventListener("input", (event) => {
@@ -1774,7 +1827,7 @@ document.addEventListener("submit", async (event) => {
 $("#spotsTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editSpot;
   const reviewId = event.target.dataset.reviewSpot;
-  const disableId = event.target.dataset.disableSpot;
+  const deleteId = event.target.dataset.deleteSpot;
 
   if (editId) {
     const spot = state.spots.find((item) => item.id === Number(editId));
@@ -1793,16 +1846,16 @@ $("#spotsTable").addEventListener("click", async (event) => {
     showToast("审核状态已更新");
   }
 
-  if (disableId) {
-    await request(`/admin/spots/${disableId}`, { method: "DELETE" });
+  if (deleteId && confirmDeletion()) {
+    await request(`/admin/spots/${deleteId}`, { method: "DELETE" });
     await loadData();
-    showToast("秘境已停用");
+    showToast("秘境已删除");
   }
 });
 
 $("#tagsTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editTag;
-  const disableId = event.target.dataset.disableTag;
+  const deleteId = event.target.dataset.deleteTag;
 
   if (editId) {
     const tag = state.tags.find((item) => item.id === Number(editId));
@@ -1810,10 +1863,14 @@ $("#tagsTable").addEventListener("click", async (event) => {
     $("#tagDialog").showModal();
   }
 
-  if (disableId) {
-    await request(`/admin/tags/${disableId}`, { method: "DELETE" });
-    await loadData();
-    showToast("标签已停用");
+  if (deleteId && confirmDeletion()) {
+    try {
+      await request(`/admin/tags/${deleteId}`, { method: "DELETE" });
+      await loadData();
+      showToast("标签已删除");
+    } catch (error) {
+      showToast(`${t("删除失败")}：${error.message}`);
+    }
   }
 });
 
@@ -1838,7 +1895,7 @@ $("#usersTable").addEventListener("click", async (event) => {
     showToast("用户状态已更新");
   }
 
-  if (deleteId) {
+  if (deleteId && confirmDeletion()) {
     await request(`/admin/users/${deleteId}`, { method: "DELETE" });
     state.users = state.users.filter((user) => user.id !== Number(deleteId));
     renderUsers();
@@ -1848,22 +1905,44 @@ $("#usersTable").addEventListener("click", async (event) => {
   }
 });
 
-$("#passSettingsTable").addEventListener("click", (event) => {
+$("#passSettingsTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editPass;
-  if (!editId) return;
+  const deleteId = event.target.dataset.deletePass;
 
-  const setting = state.passSettings.find((item) => item.id === Number(editId));
-  fillPassSettingForm(setting);
-  $("#passSettingDialog").showModal();
+  if (editId) {
+    const setting = state.passSettings.find((item) => item.id === Number(editId));
+    fillPassSettingForm(setting);
+    $("#passSettingDialog").showModal();
+  }
+  if (deleteId && confirmDeletion()) {
+    try {
+      await request(`/admin/pass-settings/${deleteId}`, { method: "DELETE" });
+      await loadPassSettings();
+      showToast("通关设置已删除");
+    } catch (error) {
+      showToast(`${t("删除失败")}：${error.message}`);
+    }
+  }
 });
 
-$("#membershipPlansTable").addEventListener("click", (event) => {
+$("#membershipPlansTable").addEventListener("click", async (event) => {
   const editId = event.target.dataset.editPlan;
-  if (!editId) return;
+  const deleteId = event.target.dataset.deletePlan;
 
-  const plan = state.membershipPlans.find((item) => item.id === Number(editId));
-  fillMembershipPlanForm(plan);
-  $("#membershipPlanDialog").showModal();
+  if (editId) {
+    const plan = state.membershipPlans.find((item) => item.id === Number(editId));
+    fillMembershipPlanForm(plan);
+    $("#membershipPlanDialog").showModal();
+  }
+  if (deleteId && confirmDeletion()) {
+    try {
+      await request(`/admin/memberships/plans/${deleteId}`, { method: "DELETE" });
+      await loadData();
+      showToast("会员套餐已删除");
+    } catch (error) {
+      showToast(`${t("删除失败")}：${error.message}`);
+    }
+  }
 });
 
 $("#checkinsTable").addEventListener("click", async (event) => {
@@ -1921,7 +2000,7 @@ $("#travelNotesTable").addEventListener("click", async (event) => {
     $("#travelNoteDialog").showModal();
   }
 
-  if (deleteId) {
+  if (deleteId && confirmDeletion()) {
     await request(`/admin/content/travel-notes/${deleteId}`, { method: "DELETE" });
     await loadData();
     showToast("游记已删除");
@@ -1948,7 +2027,7 @@ $("#commentsTable").addEventListener("click", async (event) => {
     $("#commentDialog").showModal();
   }
 
-  if (deleteId) {
+  if (deleteId && confirmDeletion()) {
     await request(`/admin/content/comments/${deleteId}`, { method: "DELETE" });
     await loadData();
     showToast("留言已删除");
@@ -1965,7 +2044,7 @@ $("#recommendationsTable").addEventListener("click", async (event) => {
     $("#recommendationDialog").showModal();
   }
 
-  if (deleteId) {
+  if (deleteId && confirmDeletion()) {
     await request(`/admin/content/recommendations/${deleteId}`, { method: "DELETE" });
     await loadData();
     showToast("推荐已删除");
@@ -1987,7 +2066,7 @@ $("#spotImagesList").addEventListener("click", async (event) => {
     showToast("封面已更新");
   }
 
-  if (deleteId) {
+  if (deleteId && confirmDeletion()) {
     showToast("正在删除OSS文件");
     await request(`/admin/content/spot-images/${deleteId}`, {
       method: "DELETE",
@@ -1999,7 +2078,7 @@ $("#spotImagesList").addEventListener("click", async (event) => {
 
 $("#childPointsList").addEventListener("click", async (event) => {
   const deleteId = event.target.dataset.deleteChildPoint;
-  if (!deleteId || !state.editingSpotId) return;
+  if (!deleteId || !state.editingSpotId || !confirmDeletion()) return;
   await request(`/admin/spots/${state.editingSpotId}/child-points/${deleteId}`, {
     method: "DELETE",
   });
@@ -2363,12 +2442,17 @@ $("#membershipPlanForm").addEventListener("submit", async (event) => {
     name_en: data.name_en,
     duration_days: Number(data.duration_days),
     price_cents: Number(data.price_cents),
+    required_explore_points: Number(data.required_explore_points),
     benefits_zh: data.benefits_zh,
     benefits_en: data.benefits_en,
     is_active: form.elements.is_active.checked,
   };
-  await request(`/admin/memberships/plans/${state.editingMembershipPlanId}`, {
-    method: "PATCH",
+  const path = state.editingMembershipPlanId
+    ? `/admin/memberships/plans/${state.editingMembershipPlanId}`
+    : "/admin/memberships/plans";
+  const method = state.editingMembershipPlanId ? "PATCH" : "POST";
+  await request(path, {
+    method,
     body: JSON.stringify(payload),
   });
   $("#membershipPlanDialog").close();

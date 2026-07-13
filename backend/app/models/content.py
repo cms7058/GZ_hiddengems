@@ -17,7 +17,7 @@ class SpotImage(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    spot = relationship("ScenicSpot")
+    spot = relationship("ScenicSpot", back_populates="spot_images")
 
 
 class TravelNote(Base):

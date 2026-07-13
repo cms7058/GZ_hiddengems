@@ -55,6 +55,7 @@ class MembershipPlan(Base):
     name_en = Column(String(64), nullable=False)
     duration_days = Column(Integer, default=30, nullable=False)
     price_cents = Column(Integer, default=0, nullable=False)
+    required_explore_points = Column(Integer, default=0, nullable=False)
     benefits_zh = Column(String(512), nullable=False)
     benefits_en = Column(String(512), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)

@@ -117,6 +117,8 @@ App({
     hasAcceptedSafetyAgreement: false,
     hasAcceptedProfileAuth: false,
     currentSpot: null,
+    spotFilters: null,
+    spotListCache: [],
     user: DEFAULT_USER,
     userLoginPromise: null,
   },

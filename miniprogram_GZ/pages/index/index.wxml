@@ -15,6 +15,7 @@
       bindregionchange="onMapRegionChange"
       show-location="{{hasUserLocation}}"
     ></map>
+    <canvas canvas-id="homeMarkerCanvas" class="marker-canvas" style="width: 80px; height: 100px;"></canvas>
 
     <view class="map-controls">
       <view class="map-control" catchtap="onZoomIn">+</view>
@@ -26,11 +27,11 @@
   <view class="sheet">
     <scroll-view class="tag-scroll" scroll-x>
       <view class="tag-row">
-        <view class="tag {{selectedTagId === 0 ? 'active' : ''}}" data-id="0" bindtap="onTagTap">{{copy.allTags}}</view>
+        <view class="tag {{allTagsSelected ? 'active' : ''}}" bindtap="onClearTags">{{copy.allTags}}</view>
         <view
           wx:for="{{tags}}"
           wx:key="id"
-          class="tag {{selectedTagId === item.id ? 'active' : ''}}"
+          class="tag {{item.active ? 'active' : ''}}"
           data-id="{{item.id}}"
           bindtap="onTagTap"
         >
@@ -42,57 +43,37 @@
     <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
     <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
     <view wx:elif="{{loading}}" class="notice">{{copy.loading}}</view>
-    <view wx:elif="{{filteredSpots.length === 0 && unlockHint.hiddenCount === 0}}" class="notice">{{copy.empty}}</view>
-
-    <view wx:if="{{showUnlockBubble && unlockHint.hiddenCount > 0}}" class="mystery-card">
-      <text class="mystery-title">{{copy.mysteryTitle}}</text>
-      <text class="mystery-body">
-        {{copy.mysteryPrefix}}{{unlockHint.hiddenCount}}{{copy.mysterySuffix}}
-      </text>
-      <text wx:if="{{unlockHint.nextNeed > 0}}" class="mystery-meta">
-        {{copy.nextUnlockPrefix}}{{unlockHint.nextNeed}}{{copy.nextUnlockSuffix}}
-      </text>
-      <text wx:else class="mystery-meta">{{copy.allUnlocked}}</text>
+    <view class="level-section">
+      <view class="section-title-row">
+        <text class="section-title">{{copy.levelOverview}}</text>
+        <text class="section-subtitle">{{copy.allLevels}}</text>
+      </view>
+      <scroll-view class="level-scroll" scroll-x>
+        <view class="level-row">
+          <view class="level-filter {{allLevelsSelected ? 'active' : ''}}" bindtap="onClearLevels">
+            <text>{{copy.allLevels}}</text>
+          </view>
+          <view
+            wx:for="{{levelOptions}}"
+            wx:key="level"
+            class="level-filter {{item.active ? 'active' : ''}}"
+            data-level="{{item.level}}"
+            bindtap="onLevelTap"
+          >
+            <view class="level-color" style="background: {{item.markerColor}};"></view>
+            <text>{{item.label}}</text>
+            <text class="level-count">{{item.count}}</text>
+          </view>
+        </view>
+      </scroll-view>
     </view>
 
-    <scroll-view class="spot-list" scroll-y>
-      <view
-        wx:for="{{filteredSpots}}"
-        wx:key="id"
-        class="spot-card {{selectedSpotId === item.id ? 'selected' : ''}} {{!item.is_unlocked ? 'locked' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="onSpotTap"
-      >
-        <view class="spot-main">
-          <view class="spot-head">
-            <text class="spot-name">{{item.name}}</text>
-          </view>
-          <text class="spot-summary">{{item.summary}}</text>
-          <view class="spot-meta">
-            <text>{{item.city}} / {{item.county}}</text>
-            <text>Lv.{{item.recommendation_level}}</text>
-          </view>
-          <view wx:if="{{item.weatherSummary}}" class="weather-row">
-            <text class="weather-label">{{copy.weather}}</text>
-            <text class="weather-text">{{item.weatherSummary}}</text>
-            <text wx:if="{{item.weatherAlertCount > 0}}" class="weather-alert">{{item.weatherAlertCount}}{{copy.alertUnit}}</text>
-          </view>
-          <view class="tag-mini-row">
-            <text wx:for="{{item.tags}}" wx:key="id" class="tag-mini">{{item.name}}</text>
-          </view>
-        </view>
-        <view class="card-actions">
-          <button class="status-button {{item.is_unlocked ? 'ok' : 'lock'}}" data-id="{{item.id}}" catchtap="onSpotTap">
-            {{item.is_unlocked ? copy.unlocked : copy.locked}}
-          </button>
-          <button class="go-button" data-id="{{item.id}}" catchtap="onNavigateTap">{{copy.goThere}}</button>
-          <view class="unlock-box">
-            <text class="unlock-number">{{item.required_explore_points || 0}}</text>
-            <text>{{copy.pointsUnit}}</text>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
+    <view class="filter-summary">
+      <text class="summary-main">{{copy.filterSummaryPrefix}} {{filterSummary.tags}} · {{filterSummary.levels}}</text>
+      <text class="summary-count">{{copy.filterSummaryCountPrefix}}{{filterSummary.count}}{{copy.filterSummaryCountSuffix}}</text>
+      <button class="results-button" bindtap="onViewResults">{{copy.viewResults}}</button>
+    </view>
+    <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>
 
   <view wx:if="{{showProfileAuth}}" class="agreement-mask">

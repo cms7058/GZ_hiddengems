@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.content import SpotImageOut
+
 from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
 
 
@@ -50,7 +52,7 @@ class SpotCreate(BaseModel):
     river_upstream_longitude: Optional[float] = None
     visibility_level: str = "public"
     review_status: str = "draft"
-    recommendation_level: int = Field(default=1, ge=1, le=5)
+    recommendation_level: int = Field(..., ge=0, le=99)
     required_explore_points: int = Field(default=0, ge=0)
     checkin_radius_meters: int = 300
     is_active: bool = True
@@ -73,7 +75,7 @@ class SpotUpdate(BaseModel):
     river_upstream_longitude: Optional[float] = None
     visibility_level: Optional[str] = None
     review_status: Optional[str] = None
-    recommendation_level: Optional[int] = Field(default=None, ge=1, le=5)
+    recommendation_level: Optional[int] = Field(default=None, ge=0, le=99)
     required_explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_radius_meters: Optional[int] = None
     is_active: Optional[bool] = None
@@ -146,6 +148,7 @@ class MapSpotOut(BaseModel):
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
+    images: list[SpotImageOut] = Field(default_factory=list)
     travel_notes: list[TravelNoteOut] = Field(default_factory=list)
     comments: list[UserCommentOut] = Field(default_factory=list)
     lifestyle_recommendations: list[RecommendationOut] = Field(default_factory=list)

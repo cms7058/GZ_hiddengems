@@ -220,8 +220,9 @@
           <div class="section-head">
             <div>
               <h2>会员管理</h2>
-              <p class="muted">维护会员套餐、价格、周期、权益，并查看用户会员记录。</p>
+              <p class="muted">维护会员套餐、积分门槛、价格、周期、权益，并查看用户会员记录。</p>
             </div>
+            <button id="newMembershipPlanBtn" class="primary-btn">新增会员套餐</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -229,6 +230,7 @@
                 <tr>
                   <th>套餐</th>
                   <th>周期</th>
+                  <th>升级积分</th>
                   <th>价格</th>
                   <th>权益</th>
                   <th>状态</th>
@@ -402,13 +404,7 @@
           </label>
           <label>
             <span>秘境等级</span>
-            <select name="recommendation_level">
-              <option value="1">L1 入门</option>
-              <option value="2">L2 轻探秘</option>
-              <option value="3">L3 深度</option>
-              <option value="4">L4 高阶</option>
-              <option value="5">L5 守护者</option>
-            </select>
+            <select name="recommendation_level" required></select>
           </label>
           <label><span>解锁积分</span><input name="required_explore_points" type="number" min="0" value="0" /></label>
           <label><span>打卡半径米</span><input name="checkin_radius_meters" type="number" min="50" value="300" /></label>
@@ -667,6 +663,7 @@
           <label><span>英文名称</span><input name="name_en" required maxlength="64" /></label>
           <label><span>周期天数</span><input name="duration_days" type="number" min="1" /></label>
           <label><span>价格分</span><input name="price_cents" type="number" min="0" /></label>
+          <label><span>升级积分</span><input name="required_explore_points" type="number" min="0" value="0" /></label>
           <label class="full"><span>中文权益</span><input name="benefits_zh" required maxlength="512" /></label>
           <label class="full"><span>英文权益</span><input name="benefits_en" required maxlength="512" /></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
@@ -761,6 +758,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260712-pass-color-save"></script>
+    <script src="/admin/static/app.js?v=20260713-admin-spot-delete"></script>
   </body>
 </html>

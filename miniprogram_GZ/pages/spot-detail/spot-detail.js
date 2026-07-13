@@ -1,5 +1,6 @@
 const { isServiceClosedError, request, uploadMedia } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
+const { getMarkerIcon, normalizeMarkerColor } = require("../../utils/marker-icon")
 
 const app = getApp()
 const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
@@ -139,6 +140,7 @@ Page({
     copy: COPY["zh-CN"],
     user: app.globalData.user,
     spot: null,
+    spotPhotos: [],
     markers: [],
     userLocation: null,
     hasUserLocation: false,
@@ -161,6 +163,7 @@ Page({
   },
 
   onLoad(options) {
+    this.markerCanvasReady = false
     this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location)
     const id = Number(options.id || 0)
@@ -168,6 +171,11 @@ Page({
     this.refreshCopy()
     this.loadDetail()
     this.tryShowUserLocation()
+  },
+
+  onReady() {
+    this.markerCanvasReady = true
+    this.refreshMarkerIcon(this.data.spot)
   },
 
   onUnload() {
@@ -209,15 +217,17 @@ Page({
     if (!this.data.id) return
     this.setData({ loading: true, error: "" })
     try {
-      const spot = await request(this.buildDetailPath())
+      const spot = this.normalizeSpot(await request(this.buildDetailPath()))
       this.setData({
-        spot: this.normalizeSpot(spot),
+        spot,
+        spotPhotos: this.getSpotPhotos(spot),
         markers: this.buildMarkers(spot),
         groupedRecommendations: this.groupRecommendations(spot.lifestyle_recommendations || []),
         userCount: this.countUsers(spot),
         loading: false,
         fallbackMode: false,
       })
+      this.refreshMarkerIcon(spot)
       this.loadSafety()
     } catch (error) {
       if (isServiceClosedError(error)) {
@@ -237,6 +247,7 @@ Page({
         const spot = this.normalizeSpot(fallbackSpot)
         this.setData({
           spot,
+          spotPhotos: this.getSpotPhotos(spot),
           markers: this.buildMarkers(spot),
           groupedRecommendations: [],
           userCount: 0,
@@ -244,6 +255,7 @@ Page({
           fallbackMode: true,
           error: "",
         })
+        this.refreshMarkerIcon(spot)
         return
       }
       this.setData({
@@ -308,60 +320,56 @@ Page({
       travel_notes: spot.travel_notes || [],
       comments: spot.comments || [],
       lifestyle_recommendations: spot.lifestyle_recommendations || [],
+      images: spot.images || [],
     }
   },
 
-  buildMarkers(spot) {
+  getSpotPhotos(spot) {
+    return (spot.images || [])
+      .filter((item) => item.is_active !== false && item.media_type === "image" && (item.display_url || item.image_url))
+      .sort((left, right) => Number(Boolean(right.is_cover)) - Number(Boolean(left.is_cover)) || left.sort_order - right.sort_order)
+  },
+
+  async refreshMarkerIcon(spot) {
+    if (!this.markerCanvasReady || !spot) return
+    const requestId = (this.markerIconRequestId || 0) + 1
+    this.markerIconRequestId = requestId
+    try {
+      const iconPath = await getMarkerIcon(this, "detailMarkerCanvas", spot.marker_color)
+      if (requestId === this.markerIconRequestId) {
+        this.setData({ markers: this.buildMarkers(spot, iconPath) })
+      }
+    } catch (error) {
+      console.warn("custom detail marker icon failed", error)
+    }
+  },
+
+  buildMarkers(spot, iconPath = "") {
     const markerColor = this.normalizeMarkerColor(spot.marker_color)
     const markers = [
       {
         id: spot.id,
         latitude: spot.latitude,
         longitude: spot.longitude,
-        width: 32,
-        height: 32,
+        width: 42,
+        height: 52,
+        ...(iconPath ? { iconPath } : {}),
         callout: {
           content: spot.name,
-          display: "ALWAYS",
+          display: "BYCLICK",
           fontSize: 13,
           borderRadius: 8,
           padding: 8,
           bgColor: markerColor,
           color: "#ffffff",
         },
-        label: {
-          content: `L${spot.recommendation_level || ""}`,
-          color: "#ffffff",
-          fontSize: 12,
-          bgColor: markerColor,
-          borderRadius: 12,
-          padding: 6,
-        },
       },
     ]
-    if (this.data.userLocation) {
-      markers.push({
-        id: 999999,
-        latitude: this.data.userLocation.latitude,
-        longitude: this.data.userLocation.longitude,
-        width: 26,
-        height: 26,
-        callout: {
-          content: this.data.copy.currentLocation,
-          display: "ALWAYS",
-          fontSize: 12,
-          borderRadius: 8,
-          padding: 8,
-          bgColor: "#1f5f45",
-          color: "#ffffff",
-        },
-      })
-    }
     return markers
   },
 
   normalizeMarkerColor(color) {
-    return /^#[0-9a-fA-F]{6}$/.test(color || "") ? color : "#2f6b4f"
+    return normalizeMarkerColor(color)
   },
 
   countUsers(spot) {
@@ -416,9 +424,6 @@ Page({
       },
       hasUserLocation: true,
     })
-    if (this.data.spot) {
-      this.setData({ markers: this.buildMarkers(this.data.spot) })
-    }
   },
 
   startLocationWatch() {
@@ -512,6 +517,15 @@ Page({
         },
       })
     }
+  },
+
+  onFloatingBackTap() {
+    const goHome = () => wx.switchTab({ url: "/pages/index/index" })
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack({ delta: 1, fail: goHome })
+      return
+    }
+    goHome()
   },
 
   onNoteTitleInput(event) {

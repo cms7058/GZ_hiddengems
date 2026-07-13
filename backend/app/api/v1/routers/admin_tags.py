@@ -1,6 +1,8 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_admin
 from app.db.session import get_db
@@ -31,6 +33,14 @@ def list_admin_tags(
     )
 
 
+def validate_sort_order(db: Session, sort_order: int, exclude_tag_id: Optional[int] = None) -> None:
+    statement = select(Tag).where(Tag.sort_order == sort_order)
+    if exclude_tag_id is not None:
+        statement = statement.where(Tag.id != exclude_tag_id)
+    if db.scalar(statement.limit(1)) is not None:
+        raise HTTPException(status_code=409, detail="Tag sort order already exists")
+
+
 @router.post("", response_model=TagAdminOut, status_code=201)
 def create_admin_tag(
     payload: TagCreate,
@@ -40,6 +50,7 @@ def create_admin_tag(
     exists = db.scalar(select(Tag).where(Tag.name_zh == payload.name_zh))
     if exists:
         raise HTTPException(status_code=409, detail="Tag already exists")
+    validate_sort_order(db, payload.sort_order)
 
     tag = Tag(**payload.model_dump())
     db.add(tag)
@@ -60,6 +71,8 @@ def update_admin_tag(
         raise HTTPException(status_code=404, detail="Tag not found")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if "sort_order" in update_data:
+        validate_sort_order(db, update_data["sort_order"], tag.id)
     for field, value in update_data.items():
         setattr(tag, field, value)
 
@@ -75,10 +88,10 @@ def delete_admin_tag(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> None:
-    tag = db.get(Tag, tag_id)
+    tag = db.scalar(select(Tag).options(selectinload(Tag.spots)).where(Tag.id == tag_id))
     if tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
 
-    tag.is_active = False
-    db.add(tag)
+    tag.spots.clear()
+    db.delete(tag)
     db.commit()

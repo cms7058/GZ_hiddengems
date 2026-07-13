@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/spot-list/spot-list",
     "pages/spot-detail/spot-detail",
     "pages/user/user",
     "pages/assistant/assistant"

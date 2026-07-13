@@ -9,7 +9,13 @@
 
     <block wx:elif="{{spot}}">
       <view class="hero">
+        <swiper wx:if="{{spotPhotos.length}}" class="hero-media" indicator-dots circular autoplay interval="4500">
+          <swiper-item wx:for="{{spotPhotos}}" wx:key="id">
+            <image class="hero-image" src="{{item.display_url || item.image_url}}" mode="aspectFill"></image>
+          </swiper-item>
+        </swiper>
         <map
+          wx:else
           id="spotDetailMap"
           class="map"
           latitude="{{spot.latitude}}"
@@ -220,5 +226,7 @@
       </view>
     </block>
   </scroll-view>
+  <canvas canvas-id="detailMarkerCanvas" class="marker-canvas" style="width: 80px; height: 100px;"></canvas>
+  <view wx:if="{{spot}}" class="floating-back" catchtap="onFloatingBackTap">←</view>
   <view wx:if="{{spot}}" class="floating-navigate" catchtap="onNavigateTap">{{copy.goThere}}</view>
 </view>

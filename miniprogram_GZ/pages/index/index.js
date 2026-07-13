@@ -1,5 +1,6 @@
 const { isServiceClosedError, request } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
+const { getMarkerIcon, normalizeMarkerColor } = require("../../utils/marker-icon")
 
 const app = getApp()
 
@@ -17,6 +18,13 @@ const COPY = {
     navTitle: "夜郎秘境",
     langButton: "EN",
     allTags: "全部",
+    allLevels: "全部等级",
+    levelOverview: "秘境等级",
+    filterSummaryPrefix: "已选择",
+    filterSummaryCountPrefix: "共",
+    filterSummaryCountSuffix: "个秘境",
+    viewResults: "查看详情",
+    noEligibleSpots: "当前条件下暂无已解锁秘境",
     points: "探秘积分",
     unlocked: "已解锁",
     locked: "待解锁",
@@ -54,6 +62,13 @@ const COPY = {
     navTitle: "Yelang Gems",
     langButton: "中",
     allTags: "All",
+    allLevels: "All Levels",
+    levelOverview: "Gem Levels",
+    filterSummaryPrefix: "Selected",
+    filterSummaryCountPrefix: "",
+    filterSummaryCountSuffix: " gems",
+    viewResults: "View Details",
+    noEligibleSpots: "No unlocked gems match these filters",
     points: "Explore Points",
     unlocked: "Unlocked",
     locked: "Locked",
@@ -136,7 +151,16 @@ Page({
     center: CENTER,
     scale: DEFAULT_SCALE,
     tags: [],
-    selectedTagId: 0,
+    selectedTagIds: [],
+    selectedLevelIds: [],
+    allTagsSelected: true,
+    allLevelsSelected: true,
+    levelOptions: [],
+    filterSummary: {
+      tags: "",
+      levels: "",
+      count: 0,
+    },
     spots: [],
     filteredSpots: [],
     markers: [],
@@ -164,11 +188,17 @@ Page({
 
   onLoad() {
     this.mapAutoFit = true
+    this.markerCanvasReady = false
     this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
     this.bootstrapLogin()
     this.tryShowUserLocation()
+  },
+
+  onReady() {
+    this.markerCanvasReady = true
+    this.refreshMarkerIcons(this.data.filteredSpots)
   },
 
   onUnload() {
@@ -240,13 +270,13 @@ Page({
         loading: false,
       })
       this.applyFilters()
-      this.loadWeatherSummaries()
     } catch (error) {
       if (isServiceClosedError(error)) {
         this.setData({
           tags: [],
           spots: [],
           filteredSpots: [],
+          levelOptions: [],
           markers: [],
           selectedSpot: null,
           selectedSpotId: 0,
@@ -293,56 +323,16 @@ Page({
     }))
   },
 
-  async loadWeatherSummaries() {
-    const spots = this.data.spots || []
-    if (this.data.offline || spots.length === 0) return
-
-    const results = await Promise.all(
-      spots.map(async (spot) => {
-        try {
-          const safety = await request(`/spots/${spot.id}/safety?lang=${this.data.lang}`)
-          return {
-            id: spot.id,
-            weatherSummary: this.formatWeatherSummary(safety),
-            weatherAlertCount: (safety.alerts || []).length,
-          }
-        } catch (error) {
-          console.warn("load home weather failed", spot.id, error)
-          return {
-            id: spot.id,
-            weatherSummary: this.data.copy.weatherUnavailable,
-            weatherAlertCount: 0,
-          }
-        }
-      })
-    )
-
-    const weatherById = results.reduce((map, item) => {
-      map[item.id] = item
-      return map
-    }, {})
-    const spotsWithWeather = this.data.spots.map((spot) => ({
-      ...spot,
-      ...(weatherById[spot.id] || {}),
-    }))
-    this.setData({ spots: spotsWithWeather })
-    this.applyFilters({ preserveSelection: true })
-  },
-
-  formatWeatherSummary(safety) {
-    const weather = (safety && safety.weather) || {}
-    if (!weather.text) return this.data.copy.weatherUnavailable
-    const temp = weather.temp ? `${weather.temp}°C` : ""
-    const humidity = weather.humidity ? `${weather.humidity}%` : ""
-    return [weather.text, temp, humidity].filter(Boolean).join(" · ")
-  },
-
   applyFilters(options = {}) {
-    const selectedTagId = Number(this.data.selectedTagId)
-    const taggedSpots = selectedTagId
-      ? this.data.spots.filter((spot) => spot.tags.some((tag) => tag.id === selectedTagId))
+    const selectedTagIds = this.data.selectedTagIds.map(Number)
+    const selectedLevelIds = this.data.selectedLevelIds.map(Number)
+    const taggedSpots = selectedTagIds.length
+      ? this.data.spots.filter((spot) => spot.tags.some((tag) => selectedTagIds.includes(Number(tag.id))))
       : this.data.spots
-    const filteredSpots = taggedSpots.filter((spot) => this.canViewSpot(spot))
+    const eligibleSpots = taggedSpots.filter((spot) => this.canViewSpot(spot))
+    const filteredSpots = selectedLevelIds.length
+      ? eligibleSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
+      : eligibleSpots
     const markers = this.buildMarkers(filteredSpots)
     const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
@@ -351,9 +341,61 @@ Page({
       markers,
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
+      tags: this.decorateTags(this.data.tags, selectedTagIds),
+      levelOptions: this.buildLevelOptions(eligibleSpots, selectedLevelIds),
+      allTagsSelected: selectedTagIds.length === 0,
+      allLevelsSelected: selectedLevelIds.length === 0,
+      filterSummary: this.buildFilterSummary(filteredSpots, selectedTagIds, selectedLevelIds),
       unlockHint: this.buildUnlockHint(taggedSpots),
     })
+    this.refreshMarkerIcons(filteredSpots)
     this.fitMapToVisiblePoints(filteredSpots)
+  },
+
+  decorateTags(tags, selectedTagIds) {
+    return (tags || []).map((tag) => ({
+      ...tag,
+      active: selectedTagIds.includes(Number(tag.id)),
+    }))
+  },
+
+  buildLevelOptions(spots, selectedLevelIds) {
+    const byLevel = (spots || []).reduce((result, spot) => {
+      const level = Number(spot.recommendation_level || 0)
+      if (!level) return result
+      if (!result[level]) {
+        result[level] = {
+          level,
+          markerColor: this.normalizeMarkerColor(spot.marker_color),
+          count: 0,
+        }
+      }
+      result[level].count += 1
+      return result
+    }, {})
+    return Object.keys(byLevel)
+      .map(Number)
+      .sort((left, right) => left - right)
+      .map((level) => ({
+        ...byLevel[level],
+        label: `L${level}`,
+        active: selectedLevelIds.includes(level),
+      }))
+  },
+
+  buildFilterSummary(spots, selectedTagIds, selectedLevelIds) {
+    const tagNames = (this.data.tags || [])
+      .filter((tag) => selectedTagIds.includes(Number(tag.id)))
+      .map((tag) => tag.name)
+    const levelNames = selectedLevelIds
+      .slice()
+      .sort((left, right) => left - right)
+      .map((level) => `L${level}`)
+    return {
+      tags: tagNames.length ? tagNames.join(this.data.lang === "en-US" ? ", " : "、") : this.data.copy.allTags,
+      levels: levelNames.length ? levelNames.join("-") : this.data.copy.allLevels,
+      count: (spots || []).length,
+    }
   },
 
   canViewSpot(spot) {
@@ -460,37 +502,34 @@ Page({
   },
 
   buildMarkers(spots) {
-    const markers = spots.map((spot) => this.spotToMarker(spot))
-    if (this.data.userLocation) {
-      markers.push({
-        id: 999999,
-        latitude: this.data.userLocation.latitude,
-        longitude: this.data.userLocation.longitude,
-        width: 26,
-        height: 26,
-        callout: {
-          content: this.data.lang === "en-US" ? "You are here" : "我的位置",
-          color: "#ffffff",
-          fontSize: 12,
-          borderRadius: 8,
-          bgColor: "#1f5f45",
-          padding: 8,
-          display: "ALWAYS",
-        },
-      })
-    }
-    return markers
+    return spots.map((spot) => this.spotToMarker(spot))
   },
 
-  spotToMarker(spot) {
+  async refreshMarkerIcons(spots) {
+    if (!this.markerCanvasReady) return
+    const requestId = (this.markerIconRequestId || 0) + 1
+    this.markerIconRequestId = requestId
+    try {
+      const markers = await Promise.all((spots || []).map(async (spot) => {
+        const iconPath = await getMarkerIcon(this, "homeMarkerCanvas", spot.marker_color)
+        return this.spotToMarker(spot, iconPath)
+      }))
+      if (requestId === this.markerIconRequestId) this.setData({ markers })
+    } catch (error) {
+      console.warn("custom marker icon failed", error)
+    }
+  },
+
+  spotToMarker(spot, iconPath = "") {
     const locked = !spot.is_unlocked
     const markerColor = this.normalizeMarkerColor(spot.marker_color)
     return {
       id: spot.id,
       latitude: spot.latitude,
       longitude: spot.longitude,
-      width: 34,
-      height: 34,
+      width: 42,
+      height: 52,
+      ...(iconPath ? { iconPath } : {}),
       callout: {
         content: `${locked ? "🔒 " : ""}${spot.name}`,
         color: locked ? "#7b6651" : "#ffffff",
@@ -500,31 +539,58 @@ Page({
         padding: 8,
         display: "BYCLICK",
       },
-      label: {
-        content: locked ? "锁" : `L${spot.recommendation_level}`,
-        color: "#ffffff",
-        fontSize: 12,
-        bgColor: locked ? "#9a6a43" : markerColor,
-        borderRadius: 12,
-        padding: 6,
-      },
     }
   },
 
   normalizeMarkerColor(color) {
-    return /^#[0-9a-fA-F]{6}$/.test(color || "") ? color : "#2f6b4f"
+    return normalizeMarkerColor(color)
   },
 
   onTagTap(event) {
-    const selectedTagId = Number(event.currentTarget.dataset.id)
+    const tagId = Number(event.currentTarget.dataset.id)
     this.mapAutoFit = true
-    this.setData({ selectedTagId })
+    const selectedTagIds = this.data.selectedTagIds.slice()
+    const index = selectedTagIds.indexOf(tagId)
+    if (index >= 0) selectedTagIds.splice(index, 1)
+    else selectedTagIds.push(tagId)
+    this.setData({ selectedTagIds })
     this.applyFilters()
-    if (selectedTagId === 0) {
-      this.showUnlockHintBubble()
-    } else {
-      this.hideUnlockHintBubble()
+  },
+
+  onClearTags() {
+    this.mapAutoFit = true
+    this.setData({ selectedTagIds: [] })
+    this.applyFilters()
+  },
+
+  onLevelTap(event) {
+    const level = Number(event.currentTarget.dataset.level)
+    this.mapAutoFit = true
+    const selectedLevelIds = this.data.selectedLevelIds.slice()
+    const index = selectedLevelIds.indexOf(level)
+    if (index >= 0) selectedLevelIds.splice(index, 1)
+    else selectedLevelIds.push(level)
+    this.setData({ selectedLevelIds })
+    this.applyFilters()
+  },
+
+  onClearLevels() {
+    this.mapAutoFit = true
+    this.setData({ selectedLevelIds: [] })
+    this.applyFilters()
+  },
+
+  onViewResults() {
+    if (this.data.filteredSpots.length === 0) {
+      wx.showToast({ title: this.data.copy.noEligibleSpots, icon: "none" })
+      return
     }
+    app.globalData.spotFilters = {
+      tagIds: this.data.selectedTagIds.slice(),
+      levelIds: this.data.selectedLevelIds.slice(),
+    }
+    app.globalData.spotListCache = this.data.filteredSpots.slice()
+    wx.navigateTo({ url: "/pages/spot-list/spot-list" })
   },
 
   showUnlockHintBubble() {
@@ -545,7 +611,6 @@ Page({
   },
 
   onMarkerTap(event) {
-    if (event.markerId === 999999) return
     const spot = this.data.filteredSpots.find((item) => item.id === event.markerId)
     if (spot) {
       this.setData({ selectedSpot: spot, selectedSpotId: spot.id })

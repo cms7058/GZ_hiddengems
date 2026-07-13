@@ -121,9 +121,22 @@ class MembershipPlanUpdate(BaseModel):
     name_en: Optional[str] = Field(default=None, max_length=64)
     duration_days: Optional[int] = Field(default=None, ge=1)
     price_cents: Optional[int] = Field(default=None, ge=0)
+    required_explore_points: Optional[int] = Field(default=None, ge=0)
     benefits_zh: Optional[str] = Field(default=None, max_length=512)
     benefits_en: Optional[str] = Field(default=None, max_length=512)
     is_active: Optional[bool] = None
+
+
+
+class MembershipPlanCreate(BaseModel):
+    name_zh: str = Field(..., max_length=64)
+    name_en: str = Field(..., max_length=64)
+    duration_days: int = Field(default=30, ge=1)
+    price_cents: int = Field(default=0, ge=0)
+    required_explore_points: int = Field(default=0, ge=0)
+    benefits_zh: str = Field(..., max_length=512)
+    benefits_en: str = Field(..., max_length=512)
+    is_active: bool = True
 
 
 class MembershipPlanOut(BaseModel):
@@ -132,6 +145,7 @@ class MembershipPlanOut(BaseModel):
     name_en: str
     duration_days: int
     price_cents: int
+    required_explore_points: int
     benefits_zh: str
     benefits_en: str
     is_active: bool

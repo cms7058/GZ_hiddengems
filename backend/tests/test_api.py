@@ -208,6 +208,8 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["description"], "Arrive before sunrise.")
         self.assertTrue(data["is_precise_location"])
         self.assertTrue(data["is_unlocked"])
+        self.assertEqual(data["images"][0]["image_url"], "/media/spots/demo.jpg")
+        self.assertTrue(data["images"][0]["is_cover"])
         self.assertEqual(data["travel_notes"][0]["title"], "路线记录")
         self.assertEqual(data["comments"], [])
         self.assertEqual(data["lifestyle_recommendations"][0]["name_zh"], "酸汤鱼")
@@ -394,6 +396,21 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["name_en"], "Photo Spots")
         self.assertEqual(data["sort_order"], 5)
 
+    def test_admin_tag_sort_order_is_unique_and_delete_detaches_spots(self):
+        headers = self.login_headers()
+        duplicate_response = self.client.post(
+            "/api/v1/admin/tags",
+            headers=headers,
+            json={"name_zh": "重复排序", "name_en": "Duplicate Sort", "sort_order": 10},
+        )
+        self.assertEqual(duplicate_response.status_code, 409)
+
+        delete_response = self.client.delete("/api/v1/admin/tags/2", headers=headers)
+        self.assertEqual(delete_response.status_code, 204)
+        spot_response = self.client.get("/api/v1/admin/spots/1", headers=headers)
+        self.assertEqual(spot_response.status_code, 200)
+        self.assertNotIn(2, spot_response.json()["tag_ids"])
+
     def test_admin_can_review_spot(self):
         headers = self.login_headers()
         create_response = self.client.post(
@@ -410,6 +427,7 @@ class ApiTest(unittest.TestCase):
                 "longitude": 106.67,
                 "visibility_level": "public",
                 "review_status": "draft",
+                "recommendation_level": 2,
                 "tag_ids": [1],
             },
         )
@@ -429,6 +447,30 @@ class ApiTest(unittest.TestCase):
 
         after_review = self.client.get("/api/v1/spots/map?tag_ids=1")
         self.assertEqual(len(after_review.json()), 2)
+
+    def test_admin_spot_requires_existing_pass_level(self):
+        response = self.client.patch(
+            "/api/v1/admin/spots/1",
+            headers=self.login_headers(),
+            json={"recommendation_level": 99},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], "Selected pass level does not exist")
+
+    def test_admin_can_permanently_delete_spot_and_related_content(self):
+        headers = self.login_headers()
+        response = self.client.delete("/api/v1/admin/spots/1", headers=headers)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.client.get("/api/v1/admin/spots/1", headers=headers).status_code, 404)
+        self.assertEqual(
+            self.client.get("/api/v1/admin/content/travel-notes", headers=headers).json()["total"],
+            0,
+        )
+        self.assertEqual(
+            self.client.get("/api/v1/admin/content/comments", headers=headers).json()["total"],
+            0,
+        )
 
     def test_admin_can_manage_registered_users(self):
         headers = self.login_headers()
@@ -454,7 +496,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["explorer_level"], 3)
         self.assertEqual(data["explore_points"], 160)
         self.assertEqual(data["avatar_url"], "/media/avatars/test.jpg")
-        self.assertFalse(data["is_member"])
+        self.assertTrue(data["is_member"])
         self.assertFalse(data["is_active"])
 
         create_response = self.client.post(
@@ -487,6 +529,27 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(data["requires_membership"])
         self.assertEqual(data["unlock_benefit_zh"], "更新后的解锁权益。")
 
+    def test_admin_can_delete_unlinked_pass_setting(self):
+        headers = self.login_headers()
+        create_response = self.client.post(
+            "/api/v1/admin/pass-settings",
+            headers=headers,
+            json={
+                "level": 9,
+                "name_zh": "测试等级",
+                "name_en": "Test Level",
+                "unlock_benefit_zh": "测试权益",
+                "unlock_benefit_en": "Test benefit",
+            },
+        )
+        self.assertEqual(create_response.status_code, 201)
+
+        delete_response = self.client.delete(
+            f"/api/v1/admin/pass-settings/{create_response.json()['id']}",
+            headers=headers,
+        )
+        self.assertEqual(delete_response.status_code, 204)
+
     def test_admin_can_manage_membership_plans(self):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/memberships/plans", headers=headers)
@@ -496,15 +559,60 @@ class ApiTest(unittest.TestCase):
         update_response = self.client.patch(
             "/api/v1/admin/memberships/plans/1",
             headers=headers,
-            json={"price_cents": 2900, "is_active": False},
+            json={"price_cents": 2900, "required_explore_points": 80, "is_active": False},
         )
         self.assertEqual(update_response.status_code, 200)
         self.assertEqual(update_response.json()["price_cents"], 2900)
+        self.assertEqual(update_response.json()["required_explore_points"], 80)
         self.assertFalse(update_response.json()["is_active"])
+
+        upgrade_plan_response = self.client.post(
+            "/api/v1/admin/memberships/plans",
+            headers=headers,
+            json={
+                "name_zh": "积分守护会员",
+                "name_en": "Points Guardian",
+                "duration_days": 365,
+                "price_cents": 0,
+                "required_explore_points": 200,
+                "benefits_zh": "积分自动升级权益。",
+                "benefits_en": "Points-based upgrade benefits.",
+            },
+        )
+        self.assertEqual(upgrade_plan_response.status_code, 201)
+
+        user_response = self.client.patch(
+            "/api/v1/admin/users/1",
+            headers=headers,
+            json={"explore_points": 220},
+        )
+        self.assertEqual(user_response.status_code, 200)
+        self.assertTrue(user_response.json()["is_member"])
 
         records_response = self.client.get("/api/v1/admin/memberships/records", headers=headers)
         self.assertEqual(records_response.status_code, 200)
         self.assertEqual(records_response.json()["items"][0]["nickname"], "山野摄影师")
+        self.assertEqual(records_response.json()["items"][0]["plan_name_zh"], "积分守护会员")
+
+        unused_plan_response = self.client.post(
+            "/api/v1/admin/memberships/plans",
+            headers=headers,
+            json={
+                "name_zh": "未使用套餐",
+                "name_en": "Unused Plan",
+                "duration_days": 30,
+                "price_cents": 0,
+                "required_explore_points": 999,
+                "benefits_zh": "测试。",
+                "benefits_en": "Test.",
+            },
+        )
+        self.assertEqual(unused_plan_response.status_code, 201)
+        delete_response = self.client.delete(
+            f"/api/v1/admin/memberships/plans/{unused_plan_response.json()['id']}",
+            headers=headers,
+        )
+        self.assertEqual(delete_response.status_code, 204)
 
     def test_admin_can_review_checkins_and_update_user_count(self):
         headers = self.login_headers()

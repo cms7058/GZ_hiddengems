@@ -3,9 +3,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.content import LifestyleRecommendation, TravelNote, UserComment
+from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
-from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
+from app.schemas.content import RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
 from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import can_unlock_spot, mask_coordinate
 from app.services.localization import choose_text, normalize_language
@@ -122,6 +122,7 @@ def spot_to_detail_out(
         **base.model_dump(),
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
+        images=[spot_image_to_out(image, db) for image in getattr(spot, "spot_images", []) if image.is_active],
         travel_notes=[
             travel_note_to_out(note, db)
             for note in getattr(spot, "travel_notes", [])
@@ -137,6 +138,21 @@ def spot_to_detail_out(
             for recommendation in getattr(spot, "lifestyle_recommendations", [])
             if recommendation.is_active
         ],
+    )
+
+
+def spot_image_to_out(image: SpotImage, db: Optional[Session] = None) -> SpotImageOut:
+    display_url = get_media_display_url(db, image.image_url) if db else image.image_url
+    return SpotImageOut(
+        id=image.id,
+        spot_id=image.spot_id,
+        image_url=image.image_url,
+        display_url=display_url,
+        media_type=image.media_type,
+        caption=image.caption,
+        sort_order=image.sort_order,
+        is_cover=image.is_cover,
+        is_active=image.is_active,
     )
 
 

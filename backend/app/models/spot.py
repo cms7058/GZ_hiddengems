@@ -55,6 +55,7 @@ class ScenicSpot(Base):
     travel_notes = relationship("TravelNote", back_populates="spot")
     comments = relationship("UserComment", back_populates="spot")
     lifestyle_recommendations = relationship("LifestyleRecommendation", back_populates="spot")
+    spot_images = relationship("SpotImage", back_populates="spot")
     child_points = relationship(
         "SpotChildPoint",
         back_populates="spot",

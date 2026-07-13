@@ -7,7 +7,8 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.user import MembershipPlan, UserMembership
 from app.schemas.pagination import Page
-from app.schemas.user import MembershipPlanOut, MembershipPlanUpdate, UserMembershipOut
+from app.schemas.user import MembershipPlanCreate, MembershipPlanOut, MembershipPlanUpdate, UserMembershipOut
+from app.services.memberships import sync_all_user_memberships_by_points
 from app.services.pagination import build_page, paginated_scalars
 
 
@@ -22,6 +23,21 @@ def list_membership_plans(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[MembershipPlanOut]:
     return paginated_scalars(db, select(MembershipPlan).order_by(MembershipPlan.id.asc()), page, page_size)
+
+
+@router.post("/plans", response_model=MembershipPlanOut, status_code=201)
+def create_membership_plan(
+    payload: MembershipPlanCreate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> MembershipPlanOut:
+    plan = MembershipPlan(**payload.model_dump())
+    db.add(plan)
+    db.flush()
+    sync_all_user_memberships_by_points(db)
+    db.commit()
+    db.refresh(plan)
+    return plan
 
 
 @router.patch("/plans/{plan_id}", response_model=MembershipPlanOut)
@@ -39,9 +55,28 @@ def update_membership_plan(
         setattr(plan, field, value)
 
     db.add(plan)
+    db.flush()
+    sync_all_user_memberships_by_points(db)
     db.commit()
     db.refresh(plan)
     return plan
+
+
+@router.delete("/plans/{plan_id}", status_code=204)
+def delete_membership_plan(
+    plan_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    plan = db.get(MembershipPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Membership plan not found")
+    linked_record = db.scalar(select(UserMembership.id).where(UserMembership.plan_id == plan_id).limit(1))
+    if linked_record is not None:
+        raise HTTPException(status_code=409, detail="Membership records exist for this plan")
+
+    db.delete(plan)
+    db.commit()
 
 
 @router.get("/records", response_model=Page[UserMembershipOut])

@@ -40,4 +40,13 @@ Page({
       icon: "none",
     })
   },
+
+  onFloatingBackTap() {
+    const goHome = () => wx.switchTab({ url: "/pages/index/index" })
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack({ delta: 1, fail: goHome })
+      return
+    }
+    goHome()
+  },
 })

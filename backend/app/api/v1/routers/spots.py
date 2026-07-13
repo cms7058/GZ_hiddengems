@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import get_db
-from app.models.content import LifestyleRecommendation, TravelNote, UserComment
+from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import MiniProgramUser
 from app.schemas.spot import MapSpotOut, SpotDetailOut
@@ -83,6 +83,7 @@ def get_spot_detail(
         select(ScenicSpot)
         .options(
             selectinload(ScenicSpot.tags),
+            selectinload(ScenicSpot.spot_images),
             selectinload(ScenicSpot.travel_notes).joinedload(TravelNote.user),
             selectinload(ScenicSpot.travel_notes).joinedload(TravelNote.spot),
             selectinload(ScenicSpot.comments).joinedload(UserComment.user),

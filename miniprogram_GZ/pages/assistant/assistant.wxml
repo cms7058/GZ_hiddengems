@@ -15,4 +15,5 @@
     <input placeholder="{{copy.input}}" disabled />
     <button bindtap="onSendTap">{{copy.send}}</button>
   </view>
+  <view class="floating-back" catchtap="onFloatingBackTap">←</view>
 </view>

@@ -9,6 +9,7 @@ from app.models.user import MiniProgramUser
 from app.schemas.pagination import Page
 from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
 from app.services.pagination import paginated_scalars
+from app.services.memberships import sync_user_membership_by_points
 
 
 router = APIRouter()
@@ -64,12 +65,16 @@ def create_admin_user(
             setattr(exists, field, value)
         exists.is_active = True
         db.add(exists)
+        db.flush()
+        sync_user_membership_by_points(db, exists)
         db.commit()
         db.refresh(exists)
         return exists
 
     user = MiniProgramUser(**payload.model_dump())
     db.add(user)
+    db.flush()
+    sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
     return user
@@ -89,6 +94,8 @@ def update_admin_user(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
 
+    if "explore_points" in payload.model_dump(exclude_unset=True):
+        sync_user_membership_by_points(db, user)
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -79,4 +79,5 @@
     <text class="tip-title">{{copy.next}}</text>
     <text>{{copy.tip}}</text>
   </view>
+  <view class="floating-back" catchtap="onFloatingBackTap">←</view>
 </view>
