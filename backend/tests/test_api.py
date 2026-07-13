@@ -529,6 +529,41 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(data["requires_membership"])
         self.assertEqual(data["unlock_benefit_zh"], "更新后的解锁权益。")
 
+    def test_admin_can_change_pass_level_without_duplicates(self):
+        headers = self.login_headers()
+        create_response = self.client.post(
+            "/api/v1/admin/pass-settings",
+            headers=headers,
+            json={
+                "level": 5,
+                "name_zh": "守护者",
+                "name_en": "Guardian",
+                "unlock_benefit_zh": "高级秘境解锁",
+                "unlock_benefit_en": "Unlock advanced gems",
+            },
+        )
+        self.assertEqual(create_response.status_code, 201)
+        setting_id = create_response.json()["id"]
+
+        update_response = self.client.patch(
+            f"/api/v1/admin/pass-settings/{setting_id}",
+            headers=headers,
+            json={"level": 6},
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(update_response.json()["level"], 6)
+
+        spot_response = self.client.get("/api/v1/admin/spots/1", headers=headers)
+        self.assertEqual(spot_response.status_code, 200)
+        self.assertEqual(spot_response.json()["recommendation_level"], 6)
+
+        duplicate_response = self.client.patch(
+            "/api/v1/admin/pass-settings/1",
+            headers=headers,
+            json={"level": 6},
+        )
+        self.assertEqual(duplicate_response.status_code, 409)
+
     def test_pass_setting_explore_points_controls_spot_unlock(self):
         headers = self.login_headers()
         create_response = self.client.post(

@@ -87,6 +87,7 @@ class PassLevelSettingCreate(BaseModel):
 
 
 class PassLevelSettingUpdate(BaseModel):
+    level: Optional[int] = Field(default=None, ge=0, le=99)
     name_zh: Optional[str] = Field(default=None, max_length=64)
     name_en: Optional[str] = Field(default=None, max_length=64)
     required_explore_points: Optional[int] = Field(default=None, ge=0)

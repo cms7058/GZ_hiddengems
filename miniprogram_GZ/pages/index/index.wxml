@@ -62,15 +62,17 @@
           >
             <view class="level-color" style="background: {{item.markerColor}};"></view>
             <text>{{item.label}}</text>
-            <text class="level-count">{{item.count}}</text>
+            <text class="level-count">{{item.availableCount}}/{{item.count}}</text>
           </view>
         </view>
       </scroll-view>
     </view>
 
     <view class="filter-summary">
-      <text class="summary-main">{{copy.filterSummaryPrefix}} {{filterSummary.tags}} · {{filterSummary.levels}}</text>
-      <text class="summary-count">{{copy.filterSummaryCountPrefix}}{{filterSummary.count}}{{copy.filterSummaryCountSuffix}}</text>
+      <view class="summary-copy">
+        <text class="summary-main">{{copy.filterSummaryPrefix}} {{filterSummary.tags}} · {{filterSummary.levels}}</text>
+        <text class="summary-count">{{copy.filterSummaryCountPrefix}}{{filterSummary.count}}{{copy.filterSummaryCountSuffix}}</text>
+      </view>
       <button class="results-button" bindtap="onViewResults">{{copy.viewResults}}</button>
     </view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>

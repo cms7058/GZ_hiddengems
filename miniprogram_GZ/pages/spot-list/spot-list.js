@@ -118,7 +118,7 @@ Page({
   },
 
   canViewSpot(spot) {
-    return spot.is_unlocked !== false && Number(this.data.user.explore_points || 0) >= Number(spot.required_explore_points || 0)
+    return spot.is_unlocked !== false
   },
 
   setFilteredSpots(allSpots, offline) {

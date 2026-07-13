@@ -330,6 +330,7 @@ const I18N = {
   "视频大小不能超过 8MB": "Video must not exceed 8MB",
   "视频不能设为封面": "Video cannot be set as cover",
   "通关设置已保存": "Pass setting saved",
+  "通关等级不可重复": "Pass level must be unique",
   "会员套餐已保存": "Membership plan saved",
   "打卡审核已保存": "Check-in review saved",
   "已刷新": "Refreshed",
@@ -1483,7 +1484,7 @@ function fillPassSettingForm(setting) {
   const nextLevel = state.passSettings.length ? Math.max(...state.passSettings.map((item) => Number(item.level) || 0)) + 1 : 0;
   const markerColor = normalizeHexColor(setting?.marker_color || "#2f6b4f");
   form.elements.level.value = setting?.level ?? nextLevel;
-  form.elements.level.disabled = Boolean(setting);
+  form.elements.level.disabled = false;
   setPassMarkerColorInputs(markerColor);
   if (!setting) {
     form.elements.required_explore_points.value = 0;
@@ -2398,11 +2399,15 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
     marker_color: markerColor,
     is_active: form.elements.is_active.checked,
   };
+  const duplicateLevel = state.passSettings.find(
+    (setting) => Number(setting.level) === payload.level && setting.id !== state.editingPassSettingId,
+  );
+  if (duplicateLevel) {
+    showToast(t("通关等级不可重复"));
+    return;
+  }
   const path = state.editingPassSettingId ? `/admin/pass-settings/${state.editingPassSettingId}` : "/admin/pass-settings";
   const method = state.editingPassSettingId ? "PATCH" : "POST";
-  if (state.editingPassSettingId) {
-    delete payload.level;
-  }
   try {
     const savedSetting = await request(path, {
       method,

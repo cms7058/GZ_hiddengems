@@ -59,7 +59,26 @@ def update_pass_setting(
     if setting is None:
         raise HTTPException(status_code=404, detail="Pass setting not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    new_level = update_data.get("level")
+    if new_level is not None and new_level != setting.level:
+        existing = db.scalar(
+            select(PassLevelSetting).where(
+                PassLevelSetting.level == new_level,
+                PassLevelSetting.id != setting.id,
+            )
+        )
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="Pass level already exists")
+
+        linked_spots = db.scalars(
+            select(ScenicSpot).where(ScenicSpot.recommendation_level == setting.level)
+        ).all()
+        for spot in linked_spots:
+            spot.recommendation_level = new_level
+            db.add(spot)
+
+    for field, value in update_data.items():
         setattr(setting, field, value)
 
     db.add(setting)

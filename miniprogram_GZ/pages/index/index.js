@@ -342,7 +342,7 @@ Page({
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
-      levelOptions: this.buildLevelOptions(eligibleSpots, selectedLevelIds),
+      levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds, eligibleSpots),
       allTagsSelected: selectedTagIds.length === 0,
       allLevelsSelected: selectedLevelIds.length === 0,
       filterSummary: this.buildFilterSummary(filteredSpots, selectedTagIds, selectedLevelIds),
@@ -359,7 +359,8 @@ Page({
     }))
   },
 
-  buildLevelOptions(spots, selectedLevelIds) {
+  buildLevelOptions(spots, selectedLevelIds, eligibleSpots = []) {
+    const eligibleSpotIds = new Set((eligibleSpots || []).map((spot) => Number(spot.id)))
     const byLevel = (spots || []).reduce((result, spot) => {
       const level = Number(spot.recommendation_level || 0)
       if (!level) return result
@@ -368,9 +369,11 @@ Page({
           level,
           markerColor: this.normalizeMarkerColor(spot.marker_color),
           count: 0,
+          availableCount: 0,
         }
       }
       result[level].count += 1
+      if (eligibleSpotIds.has(Number(spot.id))) result[level].availableCount += 1
       return result
     }, {})
     return Object.keys(byLevel)
@@ -399,9 +402,9 @@ Page({
   },
 
   canViewSpot(spot) {
-    const requiredPoints = Number(spot.required_explore_points || 0)
-    const userPoints = Number(this.data.user.explore_points || 0)
-    return spot.is_unlocked !== false && userPoints >= requiredPoints
+    // The API applies every unlock rule with the current user record. Rechecking
+    // cached points here could hide a spot before mini-program login finishes.
+    return spot.is_unlocked !== false
   },
 
   buildUnlockHint(spots) {
@@ -559,8 +562,7 @@ Page({
 
   onClearTags() {
     this.mapAutoFit = true
-    this.setData({ selectedTagIds: [] })
-    this.applyFilters()
+    this.setData({ selectedTagIds: [] }, () => this.loadHomeData())
   },
 
   onLevelTap(event) {
@@ -576,8 +578,7 @@ Page({
 
   onClearLevels() {
     this.mapAutoFit = true
-    this.setData({ selectedLevelIds: [] })
-    this.applyFilters()
+    this.setData({ selectedLevelIds: [] }, () => this.loadHomeData())
   },
 
   onViewResults() {

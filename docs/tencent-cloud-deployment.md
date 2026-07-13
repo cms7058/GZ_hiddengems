@@ -113,7 +113,7 @@ http://你的服务器公网 IP/admin
 cd ~/GZ_hiddengems/backend
 mkdir -p ~/gz-hidden-gems-backups
 BACKUP_FILE=~/gz-hidden-gems-backups/gz_hidden_gems_$(date +%Y%m%d_%H%M%S).sql
-docker compose -f docker-compose.prod.yml exec -T mysql sh -lc 'exec mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "$BACKUP_FILE"
+docker compose -f docker-compose.prod.yml exec -T mysql sh -lc 'exec mysqldump --no-tablespaces -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > "$BACKUP_FILE"
 echo "$BACKUP_FILE"
 ```
 
