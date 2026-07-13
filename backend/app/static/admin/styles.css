@@ -613,6 +613,40 @@ td .image-thumb {
   width: 86px;
 }
 
+.default-avatar,
+.user-avatar-preview .default-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #dceef5;
+  color: #1f4a5c;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar-display {
+  display: grid;
+  gap: 8px;
+}
+
+.user-avatar-preview {
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid #d8e3da;
+  border-radius: 8px;
+  background: #f8fbf8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar-preview .image-thumb {
+  width: 56px;
+  aspect-ratio: 1;
+}
+
 .error-text {
   min-height: 18px;
   margin: 0;

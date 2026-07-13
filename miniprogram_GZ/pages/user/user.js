@@ -3,6 +3,7 @@ const app = getApp()
 const COPY = {
   "zh-CN": {
     title: "用户",
+    defaultAvatar: "旅",
     subtitle: "查看探秘积分和解锁进度",
     points: "探秘积分",
     member: "会员状态",
@@ -22,11 +23,12 @@ const COPY = {
     editProfile: "获取微信用户信息",
     nicknamePlaceholder: "请输入微信昵称",
     chooseAvatar: "选择头像",
-    saveProfile: "保存资料",
+    saveProfile: "保存",
     saved: "已保存",
   },
   "en-US": {
     title: "Profile",
+    defaultAvatar: "G",
     subtitle: "Track explore points and unlock progress",
     points: "Explore Points",
     member: "Membership",
@@ -46,7 +48,7 @@ const COPY = {
     editProfile: "Get WeChat Profile",
     nicknamePlaceholder: "Enter WeChat nickname",
     chooseAvatar: "Choose Avatar",
-    saveProfile: "Save Profile",
+    saveProfile: "Save",
     saved: "Saved",
   },
 }

@@ -522,12 +522,9 @@
         <div class="form-grid">
           <label><span>OpenID</span><input name="openid" required maxlength="128" /></label>
           <label><span>昵称</span><input name="nickname" required maxlength="64" /></label>
-          <label class="full"><span>微信头像 URL</span><input name="avatar_url" maxlength="512" /></label>
-          <div class="full upload-inline">
-            <input id="userAvatarFile" type="file" accept="image/*" />
-            <span id="userAvatarFileStatus" class="upload-file-info muted">未选择文件</span>
-            <button id="clearUserAvatarFileBtn" type="button" class="small-btn hidden">移除已选文件</button>
-            <button id="uploadUserAvatarBtn" type="button" class="secondary-btn upload-btn">上传头像</button>
+          <div class="full user-avatar-display">
+            <span>微信头像</span>
+            <div id="userAvatarPreview" class="user-avatar-preview">系统默认头像</div>
           </div>
           <label><span>手机号</span><input name="phone" maxlength="32" /></label>
           <label>

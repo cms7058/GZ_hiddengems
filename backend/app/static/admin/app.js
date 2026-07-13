@@ -538,6 +538,11 @@ function imageCell(url, alt = "图片") {
   return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" />`;
 }
 
+function userAvatarCell(url, nickname = "用户") {
+  if (url) return imageCell(url, nickname);
+  return `<span class="default-avatar" aria-label="${escapeHtml(nickname)}">${escapeHtml(String(nickname).slice(0, 1) || "用")}</span>`;
+}
+
 function displayMediaUrl(itemOrUrl) {
   if (!itemOrUrl) return "";
   if (typeof itemOrUrl === "object") {
@@ -660,7 +665,7 @@ function renderUsers() {
               <span class="muted">${escapeHtml(user.phone || t("未绑定手机"))}</span>
             </div>
           </td>
-          <td>${imageCell(user.avatar_url, user.nickname)}</td>
+          <td>${userAvatarCell(user.avatar_url, user.nickname)}</td>
           <td>${escapeHtml(user.openid)}</td>
           <td>${escapeHtml(user.language)}</td>
           <td>
@@ -1465,6 +1470,7 @@ function fillUserForm(user) {
   state.editingUserId = user?.id || null;
   $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
   if (!user) {
+    $("#userAvatarPreview").innerHTML = '<span class="default-avatar">用</span><span class="muted">系统默认头像</span>';
     form.elements.language.value = "zh-CN";
     form.elements.explore_points.value = 0;
     form.elements.checkin_count.value = 0;
@@ -1481,7 +1487,6 @@ function fillUserForm(user) {
   [
     "openid",
     "nickname",
-    "avatar_url",
     "phone",
     "language",
     "explore_points",
@@ -1491,6 +1496,7 @@ function fillUserForm(user) {
   ].forEach((field) => {
     form.elements[field].value = user[field] ?? "";
   });
+  $("#userAvatarPreview").innerHTML = userAvatarCell(user.avatar_url, user.nickname);
   form.elements.is_member.checked = Boolean(user.is_member);
   form.elements.is_active.checked = Boolean(user.is_active);
   form.elements.can_upload_image.checked = user.can_upload_image !== false;
@@ -2337,13 +2343,8 @@ $("#addChildPointBtn").addEventListener("click", async () => {
   showToast("子景点已新增");
 });
 
-$("#uploadUserAvatarBtn").addEventListener("click", () => {
-  uploadImageTo("avatars", "#userAvatarFile", "#userForm", "avatar_url", false);
-});
-
 [
   ["#spotImageFile", "#spotImageFileStatus", "#clearSpotImageFileBtn", true],
-  ["#userAvatarFile", "#userAvatarFileStatus", "#clearUserAvatarFileBtn", false],
   ["#travelNoteImageFile", "#travelNoteImageFileStatus", "#clearTravelNoteImageFileBtn", true],
   ["#commentImageFile", "#commentImageFileStatus", "#clearCommentImageFileBtn", true],
   ["#recommendationImageFile", "#recommendationImageFileStatus", "#clearRecommendationImageFileBtn", true],
@@ -2432,7 +2433,6 @@ $("#userForm").addEventListener("submit", async (event) => {
   const payload = {
     openid: String(data.openid || "").trim(),
     nickname: String(data.nickname || "").trim(),
-    avatar_url: data.avatar_url || null,
     phone: data.phone || null,
     language: data.language,
     explore_points: Number(data.explore_points),

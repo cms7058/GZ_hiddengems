@@ -14,6 +14,7 @@ const COPY = {
     users: "互动用户",
     interaction: "公开互动",
     interactionDescription: "通过公开留言交流路线、天气和注意事项，不公开联系方式。",
+    emptyInteraction: "暂无互动留言",
     startInteraction: "去留言互动",
     myCheckins: "我的打卡",
     reviewPending: "审核中",
@@ -51,6 +52,8 @@ const COPY = {
     dataSource: "数据来源",
     actions: "互动提交",
     checkin: "提交打卡",
+    writeNote: "发布游记",
+    leaveComment: "发表留言",
     currentLocation: "我的实时位置",
     chooseMedia: "上传图片/视频",
     mediaReady: "素材已上传",
@@ -82,6 +85,7 @@ const COPY = {
     users: "Users",
     interaction: "Community",
     interactionDescription: "Discuss routes, weather, and safety notes publicly. Contact details stay private.",
+    emptyInteraction: "No public comments yet",
     startInteraction: "Write a Comment",
     myCheckins: "My Check-ins",
     reviewPending: "Pending Review",
@@ -119,6 +123,8 @@ const COPY = {
     dataSource: "Source",
     actions: "Submit",
     checkin: "Check In",
+    writeNote: "Write Note",
+    leaveComment: "Leave Comment",
     currentLocation: "My Live Location",
     chooseMedia: "Upload Photo/Video",
     mediaReady: "Media uploaded",
@@ -165,7 +171,7 @@ Page({
     loading: true,
     error: "",
     fallbackMode: false,
-    interactionUsers: [],
+    interactionMessages: [],
     scrollTarget: "",
     checkinNote: "",
     checkinMedia: null,
@@ -241,7 +247,7 @@ Page({
         markers: this.buildMarkers(spot),
         groupedRecommendations: this.groupRecommendations(spot.lifestyle_recommendations || []),
         userCount: this.countUsers(spot),
-        interactionUsers: this.buildInteractionUsers(spot),
+        interactionMessages: this.buildInteractionMessages(spot),
         loading: false,
         fallbackMode: false,
       })
@@ -436,20 +442,14 @@ Page({
     return Object.keys(ids).length
   },
 
-  buildInteractionUsers(spot) {
-    const users = {}
-    ;[...(spot.travel_notes || []), ...(spot.comments || [])]
-      .filter((item) => item.status === "approved")
-      .forEach((item) => {
-        if (users[item.user_id]) return
-        users[item.user_id] = {
-          id: item.user_id,
-          nickname: item.nickname || "探索者",
-          avatar_url: item.avatar_url || "",
-          avatarInitial: (item.nickname || "探").slice(0, 1),
-        }
-      })
-    return Object.keys(users).map((id) => users[id])
+  buildInteractionMessages(spot) {
+    return (spot.comments || [])
+      .filter((item) => item.status === "approved" && item.content)
+      .map((item) => ({
+        id: item.id,
+        nickname: item.nickname || (this.data.lang === "en-US" ? "Explorer" : "探索者"),
+        content: item.content,
+      }))
   },
 
   scrollTo(target) {
@@ -458,11 +458,26 @@ Page({
 
   onStatTap(event) {
     const target = event.currentTarget.dataset.target
+    if (target === "checkin") {
+      this.openAction("checkin")
+      return
+    }
     if (target) this.scrollTo(target)
   },
 
   onStartInteraction() {
-    this.scrollTo("comment-form")
+    this.openAction("comment")
+  },
+
+  onActionTap(event) {
+    this.openAction(event.currentTarget.dataset.action)
+  },
+
+  openAction(action) {
+    if (!this.data.spot || !action) return
+    wx.navigateTo({
+      url: `/pages/spot-submit/spot-submit?id=${this.data.spot.id}&mode=${action}`,
+    })
   },
 
   groupRecommendations(recommendations) {

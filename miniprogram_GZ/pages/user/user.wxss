@@ -94,7 +94,6 @@ page {
 .avatar-button,
 .save-button {
   height: 76rpx;
-  margin-top: 18rpx;
   border-radius: 8rpx;
   font-size: 26rpx;
   display: flex;
@@ -103,6 +102,8 @@ page {
 }
 
 .avatar-button {
+  flex: none;
+  width: 132rpx;
   background: #edf3ea;
   color: #1f5f45;
 }
@@ -114,8 +115,9 @@ page {
 }
 
 .nickname-input {
+  flex: 1;
+  min-width: 0;
   height: 76rpx;
-  margin-top: 16rpx;
   padding: 0 20rpx;
   border-radius: 8rpx;
   background: #f6f4ed;
@@ -125,9 +127,23 @@ page {
 }
 
 .save-button {
+  min-width: 160rpx;
   background: #1f5f45;
   color: #ffffff;
   font-weight: 700;
+}
+
+.profile-edit-row {
+  margin-top: 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.save-row {
+  margin-top: 18rpx;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .stats-grid {

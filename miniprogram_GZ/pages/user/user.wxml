@@ -3,7 +3,7 @@
 
   <view class="profile-card">
     <image wx:if="{{user.avatar_url}}" class="avatar image-avatar" src="{{user.avatar_url}}" mode="aspectFill"></image>
-    <view wx:else class="avatar">{{avatarInitial}}</view>
+    <view wx:else class="avatar">{{copy.defaultAvatar}}</view>
     <view>
       <text class="name">{{user.nickname}}</text>
       <text class="subtitle">{{copy.subtitle}}</text>
@@ -12,18 +12,20 @@
 
   <view class="profile-form">
     <text class="form-title">{{copy.editProfile}}</text>
-    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-      <image wx:if="{{profileForm.avatar_url}}" class="form-avatar" src="{{profileForm.avatar_url}}" mode="aspectFill"></image>
-      <text wx:else>{{copy.chooseAvatar}}</text>
-    </button>
-    <input
-      class="nickname-input"
-      type="nickname"
-      value="{{profileForm.nickname}}"
-      placeholder="{{copy.nicknamePlaceholder}}"
-      bindinput="onNicknameInput"
-    />
-    <button class="save-button" bindtap="onSaveProfile">{{copy.saveProfile}}</button>
+    <view class="profile-edit-row">
+      <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{profileForm.avatar_url}}" class="form-avatar" src="{{profileForm.avatar_url}}" mode="aspectFill"></image>
+        <text wx:else>{{copy.chooseAvatar}}</text>
+      </button>
+      <input
+        class="nickname-input"
+        type="nickname"
+        value="{{profileForm.nickname}}"
+        placeholder="{{copy.nicknamePlaceholder}}"
+        bindinput="onNicknameInput"
+      />
+    </view>
+    <view class="save-row"><button class="save-button" bindtap="onSaveProfile">{{copy.saveProfile}}</button></view>
   </view>
 
   <view class="stats-grid">

@@ -1,0 +1,55 @@
+<view class="page">
+  <navigation-bar title="{{copy.navTitle}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+  <scroll-view class="submit-scroll" scroll-y>
+    <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
+    <view wx:elif="{{error}}" class="notice error">{{error}}</view>
+    <view wx:elif="{{spot}}" class="content">
+      <view class="spot-head">
+        <text class="eyebrow">{{copy.explorer}}</text>
+        <text class="spot-name">{{spot.name}}</text>
+        <text class="spot-meta">{{spot.city}} / {{spot.county}}</text>
+      </view>
+
+      <view wx:if="{{mode === 'checkin'}}" class="section">
+        <view class="section-head"><text>{{copy.checkin}}</text></view>
+        <view class="location-chip {{userLocation ? 'active' : ''}}">{{userLocation ? copy.currentLocation : copy.locationFailed}}</view>
+        <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseCheckinMedia">{{copy.chooseMedia}}</button>
+        <view wx:if="{{checkinMedia}}" class="media-state">
+          <image wx:if="{{checkinMedia.media_type === 'image'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" mode="aspectFill"></image>
+          <video wx:elif="{{checkinMedia.media_type === 'video'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" controls></video>
+          <view class="media-info">
+            <text class="media-title">{{copy.mediaReady}}</text>
+            <text class="media-meta">{{checkinMedia.media_type}}</text>
+          </view>
+          <text class="remove-media" catchtap="onRemoveCheckinMedia">{{copy.removeMedia}}</text>
+        </view>
+        <textarea class="form-textarea" value="{{checkinNote}}" maxlength="512" placeholder="{{copy.checkinPlaceholder}}" bindinput="onCheckinNoteInput"></textarea>
+        <button wx:if="{{user.can_checkin}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitCheckin">{{copy.checkin}}</button>
+      </view>
+
+      <view wx:elif="{{mode === 'note'}}" class="section">
+        <view class="section-head"><text>{{copy.writeNote}}</text></view>
+        <input class="form-input" value="{{noteForm.title}}" maxlength="128" placeholder="{{copy.noteTitlePlaceholder}}" bindinput="onNoteTitleInput" />
+        <textarea class="form-textarea" value="{{noteForm.content}}" placeholder="{{copy.noteContentPlaceholder}}" bindinput="onNoteContentInput"></textarea>
+        <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
+      </view>
+
+      <view wx:else class="section">
+        <view class="section-head"><text>{{copy.leaveComment}}</text></view>
+        <textarea class="form-textarea" value="{{commentForm.content}}" maxlength="512" placeholder="{{copy.commentPlaceholder}}" bindinput="onCommentInput"></textarea>
+        <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitComment">{{copy.submitComment}}</button>
+      </view>
+
+      <view wx:if="{{mode === 'checkin' && myCheckins.length}}" class="section">
+        <view class="section-head"><text>{{copy.myCheckins}}</text><text class="count">{{myCheckins.length}}</text></view>
+        <view wx:for="{{myCheckins}}" wx:key="id" class="checkin-item">
+          <image wx:if="{{item.media_type === 'image' && (item.media_url || item.image_url)}}" class="content-image" src="{{item.media_url || item.image_url}}" mode="aspectFill"></image>
+          <video wx:elif="{{item.media_type === 'video' && item.media_url}}" class="content-video" src="{{item.media_url}}" controls></video>
+          <view class="item-head"><text class="item-title">{{item.note || copy.checkin}}</text><text wx:if="{{item.statusText}}" class="status">{{item.statusText}}</text></view>
+          <text wx:if="{{item.review_note}}" class="review-note">{{item.review_note}}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+  <view class="floating-back" catchtap="onBackTap">←</view>
+</view>
