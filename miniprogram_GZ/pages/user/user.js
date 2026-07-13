@@ -1,4 +1,5 @@
 const app = getApp()
+const { isServiceClosedError, uploadMedia } = require("../../utils/request")
 
 const COPY = {
   "zh-CN": {
@@ -25,6 +26,8 @@ const COPY = {
     chooseAvatar: "选择头像",
     saveProfile: "保存",
     saved: "已保存",
+    saving: "保存中",
+    avatarUploadFailed: "头像上传失败，请稍后重试",
   },
   "en-US": {
     title: "Profile",
@@ -50,6 +53,8 @@ const COPY = {
     chooseAvatar: "Choose Avatar",
     saveProfile: "Save",
     saved: "Saved",
+    saving: "Saving",
+    avatarUploadFailed: "Avatar upload failed. Try again later",
   },
 }
 
@@ -63,6 +68,8 @@ Page({
       nickname: app.globalData.user.nickname,
       avatar_url: app.globalData.user.avatar_url || "",
     },
+    avatarNeedsUpload: false,
+    saving: false,
   },
 
   onShow() {
@@ -77,12 +84,14 @@ Page({
         nickname: app.globalData.user.nickname,
         avatar_url: app.globalData.user.avatar_url || "",
       },
+      avatarNeedsUpload: false,
     })
   },
 
   onChooseAvatar(event) {
     this.setData({
       "profileForm.avatar_url": event.detail.avatarUrl,
+      avatarNeedsUpload: true,
     })
   },
 
@@ -93,27 +102,41 @@ Page({
   },
 
   async onSaveProfile() {
+    if (this.data.saving) return
     const nickname = (this.data.profileForm.nickname || "").trim() || this.data.user.nickname
-    let nextUser = {
-      ...app.globalData.user,
-      nickname,
-      avatar_url: this.data.profileForm.avatar_url,
+    this.setData({ saving: true })
+    try {
+      let avatarUrl = this.data.profileForm.avatar_url
+      if (this.data.avatarNeedsUpload && avatarUrl) {
+        const uploaded = await uploadMedia(avatarUrl, "image")
+        avatarUrl = uploaded.image_url || uploaded.media_url || ""
+        if (!avatarUrl) throw new Error(this.data.copy.avatarUploadFailed)
+      }
+      const nextUser = await app.bootstrapUser({
+        force: true,
+        nickname,
+        avatar_url: avatarUrl,
+      })
+      app.globalData.user = nextUser
+      wx.setStorageSync("gzHiddenGemsUser", nextUser)
+      this.setData({
+        user: nextUser,
+        avatarInitial: (nextUser.nickname || "秘").slice(0, 1),
+        profileForm: { nickname: nextUser.nickname, avatar_url: nextUser.avatar_url || "" },
+        avatarNeedsUpload: false,
+      })
+      wx.showToast({ title: this.data.copy.saved, icon: "success" })
+    } catch (error) {
+      if (!isServiceClosedError(error)) {
+        wx.showModal({
+          title: this.data.copy.avatarUploadFailed,
+          content: error.message || this.data.copy.avatarUploadFailed,
+          showCancel: false,
+        })
+      }
+    } finally {
+      this.setData({ saving: false })
     }
-    nextUser = await app.bootstrapUser({
-      force: true,
-      nickname: nextUser.nickname,
-      avatar_url: nextUser.avatar_url,
-    })
-    app.globalData.user = nextUser
-    wx.setStorageSync("gzHiddenGemsUser", nextUser)
-    this.setData({
-      user: nextUser,
-      avatarInitial: (nextUser.nickname || "秘").slice(0, 1),
-    })
-    wx.showToast({
-      title: this.data.copy.saved,
-      icon: "success",
-    })
   },
 
   onFloatingBackTap() {

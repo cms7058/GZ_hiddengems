@@ -25,7 +25,7 @@
         bindinput="onNicknameInput"
       />
     </view>
-    <view class="save-row"><button class="save-button" bindtap="onSaveProfile">{{copy.saveProfile}}</button></view>
+    <view class="save-row"><button class="save-button" loading="{{saving}}" bindtap="onSaveProfile">{{saving ? copy.saving : copy.saveProfile}}</button></view>
   </view>
 
   <view class="stats-grid">

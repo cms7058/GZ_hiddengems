@@ -626,6 +626,24 @@ td .image-thumb {
   justify-content: center;
 }
 
+.default-avatar[hidden] {
+  display: none;
+}
+
+.avatar-cell {
+  display: inline-flex;
+  align-items: center;
+}
+
+.avatar-cell .image-thumb {
+  width: 86px;
+}
+
+.user-avatar-preview .avatar-cell .image-thumb {
+  width: 56px;
+  aspect-ratio: 1;
+}
+
 .user-avatar-display {
   display: grid;
   gap: 8px;

@@ -8,11 +8,17 @@ from app.models.admin import AdminUser
 from app.models.user import MiniProgramUser
 from app.schemas.pagination import Page
 from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
+from app.services.media_storage import get_media_display_url
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 
 
 router = APIRouter()
+
+
+def user_to_out(db: Session, user: MiniProgramUser) -> MiniProgramUserOut:
+    result = MiniProgramUserOut.model_validate(user)
+    return result.model_copy(update={"avatar_url": get_media_display_url(db, user.avatar_url)})
 
 
 @router.get("", response_model=Page[MiniProgramUserOut])
@@ -36,7 +42,14 @@ def list_admin_users(
                 MiniProgramUser.phone.like(like_keyword),
             )
         )
-    return paginated_scalars(db, statement, page, page_size)
+    result = paginated_scalars(db, statement, page, page_size)
+    return Page(
+        items=[user_to_out(db, user) for user in result.items],
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+        pages=result.pages,
+    )
 
 
 @router.get("/{user_id}", response_model=MiniProgramUserOut)
@@ -48,7 +61,7 @@ def get_admin_user(
     user = db.get(MiniProgramUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return user_to_out(db, user)
 
 
 @router.post("", response_model=MiniProgramUserOut, status_code=201)
@@ -69,7 +82,7 @@ def create_admin_user(
         sync_user_membership_by_points(db, exists)
         db.commit()
         db.refresh(exists)
-        return exists
+        return user_to_out(db, exists)
 
     user = MiniProgramUser(**payload.model_dump())
     db.add(user)
@@ -77,7 +90,7 @@ def create_admin_user(
     sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
-    return user
+    return user_to_out(db, user)
 
 
 @router.patch("/{user_id}", response_model=MiniProgramUserOut)
@@ -99,7 +112,7 @@ def update_admin_user(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return user_to_out(db, user)
 
 
 @router.delete("/{user_id}", status_code=204)

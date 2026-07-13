@@ -539,8 +539,14 @@ function imageCell(url, alt = "图片") {
 }
 
 function userAvatarCell(url, nickname = "用户") {
-  if (url) return imageCell(url, nickname);
-  return `<span class="default-avatar" aria-label="${escapeHtml(nickname)}">${escapeHtml(String(nickname).slice(0, 1) || "用")}</span>`;
+  const initial = escapeHtml(String(nickname).slice(0, 1) || "用");
+  if (!url) return `<span class="default-avatar" aria-label="${escapeHtml(nickname)}">${initial}</span>`;
+  return `
+    <span class="avatar-cell">
+      <img class="image-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(nickname)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false;" />
+      <span class="default-avatar" hidden aria-label="${escapeHtml(nickname)}">${initial}</span>
+    </span>
+  `;
 }
 
 function displayMediaUrl(itemOrUrl) {

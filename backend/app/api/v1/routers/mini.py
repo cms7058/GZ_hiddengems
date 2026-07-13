@@ -16,7 +16,7 @@ from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.content import TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
-from app.services.media_storage import MediaStorageError, save_media
+from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
@@ -37,6 +37,11 @@ MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
+def user_to_out(db: Session, user: MiniProgramUser) -> MiniProgramUserOut:
+    result = MiniProgramUserOut.model_validate(user)
+    return result.model_copy(update={"avatar_url": get_media_display_url(db, user.avatar_url)})
+
+
 @router.get("/service-hours")
 def get_service_hours(db: Session = Depends(get_db)) -> dict:
     return get_mini_program_service_hours(db)
@@ -46,7 +51,7 @@ def ensure_active_user(db: Session, user_id: int) -> MiniProgramUser:
     user = db.get(MiniProgramUser, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return user_to_out(db, user)
 
 
 def ensure_user_permission(user: MiniProgramUser, permission: str) -> None:

@@ -53,12 +53,15 @@ App({
             resolve(this.globalData.user)
             return
           }
-          miniLogin({
+          const loginPayload = {
             code,
             nickname: profile.nickname || this.globalData.user.nickname,
-            avatar_url: profile.avatar_url || this.globalData.user.avatar_url,
             language: this.globalData.lang || "zh-CN",
-          })
+          }
+          if (Object.prototype.hasOwnProperty.call(profile, "avatar_url")) {
+            loginPayload.avatar_url = profile.avatar_url
+          }
+          miniLogin(loginPayload)
             .then((user) => {
               if (profile.force && (!user || !user.openid)) {
                 reject(new Error("mini login returned no openid"))
