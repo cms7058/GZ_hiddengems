@@ -1965,14 +1965,23 @@ $("#tagsTable").addEventListener("click", async (event) => {
 });
 
 $("#usersTable").addEventListener("click", async (event) => {
-  const editId = event.target.dataset.editUser;
-  const toggleId = event.target.dataset.toggleUser;
-  const deleteId = event.target.dataset.deleteUser;
+  const editButton = event.target.closest("[data-edit-user]");
+  const toggleButton = event.target.closest("[data-toggle-user]");
+  const deleteButton = event.target.closest("[data-delete-user]");
+  const editId = editButton?.dataset.editUser;
+  const toggleId = toggleButton?.dataset.toggleUser;
+  const deleteId = deleteButton?.dataset.deleteUser;
 
   if (editId) {
-    const user = state.users.find((item) => item.id === Number(editId));
-    fillUserForm(user);
-    $("#userDialog").showModal();
+    try {
+      let user = state.users.find((item) => item.id === Number(editId));
+      if (!user) user = await request(`/admin/users/${editId}`);
+      if (!user) throw new Error("User not found");
+      fillUserForm(user);
+      $("#userDialog").showModal();
+    } catch (error) {
+      showToast(`${t("加载失败")}：${error.message}`);
+    }
   }
 
   if (toggleId) {
