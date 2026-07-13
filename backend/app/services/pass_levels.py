@@ -15,6 +15,7 @@ def ensure_pass_level_marker_color_column(db: Session) -> None:
     column_specs = {
         "marker_color": "VARCHAR(16) NOT NULL DEFAULT '#2f6b4f'",
         "required_explore_points": "INT NOT NULL DEFAULT 0",
+        "checkin_points": "INT NOT NULL DEFAULT 0",
     }
     added = False
     for column_name, column_type in column_specs.items():
@@ -48,16 +49,12 @@ def required_explore_points_for_spot(
     return max(int(spot_required_explore_points or 0), int(setting_points or 0))
 
 
-def user_meets_pass_setting(user: MiniProgramUser, setting: Optional[PassLevelSetting]) -> bool:
-    if setting is None:
-        return True
-    return (
-        user.explore_points >= setting.required_explore_points
-        and user.checkin_count >= setting.required_checkins
-        and user.contribution_count >= setting.required_contributions
-        and user.eco_credit >= setting.required_eco_credit
-        and (not setting.requires_membership or user.is_member)
-    )
+def get_checkin_points_for_level(
+    settings_by_level: Optional[dict[int, PassLevelSetting]],
+    recommendation_level: int,
+) -> int:
+    setting = (settings_by_level or {}).get(recommendation_level)
+    return int(setting.checkin_points or 0) if setting is not None else 0
 
 
 def get_spot_unlock_state(
@@ -72,20 +69,4 @@ def get_spot_unlock_state(
     required_points = required_explore_points_for_spot(spot_required_explore_points, setting)
     if user is None:
         return fallback_explore_points >= required_points, required_points
-    return user.explore_points >= required_points and user_meets_pass_setting(user, setting), required_points
-
-
-def sync_user_explorer_level(db: Session, user: MiniProgramUser) -> bool:
-    settings = get_active_pass_settings_by_level(db)
-    matched_levels = [level for level, setting in settings.items() if user_meets_pass_setting(user, setting)]
-    next_level = max(matched_levels, default=0)
-    if user.explorer_level == next_level:
-        return False
-    user.explorer_level = next_level
-    db.add(user)
-    return True
-
-
-def sync_all_user_explorer_levels(db: Session) -> int:
-    users = db.scalars(select(MiniProgramUser).where(MiniProgramUser.is_active.is_(True))).all()
-    return sum(sync_user_explorer_level(db, user) for user in users)
+    return user.explore_points >= required_points, required_points

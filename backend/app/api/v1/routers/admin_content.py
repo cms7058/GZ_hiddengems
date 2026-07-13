@@ -27,7 +27,6 @@ from app.schemas.content import (
 from app.schemas.pagination import Page
 from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
 from app.services.pagination import build_page, paginated_scalars
-from app.services.pass_levels import sync_user_explorer_level
 
 
 router = APIRouter()
@@ -48,7 +47,6 @@ def sync_content_contribution(user, previous_status: str, next_status: str, db: 
         user.contribution_count += 1
     elif was_approved and not is_approved and user.contribution_count > 0:
         user.contribution_count -= 1
-    sync_user_explorer_level(db, user)
 
 
 def detect_media_type(file: UploadFile, allow_video: bool = False) -> tuple[str, str]:

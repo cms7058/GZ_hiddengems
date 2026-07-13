@@ -10,7 +10,6 @@ from app.schemas.pagination import Page
 from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
-from app.services.pass_levels import sync_user_explorer_level
 
 
 router = APIRouter()
@@ -68,7 +67,6 @@ def create_admin_user(
         db.add(exists)
         db.flush()
         sync_user_membership_by_points(db, exists)
-        sync_user_explorer_level(db, exists)
         db.commit()
         db.refresh(exists)
         return exists
@@ -77,7 +75,6 @@ def create_admin_user(
     db.add(user)
     db.flush()
     sync_user_membership_by_points(db, user)
-    sync_user_explorer_level(db, user)
     db.commit()
     db.refresh(user)
     return user
@@ -99,7 +96,6 @@ def update_admin_user(
 
     if "explore_points" in payload.model_dump(exclude_unset=True):
         sync_user_membership_by_points(db, user)
-    sync_user_explorer_level(db, user)
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -208,7 +208,7 @@ page {
 
 .filter-summary {
   min-height: 76rpx;
-  margin-top: 16rpx;
+  margin-top: auto;
   padding: 14rpx 16rpx;
   border: 1rpx solid #dce8dc;
   border-radius: 8rpx;

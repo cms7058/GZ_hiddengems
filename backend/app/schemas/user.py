@@ -9,11 +9,8 @@ class MiniProgramUserUpdate(BaseModel):
     avatar_url: Optional[str] = Field(default=None, max_length=512)
     phone: Optional[str] = Field(default=None, max_length=32)
     language: Optional[str] = Field(default=None, max_length=16)
-    explorer_level: Optional[int] = Field(default=None, ge=0, le=5)
     explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: Optional[int] = Field(default=None, ge=0)
-    contribution_count: Optional[int] = Field(default=None, ge=0)
-    eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
     is_member: Optional[bool] = None
     is_active: Optional[bool] = None
     can_upload_image: Optional[bool] = None
@@ -28,7 +25,6 @@ class MiniProgramUserCreate(BaseModel):
     avatar_url: Optional[str] = Field(default=None, max_length=512)
     phone: Optional[str] = Field(default=None, max_length=32)
     language: str = Field(default="zh-CN", max_length=16)
-    explorer_level: int = Field(default=0, ge=0, le=5)
     explore_points: int = Field(default=0, ge=0)
     checkin_count: int = Field(default=0, ge=0)
     contribution_count: int = Field(default=0, ge=0)
@@ -48,7 +44,6 @@ class MiniProgramUserOut(BaseModel):
     avatar_url: Optional[str] = None
     phone: Optional[str] = None
     language: str
-    explorer_level: int
     explore_points: int
     checkin_count: int
     contribution_count: int
@@ -76,9 +71,7 @@ class PassLevelSettingCreate(BaseModel):
     name_zh: str = Field(..., max_length=64)
     name_en: str = Field(..., max_length=64)
     required_explore_points: int = Field(default=0, ge=0)
-    required_checkins: int = Field(default=0, ge=0)
-    required_contributions: int = Field(default=0, ge=0)
-    required_eco_credit: int = Field(default=0, ge=0, le=100)
+    checkin_points: int = Field(default=0, ge=0)
     requires_membership: bool = False
     unlock_benefit_zh: str = Field(..., max_length=512)
     unlock_benefit_en: str = Field(..., max_length=512)
@@ -91,9 +84,7 @@ class PassLevelSettingUpdate(BaseModel):
     name_zh: Optional[str] = Field(default=None, max_length=64)
     name_en: Optional[str] = Field(default=None, max_length=64)
     required_explore_points: Optional[int] = Field(default=None, ge=0)
-    required_checkins: Optional[int] = Field(default=None, ge=0)
-    required_contributions: Optional[int] = Field(default=None, ge=0)
-    required_eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
+    checkin_points: Optional[int] = Field(default=None, ge=0)
     requires_membership: Optional[bool] = None
     unlock_benefit_zh: Optional[str] = Field(default=None, max_length=512)
     unlock_benefit_en: Optional[str] = Field(default=None, max_length=512)
@@ -107,9 +98,7 @@ class PassLevelSettingOut(BaseModel):
     name_zh: str
     name_en: str
     required_explore_points: int
-    required_checkins: int
-    required_contributions: int
-    required_eco_credit: int
+    checkin_points: int
     requires_membership: bool
     unlock_benefit_zh: str
     unlock_benefit_en: str
@@ -199,3 +188,4 @@ class CheckinRecordOut(BaseModel):
     media_type: Optional[str] = None
     note: Optional[str] = None
     review_note: Optional[str] = None
+    awarded_explore_points: int = 0

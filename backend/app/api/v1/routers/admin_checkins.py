@@ -12,11 +12,10 @@ from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut, CheckinReviewUpdate
 from app.services.pagination import build_page, paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
-from app.services.pass_levels import sync_user_explorer_level
+from app.services.pass_levels import get_active_pass_settings_by_level, get_checkin_points_for_level
 
 
 router = APIRouter()
-CHECKIN_EXPLORE_POINTS = 20
 
 
 def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
@@ -32,6 +31,7 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         image_url=record.image_url,
         note=record.note,
         review_note=record.review_note,
+        awarded_explore_points=record.awarded_explore_points,
     )
 
 
@@ -79,14 +79,19 @@ def review_checkin(
     record.reviewed_at = datetime.utcnow()
 
     if payload.status == "approved" and not was_approved:
+        checkin_points = get_checkin_points_for_level(
+            get_active_pass_settings_by_level(db),
+            record.spot.recommendation_level,
+        )
         record.user.checkin_count += 1
-        record.user.explore_points += CHECKIN_EXPLORE_POINTS
+        record.awarded_explore_points = checkin_points
+        record.user.explore_points += checkin_points
     if payload.status != "approved" and was_approved and record.user.checkin_count > 0:
         record.user.checkin_count -= 1
-        record.user.explore_points = max(record.user.explore_points - CHECKIN_EXPLORE_POINTS, 0)
+        record.user.explore_points = max(record.user.explore_points - record.awarded_explore_points, 0)
+        record.awarded_explore_points = 0
 
     sync_user_membership_by_points(db, record.user)
-    sync_user_explorer_level(db, record.user)
     db.add(record)
     db.commit()
     db.refresh(record)

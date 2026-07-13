@@ -82,7 +82,6 @@ Page({
       `lang=${this.data.lang}`,
       `user_id=${user.id}`,
       `explore_points=${user.explore_points}`,
-      `user_level=${user.explorer_level}`,
       `is_member=${user.is_member ? "true" : "false"}`,
     ]
     return `/spots/map?${params.join("&")}`

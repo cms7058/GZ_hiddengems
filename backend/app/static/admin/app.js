@@ -83,10 +83,12 @@ const I18N = {
   "推荐条目": "Recommendations",
   "维护中英文内容、坐标、标签、可见级别和审核状态。": "Maintain bilingual content, coordinates, tags, visibility levels, and review states.",
   "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
-  "管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。": "Manage registered users, membership status, explorer levels, explore points, and eco credit.",
+  "管理小程序注册用户、会员状态、探秘积分、贡献数和环保信用。": "Manage registered users, membership status, explore points, contribution count, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
   "配置探索等级的通关条件、会员要求、地图标识颜色和解锁权益。": "Configure pass requirements, membership rules, map marker colors, and unlock benefits.",
   "配置探索等级的探秘积分、打卡、贡献、环保信用、会员要求和解锁权益。": "Configure explore points, check-ins, contributions, eco credit, membership, and unlock benefits.",
+  "配置景点解锁积分、每次审核通过打卡可获得的积分、会员要求和解锁权益。": "Configure spot unlock points, points awarded for each approved check-in, membership rules, and unlock benefits.",
+  "积分规则": "Points Rules",
   "新增等级": "New Level",
   "标识颜色": "Marker Color",
   "请先配置通关等级": "Configure a pass level first",
@@ -331,6 +333,7 @@ const I18N = {
   "视频不能设为封面": "Video cannot be set as cover",
   "通关设置已保存": "Pass setting saved",
   "通关等级不可重复": "Pass level must be unique",
+  "每次打卡积分": "Points Per Check-in",
   "会员套餐已保存": "Membership plan saved",
   "打卡审核已保存": "Check-in review saved",
   "已刷新": "Refreshed",
@@ -658,7 +661,6 @@ function renderUsers() {
           <td>${imageCell(user.avatar_url, user.nickname)}</td>
           <td>${escapeHtml(user.openid)}</td>
           <td>${escapeHtml(user.language)}</td>
-          <td>L${user.explorer_level}</td>
           <td>
             <div class="cell-title">
               <span>${t("打卡")} ${user.checkin_count} / ${t("贡献")} ${user.contribution_count}</span>
@@ -704,8 +706,8 @@ function renderPassSettings() {
           </td>
           <td>
             <div class="cell-title">
-              <span>${t("探秘积分")} ${setting.required_explore_points || 0} / ${t("打卡")} ${setting.required_checkins}</span>
-              <span class="muted">${t("贡献")} ${setting.required_contributions} / ${t("环保信用")} ${setting.required_eco_credit}</span>
+              <span>${t("探秘积分")} ${setting.required_explore_points || 0}</span>
+              <span class="muted">${t("每次打卡积分")} ${setting.checkin_points || 0}</span>
             </div>
           </td>
           <td>
@@ -1403,7 +1405,6 @@ function fillUserForm(user) {
   $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
   if (!user) {
     form.elements.language.value = "zh-CN";
-    form.elements.explorer_level.value = 0;
     form.elements.explore_points.value = 0;
     form.elements.checkin_count.value = 0;
     form.elements.contribution_count.value = 0;
@@ -1422,7 +1423,6 @@ function fillUserForm(user) {
     "avatar_url",
     "phone",
     "language",
-    "explorer_level",
     "explore_points",
     "checkin_count",
     "contribution_count",
@@ -1488,9 +1488,7 @@ function fillPassSettingForm(setting) {
   setPassMarkerColorInputs(markerColor);
   if (!setting) {
     form.elements.required_explore_points.value = 0;
-    form.elements.required_checkins.value = 0;
-    form.elements.required_contributions.value = 0;
-    form.elements.required_eco_credit.value = 0;
+    form.elements.checkin_points.value = 0;
     form.elements.requires_membership.checked = false;
     form.elements.is_active.checked = true;
     return;
@@ -1499,9 +1497,7 @@ function fillPassSettingForm(setting) {
     "name_zh",
     "name_en",
     "required_explore_points",
-    "required_checkins",
-    "required_contributions",
-    "required_eco_credit",
+    "checkin_points",
     "unlock_benefit_zh",
     "unlock_benefit_en",
   ].forEach((field) => {
@@ -2308,11 +2304,8 @@ $("#userForm").addEventListener("submit", async (event) => {
     avatar_url: data.avatar_url || null,
     phone: data.phone || null,
     language: data.language,
-    explorer_level: Number(data.explorer_level),
     explore_points: Number(data.explore_points),
     checkin_count: Number(data.checkin_count),
-    contribution_count: Number(data.contribution_count),
-    eco_credit: Number(data.eco_credit),
     is_member: form.elements.is_member.checked,
     is_active: form.elements.is_active.checked,
     can_upload_image: form.elements.can_upload_image.checked,
@@ -2390,9 +2383,7 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
     name_zh: data.name_zh,
     name_en: data.name_en,
     required_explore_points: Number(data.required_explore_points),
-    required_checkins: Number(data.required_checkins),
-    required_contributions: Number(data.required_contributions),
-    required_eco_credit: Number(data.required_eco_credit),
+    checkin_points: Number(data.checkin_points),
     requires_membership: form.elements.requires_membership.checked,
     unlock_benefit_zh: data.unlock_benefit_zh,
     unlock_benefit_en: data.unlock_benefit_en,

@@ -78,7 +78,6 @@ class ApiTest(unittest.TestCase):
             nickname="山野摄影师",
             phone="13800000001",
             language="zh-CN",
-            explorer_level=2,
             explore_points=120,
             checkin_count=8,
             contribution_count=3,
@@ -90,9 +89,7 @@ class ApiTest(unittest.TestCase):
             level=2,
             name_zh="行者",
             name_en="Wayfarer",
-            required_checkins=5,
-            required_contributions=1,
-            required_eco_credit=85,
+            checkin_points=25,
             unlock_benefit_zh="可查看部分会员级秘境的更精确区域。",
             unlock_benefit_en="View more accurate areas for selected member-level spots.",
         )
@@ -188,16 +185,22 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.json()[0]["name"], "Photography")
 
     def test_map_spots_mask_protected_location_for_regular_user(self):
-        response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN")
+        response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN&explore_points=120")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertFalse(data[0]["is_precise_location"])
-        self.assertFalse(data[0]["is_unlocked"])
+        self.assertTrue(data[0]["is_unlocked"])
         self.assertEqual(data[0]["required_explore_points"], 100)
         self.assertEqual(data[0]["latitude"], 25.74)
         self.assertEqual(data[0]["longitude"], 108.51)
+
+    def test_map_spots_accepts_high_explorer_levels(self):
+        response = self.client.get("/api/v1/spots/map?lang=zh-CN&user_level=7&explore_points=120")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["id"], 1)
 
     def test_spot_detail_supports_english(self):
         response = self.client.get("/api/v1/spots/1?lang=en-US&user_level=3&is_member=true&explore_points=120")
@@ -434,7 +437,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(create_response.status_code, 201)
         spot_id = create_response.json()["id"]
 
-        before_review = self.client.get("/api/v1/spots/map?tag_ids=1")
+        before_review = self.client.get("/api/v1/spots/map?tag_ids=1&explore_points=120")
         self.assertEqual(len(before_review.json()), 1)
 
         review_response = self.client.patch(
@@ -445,7 +448,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(review_response.status_code, 200)
         self.assertEqual(review_response.json()["review_status"], "approved")
 
-        after_review = self.client.get("/api/v1/spots/map?tag_ids=1")
+        after_review = self.client.get("/api/v1/spots/map?tag_ids=1&explore_points=120")
         self.assertEqual(len(after_review.json()), 2)
 
     def test_admin_spot_requires_existing_pass_level(self):
@@ -484,7 +487,6 @@ class ApiTest(unittest.TestCase):
             "/api/v1/admin/users/1",
             headers=headers,
             json={
-                "explorer_level": 3,
                 "explore_points": 160,
                 "avatar_url": "/media/avatars/test.jpg",
                 "is_member": False,
@@ -493,7 +495,6 @@ class ApiTest(unittest.TestCase):
         )
         self.assertEqual(update_response.status_code, 200)
         data = update_response.json()
-        self.assertEqual(data["explorer_level"], 2)
         self.assertEqual(data["explore_points"], 160)
         self.assertEqual(data["avatar_url"], "/media/avatars/test.jpg")
         self.assertTrue(data["is_member"])
@@ -517,7 +518,7 @@ class ApiTest(unittest.TestCase):
             "/api/v1/admin/pass-settings/1",
             headers=self.login_headers(),
             json={
-                "required_checkins": 6,
+                "checkin_points": 6,
                 "requires_membership": True,
                 "unlock_benefit_zh": "更新后的解锁权益。",
             },
@@ -525,7 +526,7 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["required_checkins"], 6)
+        self.assertEqual(data["checkin_points"], 6)
         self.assertTrue(data["requires_membership"])
         self.assertEqual(data["unlock_benefit_zh"], "更新后的解锁权益。")
 
@@ -583,9 +584,7 @@ class ApiTest(unittest.TestCase):
 
         locked_response = self.client.get("/api/v1/spots/map?user_id=1&lang=zh-CN")
         self.assertEqual(locked_response.status_code, 200)
-        locked_spot = locked_response.json()[0]
-        self.assertFalse(locked_spot["is_unlocked"])
-        self.assertEqual(locked_spot["required_explore_points"], 180)
+        self.assertEqual(locked_response.json(), [])
 
         user_response = self.client.patch(
             "/api/v1/admin/users/1",
@@ -593,7 +592,6 @@ class ApiTest(unittest.TestCase):
             json={"explore_points": 180},
         )
         self.assertEqual(user_response.status_code, 200)
-        self.assertEqual(user_response.json()["explorer_level"], 5)
 
         unlocked_response = self.client.get("/api/v1/spots/1?user_id=1&lang=zh-CN")
         self.assertEqual(unlocked_response.status_code, 200)
@@ -686,6 +684,19 @@ class ApiTest(unittest.TestCase):
 
     def test_admin_can_review_checkins_and_update_user_count(self):
         headers = self.login_headers()
+        setting_response = self.client.post(
+            "/api/v1/admin/pass-settings",
+            headers=headers,
+            json={
+                "level": 5,
+                "name_zh": "守护者",
+                "name_en": "Guardian",
+                "checkin_points": 25,
+                "unlock_benefit_zh": "高级秘境解锁",
+                "unlock_benefit_en": "Unlock advanced gems",
+            },
+        )
+        self.assertEqual(setting_response.status_code, 201)
         list_response = self.client.get("/api/v1/admin/checkins", headers=headers)
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.json()["items"][0]["status"], "pending")
@@ -697,10 +708,11 @@ class ApiTest(unittest.TestCase):
         )
         self.assertEqual(approve_response.status_code, 200)
         self.assertEqual(approve_response.json()["status"], "approved")
+        self.assertEqual(approve_response.json()["awarded_explore_points"], 25)
 
         user_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_response.json()["checkin_count"], 9)
-        self.assertEqual(user_response.json()["explore_points"], 140)
+        self.assertEqual(user_response.json()["explore_points"], 145)
 
         approve_again_response = self.client.patch(
             "/api/v1/admin/checkins/1/review",
@@ -710,7 +722,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(approve_again_response.status_code, 200)
         user_again_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_again_response.json()["checkin_count"], 9)
-        self.assertEqual(user_again_response.json()["explore_points"], 140)
+        self.assertEqual(user_again_response.json()["explore_points"], 145)
 
     def test_admin_can_manage_spot_images(self):
         headers = self.login_headers()

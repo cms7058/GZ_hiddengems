@@ -164,7 +164,7 @@
           <div class="section-head">
             <div>
               <h2>用户管理</h2>
-              <p class="muted">管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。</p>
+              <p class="muted">管理小程序注册用户、会员状态、探秘积分、贡献数和环保信用。</p>
             </div>
             <button id="newUserBtn" class="primary-btn">新增用户</button>
           </div>
@@ -176,7 +176,6 @@
                   <th>头像</th>
                   <th>OpenID</th>
                   <th>语言</th>
-                  <th>等级</th>
                   <th>数据</th>
                   <th>权限</th>
                   <th>会员</th>
@@ -193,7 +192,7 @@
           <div class="section-head">
             <div>
               <h2>通关设置</h2>
-              <p class="muted">配置探索等级的探秘积分、打卡、贡献、环保信用、会员要求和解锁权益。</p>
+              <p class="muted">配置景点解锁积分、每次审核通过打卡可获得的积分、会员要求和解锁权益。</p>
             </div>
             <button id="newPassSettingBtn" class="primary-btn">新增等级</button>
           </div>
@@ -203,7 +202,7 @@
                 <tr>
                   <th>等级</th>
                   <th>名称</th>
-                  <th>条件</th>
+                  <th>积分规则</th>
                   <th>标识颜色</th>
                   <th>会员</th>
                   <th>解锁权益</th>
@@ -519,11 +518,10 @@
               <option value="en-US">English</option>
             </select>
           </label>
-          <label><span>探索等级</span><input name="explorer_level" type="number" min="0" max="5" /></label>
           <label><span>探秘积分</span><input name="explore_points" type="number" min="0" /></label>
           <label><span>打卡数</span><input name="checkin_count" type="number" min="0" /></label>
-          <label><span>贡献数</span><input name="contribution_count" type="number" min="0" /></label>
-          <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" /></label>
+          <label><span>贡献数</span><input name="contribution_count" type="number" min="0" readonly /></label>
+          <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" readonly /></label>
           <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
           <div class="full checks permission-checks">
@@ -638,9 +636,7 @@
           <label><span>中文名称</span><input name="name_zh" required maxlength="64" /></label>
           <label><span>英文名称</span><input name="name_en" required maxlength="64" /></label>
           <label><span>所需探秘积分</span><input name="required_explore_points" type="number" min="0" /></label>
-          <label><span>所需打卡</span><input name="required_checkins" type="number" min="0" /></label>
-          <label><span>所需贡献</span><input name="required_contributions" type="number" min="0" /></label>
-          <label><span>环保信用</span><input name="required_eco_credit" type="number" min="0" max="100" /></label>
+          <label><span>每次打卡积分</span><input name="checkin_points" type="number" min="0" /></label>
           <label class="switch-line"><input name="requires_membership" type="checkbox" /> <span>需要会员</span></label>
           <label class="full"><span>中文权益</span><input name="unlock_benefit_zh" required maxlength="512" /></label>
           <label class="full"><span>英文权益</span><input name="unlock_benefit_en" required maxlength="512" /></label>

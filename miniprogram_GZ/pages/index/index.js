@@ -34,7 +34,7 @@ const COPY = {
     lockedAction: "积分不足",
     empty: "暂无匹配秘境",
     loading: "加载中",
-    offline: "当前显示示例点位",
+    offline: "后台数据暂不可用，请检查网络与小程序服务器域名配置。",
     tagPrefix: "标签",
     weather: "实时天气",
     weatherUnavailable: "天气暂不可用",
@@ -56,6 +56,7 @@ const COPY = {
     profileButton: "微信授权获取",
     profileSkip: "暂不授权",
     profileFailed: "获取用户信息失败",
+    profileDomainFailed: "小程序请求域名尚未配置。请在微信公众平台当前 AppID 的“服务器域名”中添加 https://hiddengems.pebs.tech 后重新编译。",
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
   },
   "en-US": {
@@ -78,7 +79,7 @@ const COPY = {
     lockedAction: "Locked",
     empty: "No matching spots",
     loading: "Loading",
-    offline: "Showing demo spots",
+    offline: "Backend data is unavailable. Check the network and mini program server-domain settings.",
     tagPrefix: "Tags",
     weather: "Weather",
     weatherUnavailable: "Weather unavailable",
@@ -100,6 +101,7 @@ const COPY = {
     profileButton: "Use WeChat Profile",
     profileSkip: "Skip",
     profileFailed: "Failed to get profile",
+    profileDomainFailed: "The mini program request domain is not configured. Add https://hiddengems.pebs.tech to Server Domains for the current AppID, then recompile.",
     serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
   },
 }
@@ -289,13 +291,18 @@ Page({
         return
       }
       this.setData({
-        tags: DEMO_TAGS,
-        spots: DEMO_SPOTS,
+        tags: [],
+        spots: [],
+        filteredSpots: [],
+        levelOptions: [],
+        markers: [],
+        selectedSpot: null,
+        selectedSpotId: 0,
+        unlockHint: { hiddenCount: 0, nextNeed: 0 },
         offline: true,
         serviceClosed: false,
         loading: false,
       })
-      this.applyFilters()
     }
   },
 
@@ -305,7 +312,6 @@ Page({
       `lang=${this.data.lang}`,
       `user_id=${user.id}`,
       `explore_points=${user.explore_points}`,
-      `user_level=${user.explorer_level}`,
       `is_member=${user.is_member ? "true" : "false"}`,
     ]
     return `/spots/map?${params.join("&")}`
@@ -690,9 +696,11 @@ Page({
       console.warn("save profile failed", error)
       this.setData({ profileLoading: false })
       wx.hideLoading()
+      const message = error && error.message ? error.message : this.data.copy.profileFailed
+      const isDomainConfigError = /not in domain list|合法域名|request:fail/i.test(message)
       wx.showModal({
         title: this.data.copy.profileFailed,
-        content: error && error.message ? error.message : this.data.copy.profileFailed,
+        content: isDomainConfigError ? this.data.copy.profileDomainFailed : message,
         showCancel: false,
       })
     }

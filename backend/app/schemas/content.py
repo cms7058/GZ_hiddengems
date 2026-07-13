@@ -105,7 +105,7 @@ class RecommendationCreate(BaseModel):
     contact: Optional[str] = Field(default=None, max_length=128)
     image_url: Optional[str] = Field(default=None, max_length=512)
     price_level: str = Field(default="mid", max_length=32)
-    recommendation_level: int = Field(default=1, ge=1, le=5)
+    recommendation_level: int = Field(default=1, ge=1, le=99)
     is_active: bool = True
 
 
@@ -122,7 +122,7 @@ class RecommendationUpdate(BaseModel):
     contact: Optional[str] = Field(default=None, max_length=128)
     image_url: Optional[str] = Field(default=None, max_length=512)
     price_level: Optional[str] = Field(default=None, max_length=32)
-    recommendation_level: Optional[int] = Field(default=None, ge=1, le=5)
+    recommendation_level: Optional[int] = Field(default=None, ge=1, le=99)
     is_active: Optional[bool] = None
 
 

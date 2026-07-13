@@ -3,7 +3,6 @@ const DEFAULT_USER = {
   nickname: "秘境探索者",
   avatar_url: "",
   explore_points: 80,
-  explorer_level: 1,
   is_member: false,
   can_upload_image: true,
   can_upload_video: true,

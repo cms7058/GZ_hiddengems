@@ -33,7 +33,7 @@ def resolve_user_context(
 def list_map_spots(
     lang: str = Query(default="zh-CN"),
     tag_ids: list[int] = Query(default=[]),
-    user_level: int = Query(default=0, ge=0, le=5),
+    user_level: int = Query(default=0, ge=0, le=99),
     is_member: bool = Query(default=False),
     user_id: Optional[int] = Query(default=None),
     explore_points: int = Query(default=0, ge=0),
@@ -55,7 +55,7 @@ def list_map_spots(
     spots = db.scalars(statement).all()
     marker_colors_by_level = get_marker_colors_by_level(db)
     pass_settings_by_level = get_active_pass_settings_by_level(db)
-    return [
+    map_spots = [
         spot_to_map_out(
             spot,
             lang=lang,
@@ -68,13 +68,14 @@ def list_map_spots(
         )
         for spot in spots
     ]
+    return [spot for spot in map_spots if spot.is_unlocked]
 
 
 @router.get("/{spot_id}", response_model=SpotDetailOut)
 def get_spot_detail(
     spot_id: int,
     lang: str = Query(default="zh-CN"),
-    user_level: int = Query(default=0, ge=0, le=5),
+    user_level: int = Query(default=0, ge=0, le=99),
     is_member: bool = Query(default=False),
     user_id: Optional[int] = Query(default=None),
     explore_points: int = Query(default=0, ge=0),
