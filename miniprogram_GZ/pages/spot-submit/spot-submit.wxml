@@ -13,17 +13,6 @@
       <view wx:if="{{mode === 'checkin'}}" class="section">
         <view class="section-head"><text>{{copy.checkin}}</text></view>
         <view class="location-chip {{userLocation ? 'active' : ''}}">{{userLocation ? copy.currentLocation : copy.locationFailed}}</view>
-        <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseCheckinMedia">{{copy.chooseMedia}}</button>
-        <view wx:if="{{checkinMedia}}" class="media-state">
-          <image wx:if="{{checkinMedia.media_type === 'image'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" mode="aspectFill"></image>
-          <video wx:elif="{{checkinMedia.media_type === 'video'}}" class="media-preview" src="{{checkinMedia.tempFilePath}}" controls></video>
-          <view class="media-info">
-            <text class="media-title">{{copy.mediaReady}}</text>
-            <text class="media-meta">{{checkinMedia.media_type}}</text>
-          </view>
-          <text class="remove-media" catchtap="onRemoveCheckinMedia">{{copy.removeMedia}}</text>
-        </view>
-        <textarea class="form-textarea" value="{{checkinNote}}" maxlength="512" placeholder="{{copy.checkinPlaceholder}}" bindinput="onCheckinNoteInput"></textarea>
         <button wx:if="{{user.can_checkin}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitCheckin">{{copy.checkin}}</button>
       </view>
 
@@ -31,6 +20,14 @@
         <view class="section-head"><text>{{copy.writeNote}}</text></view>
         <input class="form-input" value="{{noteForm.title}}" maxlength="128" placeholder="{{copy.noteTitlePlaceholder}}" bindinput="onNoteTitleInput" />
         <textarea class="form-textarea" value="{{noteForm.content}}" placeholder="{{copy.noteContentPlaceholder}}" bindinput="onNoteContentInput"></textarea>
+        <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseNoteMedia">{{copy.chooseMedia}}</button>
+        <view wx:if="{{noteMedia.length}}" class="media-grid">
+          <view wx:for="{{noteMedia}}" wx:key="media_url" class="media-state">
+            <image wx:if="{{item.media_type === 'image'}}" class="media-preview" src="{{item.tempFilePath}}" mode="aspectFill"></image>
+            <video wx:else class="media-preview" src="{{item.tempFilePath}}" controls></video>
+            <text class="remove-media" data-index="{{index}}" catchtap="onRemoveNoteMedia">{{copy.removeMedia}}</text>
+          </view>
+        </view>
         <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
       </view>
 
@@ -52,4 +49,5 @@
     </view>
   </scroll-view>
   <view class="floating-back" catchtap="onBackTap">←</view>
+  <bottom-tabs lang="{{lang}}"></bottom-tabs>
 </view>

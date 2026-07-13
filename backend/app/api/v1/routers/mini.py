@@ -3,6 +3,7 @@ from typing import Optional
 from urllib.parse import urlencode
 from urllib.request import urlopen
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -10,14 +11,15 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.content import TravelNote, UserComment
+from app.models.content import ContentMedia, TravelNote, UserComment
 from app.models.spot import ScenicSpot
 from app.models.user import CheckinRecord, MiniProgramUser
-from app.schemas.content import TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
+from app.schemas.content import ContentMediaOut, TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
 from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
+from app.services.pass_levels import get_active_pass_settings_by_level, get_checkin_points_for_level
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
 
@@ -109,7 +111,33 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         review_note=record.review_note,
         awarded_explore_points=record.awarded_explore_points,
         promoted_spot_image_id=record.promoted_spot_image_id,
+        checkin_distance_meters=record.checkin_distance_meters,
+        created_at=record.created_at,
+        reviewed_at=record.reviewed_at,
     )
+
+
+def haversine_distance_meters(latitude: float, longitude: float, target_latitude: float, target_longitude: float) -> int:
+    from math import asin, cos, radians, sin, sqrt
+
+    earth_radius = 6371000
+    latitude_delta = radians(target_latitude - latitude)
+    longitude_delta = radians(target_longitude - longitude)
+    a = sin(latitude_delta / 2) ** 2 + cos(radians(latitude)) * cos(radians(target_latitude)) * sin(longitude_delta / 2) ** 2
+    return round(earth_radius * 2 * asin(sqrt(a)))
+
+
+def add_content_media(db: Session, owner_type: str, owner_id: int, media) -> None:
+    for item in media:
+        db.add(
+            ContentMedia(
+                owner_type=owner_type,
+                owner_id=owner_id,
+                media_url=item.media_url,
+                media_type=item.media_type,
+                status="pending",
+            )
+        )
 
 
 @router.post("/login", response_model=MiniProgramUserOut)
@@ -177,8 +205,34 @@ async def upload_mini_media(
 def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> CheckinRecordOut:
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_checkin")
-    ensure_active_spot(db, payload.spot_id)
-    record = CheckinRecord(**payload.model_dump(), status="pending")
+    spot = ensure_active_spot(db, payload.spot_id)
+    if payload.latitude is None or payload.longitude is None:
+        raise HTTPException(status_code=400, detail="Location is required for check-in")
+    try:
+        distance = haversine_distance_meters(float(payload.latitude), float(payload.longitude), spot.latitude, spot.longitude)
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="Invalid check-in location") from error
+    passed = distance <= spot.checkin_radius_meters
+    awarded_points = 0
+    if passed:
+        awarded_points = get_checkin_points_for_level(
+            get_active_pass_settings_by_level(db), spot.recommendation_level
+        )
+        user.checkin_count += 1
+        user.explore_points += awarded_points
+        sync_user_membership_by_points(db, user)
+    record = CheckinRecord(
+        **payload.model_dump(),
+        status="approved" if passed else "rejected",
+        checkin_distance_meters=distance,
+        awarded_explore_points=awarded_points,
+        reviewed_at=datetime.utcnow(),
+        review_note=(
+            f"系统定位通过：距景点 {distance} 米，已获得 {awarded_points} 探秘积分。"
+            if passed
+            else f"系统定位未通过：距景点 {distance} 米，打卡范围为 {spot.checkin_radius_meters} 米。"
+        ),
+    )
     db.add(record)
     db.commit()
     db.refresh(record)
@@ -191,12 +245,14 @@ def create_travel_note(payload: TravelNoteCreate, db: Session = Depends(get_db))
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_comment")
     ensure_active_spot(db, payload.spot_id)
-    note = TravelNote(**payload.model_dump(exclude={"status", "is_featured"}), status="pending", is_featured=False)
+    note = TravelNote(**payload.model_dump(exclude={"status", "is_featured", "media"}), status="pending", is_featured=False)
     db.add(note)
+    db.flush()
+    add_content_media(db, "travel_note", note.id, payload.media)
     db.commit()
     db.refresh(note)
     db.refresh(note, attribute_names=["user", "spot"])
-    return travel_note_to_out(note)
+    return travel_note_to_out(note, db)
 
 
 @router.post("/comments", response_model=UserCommentOut, status_code=201)
@@ -204,9 +260,11 @@ def create_comment(payload: UserCommentCreate, db: Session = Depends(get_db)) ->
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_comment")
     ensure_active_spot(db, payload.spot_id)
-    comment = UserComment(**payload.model_dump(exclude={"status"}), status="pending")
+    comment = UserComment(**payload.model_dump(exclude={"status", "media"}), status="pending")
     db.add(comment)
+    db.flush()
+    add_content_media(db, "comment", comment.id, payload.media)
     db.commit()
     db.refresh(comment)
     db.refresh(comment, attribute_names=["user", "spot"])
-    return comment_to_out(comment)
+    return comment_to_out(comment, db)

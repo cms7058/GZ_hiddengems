@@ -29,6 +29,7 @@ const state = {
   editingTravelNoteId: null,
   editingCommentId: null,
   editingRecommendationId: null,
+  checkinFilters: {},
 };
 
 const PAGE_SIZE = 10;
@@ -806,22 +807,9 @@ function renderCheckins() {
         <tr>
           <td>${escapeHtml(checkin.nickname)}</td>
           <td>${escapeHtml(checkin.spot_name_zh)}</td>
-          <td>${escapeHtml(checkin.latitude || "-")}, ${escapeHtml(checkin.longitude || "-")}</td>
-          <td>
-            <div class="cell-title">
-              ${checkin.media_url || checkin.image_url ? renderSpotMediaPreview({ image_url: checkin.media_url || checkin.image_url, media_type: checkin.media_type || "image", caption: t("打卡媒体") }) : ""}
-              <span>${escapeHtml(checkin.note || "-")}</span>
-              <span class="muted">${escapeHtml(checkin.review_note || "")}</span>
-            </div>
-          </td>
+          <td>${checkin.checkin_distance_meters == null ? "-" : `${checkin.checkin_distance_meters}m`}</td>
+          <td>${escapeHtml(checkin.created_at ? new Date(checkin.created_at).toLocaleString() : "-")}</td>
           <td>${statusPill(checkin.status)}</td>
-          <td>
-            <div class="row-actions">
-              <button class="small-btn" data-edit-checkin="${checkin.id}">${t("审核")}</button>
-              <button class="small-btn" data-quick-checkin="${checkin.id}" data-checkin-status="approved">${t("通过")}</button>
-              <button class="small-btn danger" data-quick-checkin="${checkin.id}" data-checkin-status="rejected">${t("拒绝")}</button>
-            </div>
-          </td>
         </tr>
       `,
     )
@@ -859,7 +847,7 @@ function renderCommunity() {
               <button class="small-btn" data-note-status="${note.id}" data-status="approved">${t("通过")}</button>
               <button class="small-btn" data-note-status="${note.id}" data-status="hidden">${t("隐藏")}</button>
               <button class="small-btn" data-note-feature="${note.id}">${note.is_featured ? t("取消精选") : t("设为精选")}</button>
-              <button class="small-btn" data-edit-note="${note.id}">${t("编辑")}</button>
+              <button class="small-btn" data-edit-note="${note.id}">${t("审核")}</button>
               <button class="small-btn danger" data-delete-note="${note.id}">${t("删除")}</button>
             </div>
           </td>
@@ -882,7 +870,7 @@ function renderCommunity() {
             <div class="row-actions">
               <button class="small-btn" data-comment-status="${comment.id}" data-status="approved">${t("通过")}</button>
               <button class="small-btn danger" data-comment-status="${comment.id}" data-status="hidden">${t("隐藏")}</button>
-              <button class="small-btn" data-edit-comment="${comment.id}">${t("编辑")}</button>
+              <button class="small-btn" data-edit-comment="${comment.id}">${t("审核")}</button>
               <button class="small-btn danger" data-delete-comment="${comment.id}">${t("删除")}</button>
             </div>
           </td>
@@ -1292,7 +1280,7 @@ async function loadData() {
     requestPage("passSettings", "/admin/pass-settings"),
     requestPage("membershipPlans", "/admin/memberships/plans"),
     requestPage("membershipRecords", "/admin/memberships/records"),
-    requestPage("checkins", "/admin/checkins"),
+    requestPage("checkins", `/admin/checkins${new URLSearchParams(state.checkinFilters).toString() ? `?${new URLSearchParams(state.checkinFilters).toString()}` : ""}`),
     requestPage("travelNotes", "/admin/content/travel-notes"),
     requestPage("comments", "/admin/content/comments"),
     requestPage("recommendations", "/admin/content/recommendations"),
@@ -1516,17 +1504,19 @@ function fillTravelNoteForm(note = null) {
   form.reset();
   form.dataset.mediaDisplayUrl = "";
   state.editingTravelNoteId = note?.id || null;
-  $("#travelNoteDialogTitle").textContent = note ? `${t("编辑游记")}：${note.title}` : t("新增游记");
+  $("#travelNoteDialogTitle").textContent = note ? `${t("审核")}：${note.title}` : t("新增游记");
   if (!note) {
     form.elements.status.value = "pending";
     form.elements.is_featured.checked = false;
     renderFormMediaPreview("#travelNoteForm", "#travelNoteMediaPreview", t("游记"));
+    renderContentMediaReview("#travelNoteReviewMedia", []);
     return;
   }
   ["user_id", "spot_id", "title", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = note[field] ?? "";
   });
   form.dataset.mediaDisplayUrl = displayMediaUrl(note);
+  renderContentMediaReview("#travelNoteReviewMedia", note.media || []);
   form.elements.is_featured.checked = Boolean(note.is_featured);
   renderFormMediaPreview("#travelNoteForm", "#travelNoteMediaPreview", note.title);
 }
@@ -1536,17 +1526,35 @@ function fillCommentForm(comment = null) {
   form.reset();
   form.dataset.mediaDisplayUrl = "";
   state.editingCommentId = comment?.id || null;
-  $("#commentDialogTitle").textContent = comment ? `${t("编辑留言")}：${comment.nickname}` : t("新增留言");
+  $("#commentDialogTitle").textContent = comment ? `${t("审核")}：${comment.nickname}` : t("新增留言");
   if (!comment) {
     form.elements.status.value = "pending";
     renderFormMediaPreview("#commentForm", "#commentMediaPreview", t("留言图片"));
+    renderContentMediaReview("#commentReviewMedia", []);
     return;
   }
   ["user_id", "spot_id", "content", "image_url", "status"].forEach((field) => {
     form.elements[field].value = comment[field] ?? "";
   });
   form.dataset.mediaDisplayUrl = displayMediaUrl(comment);
+  renderContentMediaReview("#commentReviewMedia", comment.media || []);
   renderFormMediaPreview("#commentForm", "#commentMediaPreview", t("留言图片"));
+}
+
+function renderContentMediaReview(selector, mediaItems) {
+  const container = $(selector);
+  if (!container) return;
+  container.innerHTML = mediaItems.length
+    ? mediaItems.map((item) => `
+      <div class="spot-image-item">
+        ${renderSpotMediaPreview({ image_url: item.display_url || item.media_url, media_type: item.media_type, caption: item.status })}
+        <div class="row-actions">
+          <button type="button" class="small-btn" data-content-media-review="${item.id}" data-status="approved">${t("通过")}</button>
+          <button type="button" class="small-btn danger" data-content-media-review="${item.id}" data-status="rejected">${t("拒绝")}</button>
+          <button type="button" class="small-btn danger" data-delete-content-media="${item.id}">${t("删除")}</button>
+        </div>
+      </div>`).join("")
+    : `<span class="muted">暂无用户上传媒体</span>`;
 }
 
 function fillPassSettingForm(setting) {
@@ -1781,6 +1789,23 @@ $("#logoutBtn").addEventListener("click", () => {
 $("#refreshBtn").addEventListener("click", async () => {
   await loadData();
   showToast("已刷新");
+});
+
+$("#checkinSearchForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  state.checkinFilters = Object.fromEntries(
+    [...new FormData(form).entries()].filter(([, value]) => String(value).trim()),
+  );
+  state.pagination.checkins = { ...(state.pagination.checkins || {}), page: 1 };
+  await loadData();
+});
+
+$("#resetCheckinSearchBtn").addEventListener("click", async () => {
+  $("#checkinSearchForm").reset();
+  state.checkinFilters = {};
+  state.pagination.checkins = { ...(state.pagination.checkins || {}), page: 1 };
+  await loadData();
 });
 
 $("#accountSettingsBtn").addEventListener("click", () => {
@@ -2051,26 +2076,29 @@ $("#membershipPlansTable").addEventListener("click", async (event) => {
 });
 
 $("#checkinsTable").addEventListener("click", async (event) => {
-  const editId = event.target.dataset.editCheckin;
-  const quickId = event.target.dataset.quickCheckin;
+  event.preventDefault();
+});
 
-  if (editId) {
-    const checkin = state.checkins.find((item) => item.id === Number(editId));
-    fillCheckinForm(checkin);
-    $("#checkinDialog").showModal();
-  }
-
-  if (quickId) {
-    await request(`/admin/checkins/${quickId}/review`, {
+document.addEventListener("click", async (event) => {
+  const reviewButton = event.target.closest("[data-content-media-review]");
+  const deleteButton = event.target.closest("[data-delete-content-media]");
+  if (!reviewButton && !deleteButton) return;
+  const mediaId = reviewButton?.dataset.contentMediaReview || deleteButton?.dataset.deleteContentMedia;
+  if (deleteButton && !confirmDeletion()) return;
+  if (reviewButton) {
+    await request(`/admin/content/media/${mediaId}/review`, {
       method: "PATCH",
-      body: JSON.stringify({
-        status: event.target.dataset.checkinStatus,
-        review_note: event.target.dataset.checkinStatus === "approved" ? "后台快速通过。" : "后台快速拒绝。",
-      }),
+      body: JSON.stringify({ status: reviewButton.dataset.status }),
     });
-    await loadData();
-    showToast("打卡审核已更新");
+  } else {
+    await request(`/admin/content/media/${mediaId}`, { method: "DELETE" });
   }
+  await loadData();
+  const note = state.travelNotes.find((item) => item.id === state.editingTravelNoteId);
+  const comment = state.comments.find((item) => item.id === state.editingCommentId);
+  if (note && $("#travelNoteDialog").open) fillTravelNoteForm(note);
+  if (comment && $("#commentDialog").open) fillCommentForm(comment);
+  showToast("媒体审核已完成");
 });
 
 $("#travelNotesTable").addEventListener("click", async (event) => {

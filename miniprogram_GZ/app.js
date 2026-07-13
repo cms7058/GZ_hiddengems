@@ -13,8 +13,8 @@ const DEFAULT_USER = {
 const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
 
 const TAB_BAR_TEXT = {
-  "zh-CN": ["首页", "小助手", "用户"],
-  "en-US": ["Home", "Assistant", "Profile"],
+  "zh-CN": ["首页", "小助手", "我的"],
+  "en-US": ["Home", "Assistant", "My"],
 }
 
 App({

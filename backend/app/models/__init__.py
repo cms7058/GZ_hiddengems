@@ -1,5 +1,5 @@
 from app.models.admin import AdminUser
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag
 from app.models.user import (
@@ -13,6 +13,7 @@ from app.models.user import (
 __all__ = [
     "AdminUser",
     "CheckinRecord",
+    "ContentMedia",
     "LifestyleRecommendation",
     "IntegrationSetting",
     "MembershipPlan",

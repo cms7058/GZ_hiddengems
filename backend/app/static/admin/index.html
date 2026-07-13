@@ -262,16 +262,23 @@
               <p class="muted">审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。</p>
             </div>
           </div>
+          <form id="checkinSearchForm" class="row-actions admin-filters">
+            <input name="spot_keyword" placeholder="按秘境搜索" maxlength="128" />
+            <input name="user_keyword" placeholder="按用户搜索" maxlength="128" />
+            <select name="status"><option value="">全部状态</option><option value="approved">成功</option><option value="rejected">未通过</option></select>
+            <input name="checked_at" type="date" />
+            <button type="submit" class="secondary-btn">查询</button>
+            <button id="resetCheckinSearchBtn" type="button" class="small-btn">重置</button>
+          </form>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>用户</th>
                   <th>秘境</th>
-                  <th>定位</th>
-                  <th>说明</th>
-                  <th>审核</th>
-                  <th>操作</th>
+                  <th>距离</th>
+                  <th>打卡时间</th>
+                  <th>结果</th>
                 </tr>
               </thead>
               <tbody id="checkinsTable"></tbody>
@@ -570,6 +577,10 @@
             <span class="field-label">已上传媒体</span>
             <div id="travelNoteMediaPreview" class="form-media-preview muted">未上传</div>
           </div>
+          <div class="full media-preview-panel">
+            <span class="field-label">审核媒体</span>
+            <div id="travelNoteReviewMedia" class="form-media-preview muted">暂无用户上传媒体</div>
+          </div>
           <div class="full upload-inline">
             <input id="travelNoteImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" />
             <span id="travelNoteImageFileStatus" class="upload-file-info muted">未选择文件</span>
@@ -609,6 +620,10 @@
           <div class="full media-preview-panel">
             <span class="field-label">已上传媒体</span>
             <div id="commentMediaPreview" class="form-media-preview muted">未上传</div>
+          </div>
+          <div class="full media-preview-panel">
+            <span class="field-label">审核媒体</span>
+            <div id="commentReviewMedia" class="form-media-preview muted">暂无用户上传媒体</div>
           </div>
           <div class="full upload-inline">
             <input id="commentImageFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v" />

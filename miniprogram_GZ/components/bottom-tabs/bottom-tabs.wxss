@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.bottom-tabs {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  height: calc(104rpx + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1rpx solid #e4e7df;
+  background: #fbfaf5;
+  box-sizing: border-box;
+  display: flex;
+  box-shadow: 0 -4rpx 14rpx rgba(25, 49, 39, 0.05);
+}
+
+.tab-item {
+  flex: 1;
+  min-width: 0;
+  height: 104rpx;
+  color: #1f5f45;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 104rpx;
+  text-align: center;
+}

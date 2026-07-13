@@ -3,6 +3,17 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class ContentMediaCreate(BaseModel):
+    media_url: str = Field(..., max_length=512)
+    media_type: str = Field(default="image", pattern="^(image|video)$")
+
+
+class ContentMediaOut(ContentMediaCreate):
+    id: int
+    status: str
+    display_url: Optional[str] = None
+
+
 class SpotImageOut(BaseModel):
     id: int
     spot_id: int
@@ -36,6 +47,7 @@ class TravelNoteCreate(BaseModel):
     title: str = Field(..., max_length=128)
     content: str
     image_url: Optional[str] = Field(default=None, max_length=512)
+    media: list[ContentMediaCreate] = Field(default_factory=list, max_length=9)
     status: str = Field(default="pending", pattern="^(pending|approved|rejected|hidden)$")
     is_featured: bool = False
 
@@ -63,6 +75,7 @@ class TravelNoteOut(BaseModel):
     display_url: Optional[str] = None
     status: str
     is_featured: bool
+    media: list[ContentMediaOut] = Field(default_factory=list)
 
 
 class UserCommentCreate(BaseModel):
@@ -70,6 +83,7 @@ class UserCommentCreate(BaseModel):
     spot_id: int
     content: str = Field(..., max_length=512)
     image_url: Optional[str] = Field(default=None, max_length=512)
+    media: list[ContentMediaCreate] = Field(default_factory=list, max_length=9)
     status: str = Field(default="pending", pattern="^(pending|approved|rejected|hidden)$")
 
 
@@ -92,6 +106,7 @@ class UserCommentOut(BaseModel):
     image_url: Optional[str] = None
     display_url: Optional[str] = None
     status: str
+    media: list[ContentMediaOut] = Field(default_factory=list)
 
 
 class RecommendationCreate(BaseModel):

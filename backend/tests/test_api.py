@@ -245,7 +245,9 @@ class ApiTest(unittest.TestCase):
             },
         )
         self.assertEqual(checkin.status_code, 201)
-        self.assertEqual(checkin.json()["status"], "pending")
+        self.assertEqual(checkin.json()["status"], "approved")
+        self.assertGreaterEqual(checkin.json()["awarded_explore_points"], 0)
+        self.assertLessEqual(checkin.json()["checkin_distance_meters"], 300)
 
         note = self.client.post(
             "/api/v1/mini/travel-notes",
@@ -254,10 +256,28 @@ class ApiTest(unittest.TestCase):
                 "spot_id": 1,
                 "title": "晨雾记录",
                 "content": "早上六点云雾最好。",
+                "media": [
+                    {"media_url": "/media/mini-shares/note-one.jpg", "media_type": "image"},
+                    {"media_url": "/media/mini-shares/note-two.mp4", "media_type": "video"},
+                ],
             },
         )
         self.assertEqual(note.status_code, 201)
         self.assertEqual(note.json()["status"], "pending")
+        self.assertEqual(len(note.json()["media"]), 2)
+
+        rejected_checkin = self.client.post(
+            "/api/v1/mini/checkins",
+            json={
+                "user_id": 1,
+                "spot_id": 1,
+                "latitude": "26.7436",
+                "longitude": "109.5062",
+            },
+        )
+        self.assertEqual(rejected_checkin.status_code, 201)
+        self.assertEqual(rejected_checkin.json()["status"], "rejected")
+        self.assertGreater(rejected_checkin.json()["checkin_distance_meters"], 300)
 
         comment = self.client.post(
             "/api/v1/mini/comments",

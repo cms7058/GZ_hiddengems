@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -168,9 +169,6 @@ class CheckinCreate(BaseModel):
     spot_id: int
     latitude: Optional[str] = Field(default=None, max_length=32)
     longitude: Optional[str] = Field(default=None, max_length=32)
-    image_url: Optional[str] = Field(default=None, max_length=512)
-    media_url: Optional[str] = Field(default=None, max_length=512)
-    media_type: Optional[str] = Field(default=None, max_length=32)
     note: Optional[str] = Field(default=None, max_length=512)
 
 
@@ -190,3 +188,6 @@ class CheckinRecordOut(BaseModel):
     review_note: Optional[str] = None
     awarded_explore_points: int = 0
     promoted_spot_image_id: Optional[int] = None
+    checkin_distance_meters: Optional[int] = None
+    created_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None

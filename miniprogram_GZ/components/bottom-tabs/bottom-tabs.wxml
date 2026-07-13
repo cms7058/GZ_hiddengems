@@ -1,0 +1,5 @@
+<view class="bottom-tabs">
+  <view class="tab-item" catchtap="goHome"><text>{{copy.home}}</text></view>
+  <view class="tab-item" catchtap="goAssistant"><text>{{copy.assistant}}</text></view>
+  <view class="tab-item" catchtap="goMine"><text>{{copy.mine}}</text></view>
+</view>

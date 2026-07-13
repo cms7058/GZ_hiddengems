@@ -15,12 +15,14 @@ const COPY = {
     myCheckins: "我的打卡",
     currentLocation: "我的实时位置",
     locationFailed: "定位失败，请检查定位权限",
-    chooseMedia: "上传图片/视频",
+    chooseMedia: "添加图片/视频",
     removeMedia: "移除",
     mediaReady: "素材已上传",
+    mediaAdded: "素材已添加",
     mediaImageTooLarge: "图片不能超过 2MB",
     mediaVideoTooLarge: "视频不能超过 8MB",
-    checkinPlaceholder: "记录你到达这里的情况",
+    checkinPassed: "打卡成功",
+    checkinFailed: "未在打卡范围内",
     noteTitlePlaceholder: "给这次探索起个标题",
     noteContentPlaceholder: "分享路线、天气、体验和注意事项",
     commentPlaceholder: "写下你的补充或提醒",
@@ -44,12 +46,14 @@ const COPY = {
     myCheckins: "My Check-ins",
     currentLocation: "My Live Location",
     locationFailed: "Location failed. Check permission",
-    chooseMedia: "Upload Photo/Video",
+    chooseMedia: "Add Photo/Video",
     removeMedia: "Remove",
     mediaReady: "Media uploaded",
+    mediaAdded: "Media added",
     mediaImageTooLarge: "Image must not exceed 2MB",
     mediaVideoTooLarge: "Video must not exceed 8MB",
-    checkinPlaceholder: "Record your arrival or field note",
+    checkinPassed: "Check-in Successful",
+    checkinFailed: "Outside Check-in Range",
     noteTitlePlaceholder: "Title your exploration",
     noteContentPlaceholder: "Share route, weather, experience, and cautions",
     commentPlaceholder: "Add a tip or reminder",
@@ -78,8 +82,7 @@ Page({
     error: "",
     submitting: false,
     userLocation: null,
-    checkinMedia: null,
-    checkinNote: "",
+    noteMedia: [],
     noteForm: { title: "", content: "" },
     commentForm: { content: "" },
   },
@@ -130,11 +133,13 @@ Page({
     return { ...item, statusText }
   },
 
-  onCheckinNoteInput(event) { this.setData({ checkinNote: event.detail.value }) },
   onNoteTitleInput(event) { this.setData({ "noteForm.title": event.detail.value }) },
   onNoteContentInput(event) { this.setData({ "noteForm.content": event.detail.value }) },
   onCommentInput(event) { this.setData({ "commentForm.content": event.detail.value }) },
-  onRemoveCheckinMedia() { this.setData({ checkinMedia: null }) },
+  onRemoveNoteMedia(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    this.setData({ noteMedia: this.data.noteMedia.filter((_, itemIndex) => itemIndex !== index) })
+  },
 
   async tryShowUserLocation() {
     try {
@@ -145,23 +150,29 @@ Page({
     }
   },
 
-  async onChooseCheckinMedia() {
+  async onChooseNoteMedia() {
     if (this.data.submitting) return
     const allowedMediaTypes = []
     if (this.data.user.can_upload_image !== false) allowedMediaTypes.push("image")
     if (this.data.user.can_upload_video !== false) allowedMediaTypes.push("video")
     if (!allowedMediaTypes.length) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
     try {
-      const result = await new Promise((resolve, reject) => wx.chooseMedia({ count: 1, mediaType: allowedMediaTypes, sourceType: ["album", "camera"], maxDuration: 30, camera: "back", success: resolve, fail: reject }))
-      const file = result.tempFiles && result.tempFiles[0]
-      if (!file || !file.tempFilePath) return
-      const type = file.fileType || result.type || (/\.(mp4|mov|m4v)$/i.test(file.tempFilePath) ? "video" : "image")
-      if (type === "video" && Number(file.size || 0) > MAX_VIDEO_UPLOAD_BYTES) return wx.showToast({ title: this.data.copy.mediaVideoTooLarge, icon: "none" })
-      if (type !== "video" && Number(file.size || 0) > MAX_IMAGE_UPLOAD_BYTES) return wx.showToast({ title: this.data.copy.mediaImageTooLarge, icon: "none" })
+      const remaining = 9 - this.data.noteMedia.length
+      if (remaining <= 0) return wx.showToast({ title: "最多添加 9 个文件", icon: "none" })
+      const result = await new Promise((resolve, reject) => wx.chooseMedia({ count: remaining, mediaType: allowedMediaTypes, sourceType: ["album", "camera"], maxDuration: 30, camera: "back", success: resolve, fail: reject }))
+      const files = (result.tempFiles || []).filter((file) => file && file.tempFilePath)
+      if (!files.length) return
       this.setData({ submitting: true })
-      const uploaded = await uploadMedia(file.tempFilePath, type)
-      this.setData({ checkinMedia: { ...uploaded, tempFilePath: file.tempFilePath, media_type: uploaded.media_type || type } })
-      wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
+      const uploadedMedia = []
+      for (const file of files) {
+        const type = file.fileType || result.type || (/\.(mp4|mov|m4v)$/i.test(file.tempFilePath) ? "video" : "image")
+        if (type === "video" && Number(file.size || 0) > MAX_VIDEO_UPLOAD_BYTES) throw new Error(this.data.copy.mediaVideoTooLarge)
+        if (type !== "video" && Number(file.size || 0) > MAX_IMAGE_UPLOAD_BYTES) throw new Error(this.data.copy.mediaImageTooLarge)
+        const uploaded = await uploadMedia(file.tempFilePath, type)
+        uploadedMedia.push({ ...uploaded, tempFilePath: file.tempFilePath, media_type: uploaded.media_type || type })
+      }
+      this.setData({ noteMedia: [...this.data.noteMedia, ...uploadedMedia] })
+      wx.showToast({ title: this.data.copy.mediaAdded, icon: "none" })
     } catch (error) {
       if (!isServiceClosedError(error)) wx.showModal({ title: this.data.copy.uploadFailed, content: error.message || this.data.copy.uploadFailed, showCancel: false })
     } finally {
@@ -175,10 +186,13 @@ Page({
     try {
       const location = this.data.userLocation || await this.getLocation()
       this.setData({ userLocation: { latitude: location.latitude, longitude: location.longitude } })
-      await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude), image_url: this.data.checkinMedia && this.data.checkinMedia.image_url || null, media_url: this.data.checkinMedia && this.data.checkinMedia.media_url || null, media_type: this.data.checkinMedia && this.data.checkinMedia.media_type || null, note: this.data.checkinNote } })
-      this.setData({ checkinNote: "", checkinMedia: null })
+      const record = await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude) } })
       await this.loadSpot()
-      wx.showToast({ title: this.data.copy.submitted, icon: "none" })
+      wx.showModal({
+        title: record.status === "approved" ? this.data.copy.checkinPassed : this.data.copy.checkinFailed,
+        content: record.review_note || this.data.copy.submitFailed,
+        showCancel: false,
+      })
     } catch (error) {
       if (!isServiceClosedError(error)) wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     } finally { this.setData({ submitting: false }) }
@@ -187,7 +201,13 @@ Page({
   async onSubmitNote() {
     const { title, content } = this.data.noteForm
     if (this.data.submitting || !title.trim() || !content.trim() || this.data.user.can_comment === false) return
-    await this.submitContent("/mini/travel-notes", { user_id: this.data.user.id, spot_id: this.data.spot.id, title: title.trim(), content: content.trim() }, { noteForm: { title: "", content: "" } })
+    await this.submitContent("/mini/travel-notes", {
+      user_id: this.data.user.id,
+      spot_id: this.data.spot.id,
+      title: title.trim(),
+      content: content.trim(),
+      media: this.data.noteMedia.map((item) => ({ media_url: item.media_url, media_type: item.media_type })),
+    }, { noteForm: { title: "", content: "" }, noteMedia: [] })
   },
 
   async onSubmitComment() {

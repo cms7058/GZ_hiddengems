@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminUser
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag
 from app.models.user import (
@@ -65,6 +65,7 @@ def ensure_runtime_columns() -> None:
             "media_type": "VARCHAR(32) NULL",
             "awarded_explore_points": "INT NOT NULL DEFAULT 0",
             "promoted_spot_image_id": "INT NULL",
+            "checkin_distance_meters": "INT NULL",
         },
         "pass_level_settings": {
             "marker_color": "VARCHAR(16) NOT NULL DEFAULT '#2f6b4f'",

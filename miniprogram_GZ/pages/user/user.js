@@ -3,7 +3,7 @@ const { isServiceClosedError, uploadMedia } = require("../../utils/request")
 
 const COPY = {
   "zh-CN": {
-    title: "用户",
+    title: "我的",
     defaultAvatar: "旅",
     subtitle: "查看探秘积分和解锁进度",
     points: "探秘积分",
@@ -30,7 +30,7 @@ const COPY = {
     avatarUploadFailed: "头像上传失败，请稍后重试",
   },
   "en-US": {
-    title: "Profile",
+    title: "My Profile",
     defaultAvatar: "G",
     subtitle: "Track explore points and unlock progress",
     points: "Explore Points",

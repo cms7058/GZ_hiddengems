@@ -3,9 +3,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
-from app.schemas.content import RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
+from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
 from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
@@ -140,12 +140,12 @@ def spot_to_detail_out(
         checkin_radius_meters=spot.checkin_radius_meters,
         images=[spot_image_to_out(image, db) for image in getattr(spot, "spot_images", []) if image.is_active],
         travel_notes=[
-            travel_note_to_out(note, db)
+            travel_note_to_out(note, db, include_unapproved_media=user is not None and note.user_id == user.id)
             for note in getattr(spot, "travel_notes", [])
             if note.status == "approved" or (user is not None and note.user_id == user.id)
         ],
         comments=[
-            comment_to_out(comment, db)
+            comment_to_out(comment, db, include_unapproved_media=user is not None and comment.user_id == user.id)
             for comment in getattr(spot, "comments", [])
             if comment.status == "approved" or (user is not None and comment.user_id == user.id)
         ],
@@ -173,7 +173,26 @@ def spot_image_to_out(image: SpotImage, db: Optional[Session] = None) -> SpotIma
     )
 
 
-def travel_note_to_out(note: TravelNote, db: Optional[Session] = None) -> TravelNoteOut:
+def content_media_to_out(media: ContentMedia, db: Optional[Session] = None) -> ContentMediaOut:
+    return ContentMediaOut(
+        id=media.id,
+        media_url=media.media_url,
+        media_type=media.media_type,
+        status=media.status,
+        display_url=get_media_display_url(db, media.media_url) if db else media.media_url,
+    )
+
+
+def get_content_media(db: Optional[Session], owner_type: str, owner_id: int, include_unapproved: bool = True) -> list[ContentMediaOut]:
+    if db is None:
+        return []
+    query = db.query(ContentMedia).filter(ContentMedia.owner_type == owner_type, ContentMedia.owner_id == owner_id)
+    if not include_unapproved:
+        query = query.filter(ContentMedia.status == "approved")
+    return [content_media_to_out(item, db) for item in query.order_by(ContentMedia.id.asc()).all()]
+
+
+def travel_note_to_out(note: TravelNote, db: Optional[Session] = None, include_unapproved_media: bool = True) -> TravelNoteOut:
     display_url = get_media_display_url(db, note.image_url) if db else note.image_url
     return TravelNoteOut(
         id=note.id,
@@ -188,10 +207,11 @@ def travel_note_to_out(note: TravelNote, db: Optional[Session] = None) -> Travel
         display_url=display_url,
         status=note.status,
         is_featured=note.is_featured,
+        media=get_content_media(db, "travel_note", note.id, include_unapproved_media),
     )
 
 
-def comment_to_out(comment: UserComment, db: Optional[Session] = None) -> UserCommentOut:
+def comment_to_out(comment: UserComment, db: Optional[Session] = None, include_unapproved_media: bool = True) -> UserCommentOut:
     display_url = get_media_display_url(db, comment.image_url) if db else comment.image_url
     return UserCommentOut(
         id=comment.id,
@@ -204,6 +224,7 @@ def comment_to_out(comment: UserComment, db: Optional[Session] = None) -> UserCo
         image_url=comment.image_url,
         display_url=display_url,
         status=comment.status,
+        media=get_content_media(db, "comment", comment.id, include_unapproved_media),
     )
 
 

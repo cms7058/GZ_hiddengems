@@ -38,6 +38,18 @@ class TravelNote(Base):
     spot = relationship("ScenicSpot", back_populates="travel_notes")
 
 
+class ContentMedia(Base):
+    __tablename__ = "content_media"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_type = Column(String(32), nullable=False, index=True)
+    owner_id = Column(Integer, nullable=False, index=True)
+    media_url = Column(String(512), nullable=False)
+    media_type = Column(String(32), default="image", nullable=False)
+    status = Column(String(32), default="pending", nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class UserComment(Base):
     __tablename__ = "user_comments"
 

@@ -1,14 +1,16 @@
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.content import SpotImage
-from app.models.user import CheckinRecord
+from app.models.spot import ScenicSpot
+from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut, CheckinReviewUpdate
 from app.services.pagination import build_page, paginated_scalars
@@ -37,6 +39,9 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         review_note=record.review_note,
         awarded_explore_points=record.awarded_explore_points,
         promoted_spot_image_id=record.promoted_spot_image_id,
+        checkin_distance_meters=record.checkin_distance_meters,
+        created_at=record.created_at,
+        reviewed_at=record.reviewed_at,
     )
 
 
@@ -44,14 +49,33 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
 def list_checkins(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    spot_keyword: Optional[str] = Query(default=None, max_length=128),
+    user_keyword: Optional[str] = Query(default=None, max_length=128),
+    status: Optional[str] = Query(default=None, pattern="^(approved|rejected)$"),
+    checked_at: Optional[str] = Query(default=None, max_length=10),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[CheckinRecordOut]:
-    result = paginated_scalars(
-        db,
+    statement = (
         select(CheckinRecord)
         .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
-        .order_by(CheckinRecord.id.desc()),
+        .order_by(CheckinRecord.id.desc())
+    )
+    if spot_keyword:
+        statement = statement.where(CheckinRecord.spot.has(ScenicSpot.name_zh.ilike(f"%{spot_keyword.strip()}%")))
+    if user_keyword:
+        statement = statement.where(CheckinRecord.user.has(MiniProgramUser.nickname.ilike(f"%{user_keyword.strip()}%")))
+    if status:
+        statement = statement.where(CheckinRecord.status == status)
+    if checked_at:
+        try:
+            date_value = datetime.strptime(checked_at, "%Y-%m-%d").date()
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="checked_at must be YYYY-MM-DD") from error
+        statement = statement.where(func.date(CheckinRecord.created_at) == date_value)
+    result = paginated_scalars(
+        db,
+        statement,
         page,
         page_size,
     )

@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot
 from app.schemas.content import (
     ContentStatusUpdate,
+    ContentMediaOut,
     RecommendationCreate,
     RecommendationOut,
     RecommendationUpdate,
@@ -27,6 +28,7 @@ from app.schemas.content import (
 from app.schemas.pagination import Page
 from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
 from app.services.pagination import build_page, paginated_scalars
+from app.services.spot_mapper import content_media_to_out, get_content_media
 
 
 router = APIRouter()
@@ -89,6 +91,7 @@ def travel_note_to_out(note: TravelNote, db: Session) -> TravelNoteOut:
         display_url=display_url,
         status=note.status,
         is_featured=note.is_featured,
+        media=get_content_media(db, "travel_note", note.id),
     )
 
 
@@ -104,6 +107,7 @@ def comment_to_out(comment: UserComment, db: Session) -> UserCommentOut:
         image_url=comment.image_url,
         display_url=display_url,
         status=comment.status,
+        media=get_content_media(db, "comment", comment.id),
     )
 
 
@@ -150,6 +154,17 @@ def delete_media_or_502(db: Session, url: Optional[str]) -> None:
         delete_media(db, url)
     except MediaStorageError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+def add_content_media(db: Session, owner_type: str, owner_id: int, media) -> None:
+    for item in media:
+        db.add(ContentMedia(owner_type=owner_type, owner_id=owner_id, media_url=item.media_url, media_type=item.media_type, status="pending"))
+
+
+def delete_content_media_for_owner(db: Session, owner_type: str, owner_id: int) -> None:
+    for media in db.scalars(select(ContentMedia).where(ContentMedia.owner_type == owner_type, ContentMedia.owner_id == owner_id)).all():
+        delete_media_or_502(db, media.media_url)
+        db.delete(media)
 
 
 def ensure_spot_exists(db: Session, spot_id: int) -> None:
@@ -339,9 +354,10 @@ def create_travel_note(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> TravelNoteOut:
     ensure_spot_exists(db, payload.spot_id)
-    note = TravelNote(**payload.model_dump())
+    note = TravelNote(**payload.model_dump(exclude={"media"}))
     db.add(note)
     db.flush()
+    add_content_media(db, "travel_note", note.id, payload.media)
     sync_content_contribution(note.user, "pending", note.status, db)
     db.commit()
     db.refresh(note)
@@ -357,7 +373,7 @@ def update_travel_note(
 ) -> TravelNoteOut:
     note = get_note(db, note_id)
     previous_status = note.status
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True, exclude={"media"})
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
     if "image_url" in update_data and update_data["image_url"] != note.image_url:
@@ -398,8 +414,45 @@ def delete_travel_note(
 ) -> None:
     note = get_note(db, note_id)
     sync_content_contribution(note.user, note.status, "deleted", db)
+    delete_content_media_for_owner(db, "travel_note", note.id)
     delete_media_or_502(db, note.image_url)
     db.delete(note)
+    db.commit()
+
+
+@router.patch("/media/{media_id}/review")
+def review_content_media(
+    media_id: int,
+    payload: ContentStatusUpdate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    media = db.get(ContentMedia, media_id)
+    if media is None:
+        raise HTTPException(status_code=404, detail="Content media not found")
+    if payload.status in {"rejected", "hidden"}:
+        delete_media_or_502(db, media.media_url)
+        db.delete(media)
+        db.commit()
+        return {"id": media_id, "status": "removed"}
+    media.status = payload.status
+    db.add(media)
+    db.commit()
+    db.refresh(media)
+    return content_media_to_out(media, db).model_dump()
+
+
+@router.delete("/media/{media_id}", status_code=204)
+def delete_content_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    media = db.get(ContentMedia, media_id)
+    if media is None:
+        raise HTTPException(status_code=404, detail="Content media not found")
+    delete_media_or_502(db, media.media_url)
+    db.delete(media)
     db.commit()
 
 
@@ -439,9 +492,10 @@ def create_comment(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> UserCommentOut:
     ensure_spot_exists(db, payload.spot_id)
-    comment = UserComment(**payload.model_dump())
+    comment = UserComment(**payload.model_dump(exclude={"media"}))
     db.add(comment)
     db.flush()
+    add_content_media(db, "comment", comment.id, payload.media)
     sync_content_contribution(comment.user, "pending", comment.status, db)
     db.commit()
     db.refresh(comment)
@@ -457,7 +511,7 @@ def update_comment(
 ) -> UserCommentOut:
     comment = get_comment(db, comment_id)
     previous_status = comment.status
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True, exclude={"media"})
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
     if "image_url" in update_data and update_data["image_url"] != comment.image_url:
@@ -496,6 +550,7 @@ def delete_comment(
 ) -> None:
     comment = get_comment(db, comment_id)
     sync_content_contribution(comment.user, comment.status, "deleted", db)
+    delete_content_media_for_owner(db, "comment", comment.id)
     delete_media_or_502(db, comment.image_url)
     db.delete(comment)
     db.commit()

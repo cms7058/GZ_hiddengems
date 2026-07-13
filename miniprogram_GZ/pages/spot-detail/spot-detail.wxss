@@ -72,11 +72,25 @@ page {
 
 .content {
   margin-top: -24rpx;
-  padding: 28rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  padding: 28rpx 24rpx calc(148rpx + env(safe-area-inset-bottom));
   border-radius: 8rpx 8rpx 0 0;
   background: #f8f6ef;
   position: relative;
   z-index: 2;
+}
+
+.content-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+  margin-bottom: 14rpx;
+}
+
+.content-media-grid .content-image {
+  width: 100%;
+  height: 168rpx;
+  margin: 0;
+  border-radius: 8rpx;
 }
 
 .title-row {
@@ -144,7 +158,7 @@ page {
 .floating-navigate {
   position: fixed;
   right: 24rpx;
-  bottom: calc(140rpx + env(safe-area-inset-bottom));
+  bottom: calc(236rpx + env(safe-area-inset-bottom));
   z-index: 20;
   width: 92rpx;
   height: 92rpx;
@@ -164,7 +178,7 @@ page {
 .floating-back {
   position: fixed;
   left: 24rpx;
-  bottom: calc(140rpx + env(safe-area-inset-bottom));
+  bottom: calc(236rpx + env(safe-area-inset-bottom));
   z-index: 20;
   width: 76rpx;
   height: 76rpx;

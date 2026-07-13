@@ -1,4 +1,8 @@
 {
   "navigationStyle": "custom",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "navigation-bar": "/components/navigation-bar/navigation-bar",
+    "bottom-tabs": "/components/bottom-tabs/bottom-tabs"
+  }
 }

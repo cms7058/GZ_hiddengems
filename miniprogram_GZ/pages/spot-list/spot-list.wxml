@@ -30,4 +30,5 @@
   </scroll-view>
 
   <view class="floating-back" catchtap="onFloatingBackTap">←</view>
+  <bottom-tabs lang="{{lang}}"></bottom-tabs>
 </view>
