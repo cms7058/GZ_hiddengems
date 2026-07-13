@@ -16,6 +16,8 @@ const state = {
   recommendations: [],
   integrations: [],
   currentSpotImages: [],
+  currentSpotCheckins: [],
+  currentSpotComments: [],
   currentSpotChildPoints: [],
   pagination: {},
   editingSpotId: null,
@@ -796,6 +798,7 @@ function renderCheckins() {
           <td>${escapeHtml(checkin.latitude || "-")}, ${escapeHtml(checkin.longitude || "-")}</td>
           <td>
             <div class="cell-title">
+              ${checkin.media_url || checkin.image_url ? renderSpotMediaPreview({ image_url: checkin.media_url || checkin.image_url, media_type: checkin.media_type || "image", caption: t("打卡媒体") }) : ""}
               <span>${escapeHtml(checkin.note || "-")}</span>
               <span class="muted">${escapeHtml(checkin.review_note || "")}</span>
             </div>
@@ -1029,6 +1032,60 @@ function renderSpotImages() {
         .join("")
     : `<p class="muted">${t("暂无媒体")}</p>`;
   renderPagination("spotImagesList", "spotImages");
+}
+
+function renderSpotCheckins() {
+  const container = $("#spotCheckinsList");
+  if (!container) return;
+  container.innerHTML = state.currentSpotCheckins.length
+    ? state.currentSpotCheckins
+        .map((checkin) => {
+          const media = checkin.media_url || checkin.image_url;
+          const mediaType = checkin.media_type || "image";
+          return `
+            <article class="image-item">
+              ${media ? renderSpotMediaPreview({ image_url: media, media_type: mediaType, caption: t("用户打卡媒体") }) : `<div class="form-media-preview muted">${t("未上传媒体")}</div>`}
+              <div class="cell-title">
+                <strong>${escapeHtml(checkin.nickname || t("用户"))}</strong>
+                <span class="muted">${statusPill(checkin.status)} ${escapeHtml(checkin.note || t("未填写说明"))}</span>
+                ${checkin.review_note ? `<span class="muted">${escapeHtml(checkin.review_note)}</span>` : ""}
+              </div>
+              <div class="row-actions">
+                ${checkin.status !== "approved" ? `<button type="button" class="small-btn" data-spot-checkin-review="${checkin.id}" data-status="approved">${t("通过")}</button>` : ""}
+                ${checkin.status !== "rejected" ? `<button type="button" class="small-btn" data-spot-checkin-review="${checkin.id}" data-status="rejected">${t("拒绝")}</button>` : ""}
+                <button type="button" class="small-btn danger" data-delete-spot-checkin="${checkin.id}">${t("删除")}</button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `<p class="muted">${t("暂无用户打卡媒体")}</p>`;
+}
+
+function renderSpotComments() {
+  const container = $("#spotCommentsList");
+  if (!container) return;
+  container.innerHTML = state.currentSpotComments.length
+    ? state.currentSpotComments
+        .map(
+          (comment) => `
+            <article class="image-item">
+              ${comment.display_url || comment.image_url ? renderSpotMediaPreview({ ...comment, media_type: "image", caption: t("留言媒体") }) : ""}
+              <div class="cell-title">
+                <strong>${escapeHtml(comment.nickname || t("用户"))}</strong>
+                <span>${escapeHtml(comment.content || "")}</span>
+                <span class="muted">${statusPill(comment.status)}</span>
+              </div>
+              <div class="row-actions">
+                ${comment.status !== "approved" ? `<button type="button" class="small-btn" data-spot-comment-status="${comment.id}" data-status="approved">${t("通过")}</button>` : ""}
+                ${comment.status !== "hidden" ? `<button type="button" class="small-btn" data-spot-comment-status="${comment.id}" data-status="hidden">${t("隐藏")}</button>` : ""}
+                <button type="button" class="small-btn danger" data-delete-spot-comment="${comment.id}">${t("删除")}</button>
+              </div>
+            </article>
+          `,
+        )
+        .join("")
+    : `<p class="muted">${t("暂无互动留言")}</p>`;
 }
 
 function formatFileSize(bytes) {
@@ -1317,8 +1374,12 @@ function fillSpotForm(spot = null) {
 
   if (!spot) {
     state.currentSpotImages = [];
+    state.currentSpotCheckins = [];
+    state.currentSpotComments = [];
     state.currentSpotChildPoints = [];
     renderSpotImages();
+    renderSpotCheckins();
+    renderSpotComments();
     renderChildPoints();
     clearChildPointForm();
     form.elements.review_status.value = "draft";
@@ -1594,6 +1655,26 @@ async function loadSpotImages(spotId) {
   renderSpotImages();
 }
 
+async function loadSpotCheckins(spotId) {
+  if (!spotId) {
+    state.currentSpotCheckins = [];
+    renderSpotCheckins();
+    return;
+  }
+  state.currentSpotCheckins = await requestPage("spotCheckins", `/admin/spots/${spotId}/checkins`);
+  renderSpotCheckins();
+}
+
+async function loadSpotComments(spotId) {
+  if (!spotId) {
+    state.currentSpotComments = [];
+    renderSpotComments();
+    return;
+  }
+  state.currentSpotComments = await requestPage("spotComments", `/admin/content/comments?spot_id=${spotId}`);
+  renderSpotComments();
+}
+
 async function refreshCurrentSpotChildPoints() {
   await loadData();
   const spot = state.spots.find((item) => item.id === state.editingSpotId);
@@ -1834,7 +1915,9 @@ $("#spotsTable").addEventListener("click", async (event) => {
     const spot = state.spots.find((item) => item.id === Number(editId));
     fillSpotForm(spot);
     state.pagination.spotImages = { page: 1, page_size: PAGE_SIZE };
-    await loadSpotImages(spot.id);
+    state.pagination.spotCheckins = { page: 1, page_size: PAGE_SIZE };
+    state.pagination.spotComments = { page: 1, page_size: PAGE_SIZE };
+    await Promise.all([loadSpotImages(spot.id), loadSpotCheckins(spot.id), loadSpotComments(spot.id)]);
     $("#spotDialog").showModal();
   }
 
@@ -2075,6 +2158,54 @@ $("#spotImagesList").addEventListener("click", async (event) => {
     await loadSpotImages(state.editingSpotId);
     showToast("OSS文件已删除");
   }
+});
+
+$("#spotCheckinsList").addEventListener("click", async (event) => {
+  const checkinId = event.target.dataset.spotCheckinReview;
+  const deleteId = event.target.dataset.deleteSpotCheckin;
+  if (checkinId) {
+    await request(`/admin/checkins/${checkinId}/review`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: event.target.dataset.status,
+        review_note: event.target.dataset.status === "approved" ? "秘境媒体审核通过。" : "秘境媒体审核未通过。",
+      }),
+    });
+    await Promise.all([loadSpotCheckins(state.editingSpotId), loadSpotImages(state.editingSpotId), loadData()]);
+    showToast("打卡媒体审核已更新");
+  }
+  if (deleteId && confirmDeletion()) {
+    await request(`/admin/checkins/${deleteId}`, { method: "DELETE" });
+    await Promise.all([loadSpotCheckins(state.editingSpotId), loadSpotImages(state.editingSpotId), loadData()]);
+    showToast("用户打卡媒体已删除");
+  }
+});
+
+$("#spotCommentsList").addEventListener("click", async (event) => {
+  const commentId = event.target.dataset.spotCommentStatus;
+  const deleteId = event.target.dataset.deleteSpotComment;
+  if (commentId) {
+    await request(`/admin/content/comments/${commentId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: event.target.dataset.status }),
+    });
+    await Promise.all([loadSpotComments(state.editingSpotId), loadData()]);
+    showToast("互动留言状态已更新");
+  }
+  if (deleteId && confirmDeletion()) {
+    await request(`/admin/content/comments/${deleteId}`, { method: "DELETE" });
+    await Promise.all([loadSpotComments(state.editingSpotId), loadData()]);
+    showToast("互动留言已删除");
+  }
+});
+
+$("#addSpotCommentBtn").addEventListener("click", () => {
+  if (!state.editingSpotId) return;
+  fillCommentForm();
+  const form = $("#commentForm");
+  form.elements.spot_id.value = String(state.editingSpotId);
+  form.elements.user_id.value = String(state.users[0]?.id || "");
+  $("#commentDialog").showModal();
 });
 
 $("#childPointsList").addEventListener("click", async (event) => {
@@ -2370,6 +2501,7 @@ $("#commentForm").addEventListener("submit", async (event) => {
   await request(path, { method, body: JSON.stringify(payload) });
   $("#commentDialog").close();
   await loadData();
+  if (state.editingSpotId) await loadSpotComments(state.editingSpotId);
   showToast("留言已保存");
 });
 

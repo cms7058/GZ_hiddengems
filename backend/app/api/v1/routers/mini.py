@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlencode
 from urllib.request import urlopen
 import json
@@ -102,6 +103,7 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         note=record.note,
         review_note=record.review_note,
         awarded_explore_points=record.awarded_explore_points,
+        promoted_spot_image_id=record.promoted_spot_image_id,
     )
 
 
@@ -136,28 +138,33 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
 async def upload_mini_media(
     file: UploadFile = File(...),
     user_id: int = Form(...),
+    media_type: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ) -> dict:
     user = ensure_active_user(db, user_id)
     suffix = Path(file.filename or "").suffix.lower()
-    media_type = ALLOWED_MEDIA_SUFFIXES.get(suffix)
-    if media_type is None:
+    requested_media_type = (media_type or "").strip().lower()
+    detected_media_type = ALLOWED_MEDIA_SUFFIXES.get(suffix)
+    resolved_media_type = detected_media_type or requested_media_type
+    if resolved_media_type not in {"image", "video"}:
         raise HTTPException(status_code=400, detail="Unsupported media type")
-    ensure_user_permission(user, "can_upload_video" if media_type == "video" else "can_upload_image")
+    if not detected_media_type:
+        suffix = ".mp4" if resolved_media_type == "video" else ".jpg"
+    ensure_user_permission(user, "can_upload_video" if resolved_media_type == "video" else "can_upload_image")
 
     content = await file.read()
-    max_bytes = MAX_VIDEO_UPLOAD_BYTES if media_type == "video" else MAX_IMAGE_UPLOAD_BYTES
+    max_bytes = MAX_VIDEO_UPLOAD_BYTES if resolved_media_type == "video" else MAX_IMAGE_UPLOAD_BYTES
     if len(content) > max_bytes:
-        limit = "8 MB" if media_type == "video" else "2 MB"
-        raise HTTPException(status_code=400, detail=f"{media_type.capitalize()} must not exceed {limit}")
+        limit = "8 MB" if resolved_media_type == "video" else "2 MB"
+        raise HTTPException(status_code=400, detail=f"{resolved_media_type.capitalize()} must not exceed {limit}")
     try:
         media_url = await run_in_threadpool(save_media, db, "mini-shares", suffix, content, file.content_type)
     except MediaStorageError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     return {
         "media_url": media_url,
-        "media_type": media_type,
-        "image_url": media_url if media_type == "image" else None,
+        "media_type": resolved_media_type,
+        "image_url": media_url if resolved_media_type == "image" else None,
     }
 
 

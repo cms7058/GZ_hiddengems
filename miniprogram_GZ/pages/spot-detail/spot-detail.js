@@ -12,6 +12,13 @@ const COPY = {
     points: "探秘积分",
     unlockNeed: "解锁积分",
     users: "互动用户",
+    interaction: "公开互动",
+    interactionDescription: "通过公开留言交流路线、天气和注意事项，不公开联系方式。",
+    startInteraction: "去留言互动",
+    myCheckins: "我的打卡",
+    reviewPending: "审核中",
+    reviewRejected: "未通过",
+    reviewHidden: "已隐藏",
     notes: "游记",
     comments: "留言",
     recommendations: "衣食住行",
@@ -73,6 +80,13 @@ const COPY = {
     points: "Explore Points",
     unlockNeed: "Required",
     users: "Users",
+    interaction: "Community",
+    interactionDescription: "Discuss routes, weather, and safety notes publicly. Contact details stay private.",
+    startInteraction: "Write a Comment",
+    myCheckins: "My Check-ins",
+    reviewPending: "Pending Review",
+    reviewRejected: "Not Approved",
+    reviewHidden: "Hidden",
     notes: "Notes",
     comments: "Comments",
     recommendations: "Local Picks",
@@ -141,6 +155,7 @@ Page({
     user: app.globalData.user,
     spot: null,
     spotPhotos: [],
+    photoSlides: [],
     markers: [],
     userLocation: null,
     hasUserLocation: false,
@@ -150,6 +165,8 @@ Page({
     loading: true,
     error: "",
     fallbackMode: false,
+    interactionUsers: [],
+    scrollTarget: "",
     checkinNote: "",
     checkinMedia: null,
     noteForm: {
@@ -220,9 +237,11 @@ Page({
       this.setData({
         spot,
         spotPhotos: this.getSpotPhotos(spot),
+        photoSlides: this.buildPhotoSlides(spot),
         markers: this.buildMarkers(spot),
         groupedRecommendations: this.groupRecommendations(spot.lifestyle_recommendations || []),
         userCount: this.countUsers(spot),
+        interactionUsers: this.buildInteractionUsers(spot),
         loading: false,
         fallbackMode: false,
       })
@@ -247,6 +266,7 @@ Page({
         this.setData({
           spot,
           spotPhotos: this.getSpotPhotos(spot),
+          photoSlides: this.buildPhotoSlides(spot),
           markers: this.buildMarkers(spot),
           groupedRecommendations: [],
           userCount: 0,
@@ -316,17 +336,51 @@ Page({
       user_explore_points: spot.user_explore_points || this.data.user.explore_points || 0,
       is_unlocked: spot.is_unlocked !== false,
       tags: spot.tags || [],
-      travel_notes: spot.travel_notes || [],
-      comments: spot.comments || [],
+      travel_notes: (spot.travel_notes || []).map((item) => this.decorateSubmission(item)),
+      comments: (spot.comments || []).map((item) => this.decorateSubmission(item)),
+      my_checkins: (spot.my_checkins || []).map((item) => this.decorateSubmission(item)),
       lifestyle_recommendations: spot.lifestyle_recommendations || [],
       images: spot.images || [],
     }
   },
 
+  decorateSubmission(item) {
+    const status = item.status || "pending"
+    const statusText = {
+      pending: this.data.copy.reviewPending,
+      rejected: this.data.copy.reviewRejected,
+      hidden: this.data.copy.reviewHidden,
+    }[status] || ""
+    return {
+      ...item,
+      isMine: Number(item.user_id) === Number(this.data.user.id),
+      statusText,
+    }
+  },
+
   getSpotPhotos(spot) {
     return (spot.images || [])
-      .filter((item) => item.is_active !== false && item.media_type === "image" && (item.display_url || item.image_url))
+      .filter((item) => item.is_active !== false && ["image", "video"].includes(item.media_type || "image") && (item.display_url || item.image_url))
       .sort((left, right) => Number(Boolean(right.is_cover)) - Number(Boolean(left.is_cover)) || left.sort_order - right.sort_order)
+  },
+
+  buildPhotoSlides(spot) {
+    const photos = this.getSpotPhotos(spot)
+    const slides = []
+    for (let index = 0; index < photos.length; index += 3) {
+      slides.push(photos.slice(index, index + 3))
+    }
+    return slides
+  },
+
+  onPreviewSpotPhoto(event) {
+    const current = event.currentTarget.dataset.url
+    if (event.currentTarget.dataset.mediaType === "video") return
+    const urls = this.data.spotPhotos
+      .filter((item) => (item.media_type || "image") === "image")
+      .map((item) => item.display_url || item.image_url)
+      .filter(Boolean)
+    if (current && urls.length) wx.previewImage({ current, urls })
   },
 
   async refreshMarkerIcon(spot) {
@@ -373,13 +427,42 @@ Page({
 
   countUsers(spot) {
     const ids = {}
-    ;(spot.travel_notes || []).forEach((item) => {
+    ;(spot.travel_notes || []).filter((item) => item.status === "approved").forEach((item) => {
       ids[item.user_id] = true
     })
-    ;(spot.comments || []).forEach((item) => {
+    ;(spot.comments || []).filter((item) => item.status === "approved").forEach((item) => {
       ids[item.user_id] = true
     })
     return Object.keys(ids).length
+  },
+
+  buildInteractionUsers(spot) {
+    const users = {}
+    ;[...(spot.travel_notes || []), ...(spot.comments || [])]
+      .filter((item) => item.status === "approved")
+      .forEach((item) => {
+        if (users[item.user_id]) return
+        users[item.user_id] = {
+          id: item.user_id,
+          nickname: item.nickname || "探索者",
+          avatar_url: item.avatar_url || "",
+          avatarInitial: (item.nickname || "探").slice(0, 1),
+        }
+      })
+    return Object.keys(users).map((id) => users[id])
+  },
+
+  scrollTo(target) {
+    this.setData({ scrollTarget: "" }, () => this.setData({ scrollTarget: target }))
+  },
+
+  onStatTap(event) {
+    const target = event.currentTarget.dataset.target
+    if (target) this.scrollTo(target)
+  },
+
+  onStartInteraction() {
+    this.scrollTo("comment-form")
   },
 
   groupRecommendations(recommendations) {
@@ -477,8 +560,10 @@ Page({
         wx.showToast({ title: this.data.copy.mediaImageTooLarge, icon: "none" })
         return
       }
-      const uploaded = await uploadMedia(file.tempFilePath)
+      this.setData({ submitting: true })
+      const uploaded = await uploadMedia(file.tempFilePath, fileType)
       this.setData({
+        submitting: false,
         checkinMedia: {
           ...uploaded,
           tempFilePath: file.tempFilePath,
@@ -487,8 +572,14 @@ Page({
       })
       wx.showToast({ title: this.data.copy.mediaReady, icon: "none" })
     } catch (error) {
+      this.setData({ submitting: false })
       if (isServiceClosedError(error)) return
-      wx.showToast({ title: this.data.copy.uploadFailed, icon: "none" })
+      console.error("check-in media upload failed", error)
+      wx.showModal({
+        title: this.data.copy.uploadFailed,
+        content: error.message || this.data.copy.uploadFailed,
+        showCancel: false,
+      })
     }
   },
 
@@ -570,6 +661,7 @@ Page({
         },
       })
       this.setData({ checkinNote: "", checkinMedia: null })
+      await this.loadDetail()
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
       if (isServiceClosedError(error)) return
@@ -599,6 +691,7 @@ Page({
         },
       })
       this.setData({ noteForm: { title: "", content: "" } })
+      await this.loadDetail()
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
       if (isServiceClosedError(error)) return
@@ -626,6 +719,7 @@ Page({
         },
       })
       this.setData({ commentForm: { content: "" } })
+      await this.loadDetail()
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
       if (isServiceClosedError(error)) return

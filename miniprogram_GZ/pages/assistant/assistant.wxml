@@ -9,10 +9,17 @@
 
   <view class="chat-card">
     <view class="bubble assistant">{{copy.message}}</view>
+    <view wx:for="{{messages}}" wx:key="id" class="bubble user">{{item.content}}</view>
   </view>
 
   <view class="composer">
-    <input placeholder="{{copy.input}}" disabled />
+    <input
+      value="{{inputValue}}"
+      placeholder="{{copy.input}}"
+      confirm-type="send"
+      bindinput="onInputChange"
+      bindconfirm="onSendTap"
+    />
     <button bindtap="onSendTap">{{copy.send}}</button>
   </view>
   <view class="floating-back" catchtap="onFloatingBackTap">←</view>

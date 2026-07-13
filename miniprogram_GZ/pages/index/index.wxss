@@ -27,9 +27,9 @@ page {
 .hero {
   position: relative;
   flex: none;
-  height: 52vh;
-  min-height: 560rpx;
-  max-height: 720rpx;
+  height: 44vh;
+  min-height: 400rpx;
+  max-height: 620rpx;
   background: #dbe4d6;
 }
 
@@ -86,7 +86,7 @@ page {
   flex: 1;
   min-height: 0;
   margin-top: 0;
-  padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
   border-radius: 8rpx 8rpx 0 0;
   background: #f8f6ef;
   box-shadow: 0 -12rpx 40rpx rgba(31, 49, 39, 0.12);
@@ -96,31 +96,23 @@ page {
   flex-direction: column;
 }
 
-.tag-scroll {
-  width: 100%;
-  height: 78rpx;
-  white-space: nowrap;
-  flex: none;
-  display: block;
-}
-
 .tag-row {
-  height: 78rpx;
-  display: inline-flex;
-  gap: 14rpx;
-  padding-bottom: 18rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  padding-bottom: 4rpx;
   box-sizing: border-box;
 }
 
 .tag {
   flex: none;
-  min-width: 92rpx;
-  height: 56rpx;
-  padding: 0 24rpx;
-  border-radius: 28rpx;
+  min-width: 72rpx;
+  height: 44rpx;
+  padding: 0 16rpx;
+  border-radius: 22rpx;
   background: #ebe4d5;
   color: #5b635b;
-  font-size: 24rpx;
+  font-size: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -138,47 +130,43 @@ page {
 }
 
 .level-section {
-  margin-top: 14rpx;
+  margin-top: 8rpx;
 }
 
 .section-title-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 16rpx;
+  margin-bottom: 10rpx;
 }
 
 .section-title {
   color: #193127;
-  font-size: 30rpx;
+  font-size: 26rpx;
   font-weight: 800;
 }
 
 .section-subtitle {
   color: #7a8079;
-  font-size: 22rpx;
-}
-
-.level-scroll {
-  width: 100%;
-  white-space: nowrap;
+  font-size: 20rpx;
 }
 
 .level-row {
-  display: inline-flex;
-  gap: 12rpx;
-  padding-bottom: 6rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  padding-bottom: 4rpx;
 }
 
 .level-filter {
-  min-width: 120rpx;
-  height: 70rpx;
-  padding: 0 16rpx;
+  min-width: 92rpx;
+  height: 52rpx;
+  padding: 0 12rpx;
   border: 1rpx solid #dfe4d9;
   border-radius: 8rpx;
   background: #ffffff;
   color: #526357;
-  font-size: 24rpx;
+  font-size: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,22 +182,22 @@ page {
 }
 
 .level-color {
-  width: 16rpx;
-  height: 16rpx;
+  width: 12rpx;
+  height: 12rpx;
   border-radius: 50%;
   flex: none;
 }
 
 .level-count {
   color: #7a8079;
-  font-size: 22rpx;
+  font-size: 19rpx;
   font-variant-numeric: tabular-nums;
 }
 
 .filter-summary {
-  min-height: 76rpx;
+  min-height: 64rpx;
   margin-top: auto;
-  padding: 14rpx 16rpx;
+  padding: 10rpx 12rpx;
   border: 1rpx solid #dce8dc;
   border-radius: 8rpx;
   background: #f2f7f1;

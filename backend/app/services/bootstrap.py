@@ -64,6 +64,7 @@ def ensure_runtime_columns() -> None:
             "media_url": "VARCHAR(512) NULL",
             "media_type": "VARCHAR(32) NULL",
             "awarded_explore_points": "INT NOT NULL DEFAULT 0",
+            "promoted_spot_image_id": "INT NULL",
         },
         "pass_level_settings": {
             "marker_color": "VARCHAR(16) NOT NULL DEFAULT '#2f6b4f'",

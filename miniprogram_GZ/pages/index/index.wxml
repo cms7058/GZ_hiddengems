@@ -25,20 +25,18 @@
   </view>
 
   <view class="sheet">
-    <scroll-view class="tag-scroll" scroll-x>
-      <view class="tag-row">
-        <view class="tag {{allTagsSelected ? 'active' : ''}}" bindtap="onClearTags">{{copy.allTags}}</view>
-        <view
-          wx:for="{{tags}}"
-          wx:key="id"
-          class="tag {{item.active ? 'active' : ''}}"
-          data-id="{{item.id}}"
-          bindtap="onTagTap"
-        >
-          {{item.name}}
-        </view>
+    <view class="tag-row">
+      <view class="tag {{allTagsSelected ? 'active' : ''}}" catchtouchstart="onClearTags">{{copy.allTags}}</view>
+      <view
+        wx:for="{{tags}}"
+        wx:key="id"
+        class="tag {{item.active ? 'active' : ''}}"
+        data-id="{{item.id}}"
+        catchtouchstart="onTagTap"
+      >
+        {{item.name}}
       </view>
-    </scroll-view>
+    </view>
 
     <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
     <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
@@ -48,24 +46,22 @@
         <text class="section-title">{{copy.levelOverview}}</text>
         <text class="section-subtitle">{{copy.allLevels}}</text>
       </view>
-      <scroll-view class="level-scroll" scroll-x>
-        <view class="level-row">
-          <view class="level-filter {{allLevelsSelected ? 'active' : ''}}" bindtap="onClearLevels">
-            <text>{{copy.allLevels}}</text>
-          </view>
-          <view
-            wx:for="{{levelOptions}}"
-            wx:key="level"
-            class="level-filter {{item.active ? 'active' : ''}}"
-            data-level="{{item.level}}"
-            bindtap="onLevelTap"
-          >
-            <view class="level-color" style="background: {{item.markerColor}};"></view>
-            <text>{{item.label}}</text>
-            <text class="level-count">{{item.availableCount}}/{{item.count}}</text>
-          </view>
+      <view class="level-row">
+        <view class="level-filter {{allLevelsSelected ? 'active' : ''}}" catchtouchstart="onClearLevels">
+          <text>{{copy.allLevels}}</text>
         </view>
-      </scroll-view>
+        <view
+          wx:for="{{levelOptions}}"
+          wx:key="level"
+          class="level-filter {{item.active ? 'active' : ''}}"
+          data-level="{{item.level}}"
+          catchtouchstart="onLevelTap"
+        >
+          <view class="level-color" style="background: {{item.markerColor}};"></view>
+          <text>{{item.label}}</text>
+          <text class="level-count">{{item.availableCount}}/{{item.count}}</text>
+        </view>
+      </view>
     </view>
 
     <view class="filter-summary">

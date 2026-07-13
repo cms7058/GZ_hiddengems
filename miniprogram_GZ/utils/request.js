@@ -182,7 +182,7 @@ function miniLogin(payload) {
   })
 }
 
-function uploadMedia(filePath) {
+function uploadMedia(filePath, mediaType = "") {
   return preloadServiceHours().then(() => {
     const serviceClosedError = checkServiceHours()
     if (serviceClosedError) return Promise.reject(serviceClosedError)
@@ -194,6 +194,7 @@ function uploadMedia(filePath) {
         name: "file",
         formData: {
           user_id: getApp().globalData.user.id,
+          media_type: mediaType,
         },
         success(res) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -204,9 +205,10 @@ function uploadMedia(filePath) {
             }
             return
           }
-          const error = new Error(`upload failed: ${res.statusCode}`)
+          let detail = ""
           try {
             const responseData = typeof res.data === "string" ? JSON.parse(res.data) : res.data
+            detail = responseData && (responseData.detail || responseData.message || "")
             if (responseData && responseData.code === SERVICE_CLOSED_CODE) {
               error.code = SERVICE_CLOSED_CODE
               applyServiceHoursFromError(responseData)
@@ -214,6 +216,7 @@ function uploadMedia(filePath) {
           } catch (parseError) {
             // Keep the original upload error when the response is not JSON.
           }
+          const error = new Error(detail || `upload failed: ${res.statusCode}`)
           reject(error)
         },
         fail: reject,

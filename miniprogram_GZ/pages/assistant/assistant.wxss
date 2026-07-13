@@ -82,6 +82,12 @@ page {
   color: #263b2f;
 }
 
+.user {
+  margin: 18rpx 0 0 auto;
+  background: #dceef5;
+  color: #1f4a5c;
+}
+
 .composer {
   margin-top: 22rpx;
   display: flex;

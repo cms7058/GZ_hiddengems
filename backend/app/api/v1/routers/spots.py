@@ -2,12 +2,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.db.session import get_db
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
-from app.models.user import MiniProgramUser
+from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.spot import MapSpotOut, SpotDetailOut
 from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
 from app.services.spot_mapper import spot_to_detail_out, spot_to_map_out
@@ -119,6 +119,14 @@ def get_spot_detail(
             },
         )
     marker_colors_by_level = get_marker_colors_by_level(db)
+    my_checkins = []
+    if user is not None:
+        my_checkins = db.scalars(
+            select(CheckinRecord)
+            .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
+            .where(CheckinRecord.spot_id == spot.id, CheckinRecord.user_id == user.id)
+            .order_by(CheckinRecord.id.desc())
+        ).all()
     return spot_to_detail_out(
         spot,
         lang=lang,
@@ -129,4 +137,5 @@ def get_spot_detail(
         marker_colors_by_level=marker_colors_by_level,
         pass_settings_by_level=pass_settings_by_level,
         user=user,
+        my_checkins=my_checkins,
     )

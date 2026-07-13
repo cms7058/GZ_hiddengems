@@ -557,13 +557,13 @@ Page({
 
   onTagTap(event) {
     const tagId = Number(event.currentTarget.dataset.id)
+    if (!tagId) return
     this.mapAutoFit = true
     const selectedTagIds = this.data.selectedTagIds.slice()
     const index = selectedTagIds.indexOf(tagId)
     if (index >= 0) selectedTagIds.splice(index, 1)
     else selectedTagIds.push(tagId)
-    this.setData({ selectedTagIds })
-    this.applyFilters()
+    this.setData({ selectedTagIds }, () => this.applyFilters())
   },
 
   onClearTags() {
@@ -573,13 +573,13 @@ Page({
 
   onLevelTap(event) {
     const level = Number(event.currentTarget.dataset.level)
+    if (!level) return
     this.mapAutoFit = true
     const selectedLevelIds = this.data.selectedLevelIds.slice()
     const index = selectedLevelIds.indexOf(level)
     if (index >= 0) selectedLevelIds.splice(index, 1)
     else selectedLevelIds.push(level)
-    this.setData({ selectedLevelIds })
-    this.applyFilters()
+    this.setData({ selectedLevelIds }, () => this.applyFilters())
   },
 
   onClearLevels() {

@@ -290,7 +290,15 @@ def delete_spot_image(
     image = db.get(SpotImage, image_id)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    delete_media_or_502(db, image.image_url)
+    linked_checkin = db.scalar(select(CheckinRecord.id).where(CheckinRecord.promoted_spot_image_id == image.id))
+    if linked_checkin is None:
+        delete_media_or_502(db, image.image_url)
+    else:
+        checkin = db.get(CheckinRecord, linked_checkin)
+        if checkin is not None:
+            checkin.promoted_spot_image_id = None
+            db.add(checkin)
+            db.flush()
     db.delete(image)
     db.commit()
 
@@ -299,14 +307,20 @@ def delete_spot_image(
 def list_travel_notes(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    spot_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[TravelNoteOut]:
-    result = paginated_scalars(
-        db,
+    statement = (
         select(TravelNote)
         .options(joinedload(TravelNote.user), joinedload(TravelNote.spot))
-        .order_by(TravelNote.id.desc()),
+        .order_by(TravelNote.id.desc())
+    )
+    if spot_id is not None:
+        statement = statement.where(TravelNote.spot_id == spot_id)
+    result = paginated_scalars(
+        db,
+        statement,
         page,
         page_size,
     )
@@ -393,14 +407,20 @@ def delete_travel_note(
 def list_comments(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    spot_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[UserCommentOut]:
-    result = paginated_scalars(
-        db,
+    statement = (
         select(UserComment)
         .options(joinedload(UserComment.user), joinedload(UserComment.spot))
-        .order_by(UserComment.id.desc()),
+        .order_by(UserComment.id.desc())
+    )
+    if spot_id is not None:
+        statement = statement.where(UserComment.spot_id == spot_id)
+    result = paginated_scalars(
+        db,
+        statement,
         page,
         page_size,
     )

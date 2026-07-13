@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import get_current_admin
 from app.db.session import get_db
@@ -18,12 +18,33 @@ from app.schemas.spot import (
     SpotUpdate,
 )
 from app.schemas.pagination import Page
+from app.schemas.user import CheckinRecordOut
 from app.services.pagination import build_page, paginated_scalars
 from app.services.media_storage import MediaStorageError, delete_media
 from app.services.spot_mapper import spot_to_admin_out
 
 
 router = APIRouter()
+
+
+def checkin_to_admin_out(record: CheckinRecord) -> CheckinRecordOut:
+    return CheckinRecordOut(
+        id=record.id,
+        user_id=record.user_id,
+        nickname=record.user.nickname,
+        spot_id=record.spot_id,
+        spot_name_zh=record.spot.name_zh,
+        status=record.status,
+        latitude=record.latitude,
+        longitude=record.longitude,
+        image_url=record.image_url,
+        media_url=record.media_url,
+        media_type=record.media_type,
+        note=record.note,
+        review_note=record.review_note,
+        awarded_explore_points=record.awarded_explore_points,
+        promoted_spot_image_id=record.promoted_spot_image_id,
+    )
 
 
 def load_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
@@ -97,6 +118,33 @@ def get_admin_spot(
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
     return spot_to_admin_out(spot)
+
+
+@router.get("/{spot_id}/checkins", response_model=Page[CheckinRecordOut])
+def list_spot_checkins(
+    spot_id: int,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> Page[CheckinRecordOut]:
+    if db.get(ScenicSpot, spot_id) is None:
+        raise HTTPException(status_code=404, detail="Spot not found")
+    result = paginated_scalars(
+        db,
+        select(CheckinRecord)
+        .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
+        .where(CheckinRecord.spot_id == spot_id)
+        .order_by(CheckinRecord.id.desc()),
+        page,
+        page_size,
+    )
+    return build_page(
+        [checkin_to_admin_out(record) for record in result.items],
+        result.total,
+        result.page,
+        result.page_size,
+    )
 
 
 @router.patch("/{spot_id}", response_model=SpotAdminOut)

@@ -32,10 +32,6 @@
       <text class="value">{{user.explore_points}}</text>
     </view>
     <view class="stat">
-      <text>{{copy.level}}</text>
-      <text class="value">L{{user.explorer_level}}</text>
-    </view>
-    <view class="stat">
       <text>{{copy.member}}</text>
       <text class="value small">{{user.is_member ? copy.activeMember : copy.regular}}</text>
     </view>

@@ -92,9 +92,11 @@ class CheckinRecord(Base):
     note = Column(String(512), nullable=True)
     review_note = Column(String(512), nullable=True)
     awarded_explore_points = Column(Integer, default=0, nullable=False)
+    promoted_spot_image_id = Column(Integer, ForeignKey("spot_images.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     user = relationship("MiniProgramUser")
     spot = relationship("ScenicSpot")
+    promoted_spot_image = relationship("SpotImage", foreign_keys=[promoted_spot_image_id])

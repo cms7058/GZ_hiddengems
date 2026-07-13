@@ -54,6 +54,7 @@ class TravelNoteOut(BaseModel):
     id: int
     user_id: int
     nickname: str
+    avatar_url: Optional[str] = None
     spot_id: Optional[int] = None
     spot_name_zh: Optional[str] = None
     title: str
@@ -84,6 +85,7 @@ class UserCommentOut(BaseModel):
     id: int
     user_id: int
     nickname: str
+    avatar_url: Optional[str] = None
     spot_id: Optional[int] = None
     spot_name_zh: Optional[str] = None
     content: str

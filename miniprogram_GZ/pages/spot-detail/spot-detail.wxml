@@ -3,15 +3,33 @@
     <view slot="right" class="nav-action" bindtap="onLanguageTap">{{lang === 'zh-CN' ? 'EN' : '中'}}</view>
   </navigation-bar>
 
-  <scroll-view class="detail-scroll" scroll-y>
+  <scroll-view class="detail-scroll" scroll-y scroll-with-animation scroll-into-view="{{scrollTarget}}">
     <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
     <view wx:elif="{{error}}" class="notice error">{{copy.loadFailed}}</view>
 
     <block wx:elif="{{spot}}">
       <view class="hero">
-        <swiper wx:if="{{spotPhotos.length}}" class="hero-media" indicator-dots circular autoplay interval="4500">
-          <swiper-item wx:for="{{spotPhotos}}" wx:key="id">
-            <image class="hero-image" src="{{item.display_url || item.image_url}}" mode="aspectFill"></image>
+        <swiper wx:if="{{photoSlides.length}}" class="hero-media" indicator-dots circular autoplay interval="4500">
+          <swiper-item wx:for="{{photoSlides}}" wx:for-item="slide" wx:key="index">
+            <view class="hero-image-grid">
+              <block wx:for="{{slide}}" wx:for-item="photo" wx:key="id">
+                <video
+                  wx:if="{{photo.media_type === 'video'}}"
+                  class="hero-image-thumb hero-video-thumb"
+                  src="{{photo.display_url || photo.image_url}}"
+                  controls
+                ></video>
+                <image
+                  wx:else
+                  class="hero-image-thumb"
+                  src="{{photo.display_url || photo.image_url}}"
+                  mode="aspectFill"
+                  data-url="{{photo.display_url || photo.image_url}}"
+                  data-media-type="{{photo.media_type || 'image'}}"
+                  bindtap="onPreviewSpotPhoto"
+                ></image>
+              </block>
+            </view>
           </swiper-item>
         </swiper>
         <map
@@ -40,25 +58,25 @@
         <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
 
         <view class="stats">
-          <view class="stat">
+          <view class="stat stat-action" data-target="checkin" bindtap="onStatTap">
             <text class="stat-number">{{spot.user_explore_points}}</text>
             <text>{{copy.points}}</text>
           </view>
-          <view class="stat">
+          <view class="stat stat-action" data-target="description" bindtap="onStatTap">
             <text class="stat-number">{{spot.required_explore_points}}</text>
             <text>{{copy.unlockNeed}}</text>
           </view>
-          <view class="stat">
+          <view class="stat stat-action" data-target="interaction" bindtap="onStatTap">
             <text class="stat-number">{{userCount}}</text>
             <text>{{copy.users}}</text>
           </view>
-          <view class="stat">
+          <view class="stat stat-action" data-target="community" bindtap="onStatTap">
             <text class="stat-number">{{spot.travel_notes.length + spot.comments.length}}</text>
             <text>{{copy.notes}}/{{copy.comments}}</text>
           </view>
         </view>
 
-        <view class="section">
+        <view id="description" class="section">
           <view class="section-head">
             <text>{{copy.description}}</text>
           </view>
@@ -118,7 +136,7 @@
           </block>
         </view>
 
-        <view class="section action-section">
+        <view id="checkin" class="section action-section">
           <view class="section-head">
             <text>{{copy.actions}}</text>
           </view>
@@ -162,7 +180,7 @@
             ></textarea>
             <button class="action-button secondary-action" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
           </view>
-          <view wx:if="{{user.can_comment}}" class="action-block last">
+          <view wx:if="{{user.can_comment}}" id="comment-form" class="action-block last">
             <textarea
               class="form-textarea"
               value="{{commentForm.content}}"
@@ -172,6 +190,37 @@
             ></textarea>
             <button class="action-button secondary-action" loading="{{submitting}}" bindtap="onSubmitComment">{{copy.submitComment}}</button>
           </view>
+          <view wx:if="{{spot.my_checkins.length}}" class="my-checkins">
+            <view class="section-head">
+              <text>{{copy.myCheckins}}</text>
+              <text class="count">{{spot.my_checkins.length}}</text>
+            </view>
+            <view wx:for="{{spot.my_checkins}}" wx:key="id" class="checkin-item">
+              <image wx:if="{{item.media_type === 'image' && (item.media_url || item.image_url)}}" class="content-image" src="{{item.media_url || item.image_url}}" mode="aspectFill"></image>
+              <video wx:elif="{{item.media_type === 'video' && item.media_url}}" class="checkin-video" src="{{item.media_url}}" controls></video>
+              <view class="note-head">
+                <text class="note-title">{{item.note || copy.checkin}}</text>
+                <text wx:if="{{item.statusText}}" class="review-status">{{item.statusText}}</text>
+              </view>
+              <text wx:if="{{item.review_note}}" class="review-note">{{item.review_note}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view id="interaction" class="section">
+          <view class="section-head">
+            <text>{{copy.interaction}}</text>
+            <text class="count">{{interactionUsers.length}}</text>
+          </view>
+          <text class="body-text">{{copy.interactionDescription}}</text>
+          <view wx:if="{{interactionUsers.length}}" class="explorer-list">
+            <view wx:for="{{interactionUsers}}" wx:key="id" class="explorer-item">
+              <image wx:if="{{item.avatar_url}}" class="explorer-avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
+              <view wx:else class="explorer-avatar explorer-avatar-fallback">{{item.avatarInitial}}</view>
+              <text class="explorer-name">{{item.nickname}}</text>
+            </view>
+          </view>
+          <button wx:if="{{user.can_comment}}" class="interaction-button" bindtap="onStartInteraction">{{copy.startInteraction}}</button>
         </view>
 
         <view class="section">
@@ -194,6 +243,7 @@
           </view>
         </view>
 
+        <view id="community">
         <view class="section">
           <view class="section-head">
             <text>{{copy.notes}}</text>
@@ -205,6 +255,7 @@
             <view class="note-head">
               <text class="note-title">{{item.title}}</text>
               <text wx:if="{{item.is_featured}}" class="featured">{{copy.featured}}</text>
+              <text wx:if="{{item.statusText}}" class="review-status">{{item.statusText}}</text>
             </view>
             <text class="author">{{item.nickname}}</text>
             <text class="body-text">{{item.content}}</text>
@@ -220,8 +271,10 @@
           <view wx:for="{{spot.comments}}" wx:key="id" class="comment-item">
             <image wx:if="{{item.display_url || item.image_url}}" class="content-image" src="{{item.display_url || item.image_url}}" mode="aspectFill"></image>
             <text class="author">{{item.nickname}}</text>
+            <text wx:if="{{item.statusText}}" class="review-status">{{item.statusText}}</text>
             <text class="body-text">{{item.content}}</text>
           </view>
+        </view>
         </view>
       </view>
     </block>

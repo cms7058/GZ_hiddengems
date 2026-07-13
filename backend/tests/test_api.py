@@ -223,6 +223,16 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"]["required_explore_points"], 100)
 
+    def test_spot_detail_includes_only_current_users_pending_submissions(self):
+        response = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1&explore_points=120")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["comments"][0]["content"], "很适合摄影。")
+        self.assertEqual(data["comments"][0]["status"], "pending")
+        self.assertEqual(data["my_checkins"][0]["note"], "清晨到达。")
+        self.assertEqual(data["my_checkins"][0]["status"], "pending")
+
     def test_mini_program_can_submit_checkin_note_and_comment(self):
         checkin = self.client.post(
             "/api/v1/mini/checkins",
@@ -684,6 +694,13 @@ class ApiTest(unittest.TestCase):
 
     def test_admin_can_review_checkins_and_update_user_count(self):
         headers = self.login_headers()
+        db = self.SessionLocal()
+        checkin = db.get(CheckinRecord, 1)
+        checkin.media_url = "/media/mini-shares/checkin-photo.jpg"
+        checkin.media_type = "image"
+        db.add(checkin)
+        db.commit()
+        db.close()
         setting_response = self.client.post(
             "/api/v1/admin/pass-settings",
             headers=headers,
@@ -709,6 +726,16 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(approve_response.status_code, 200)
         self.assertEqual(approve_response.json()["status"], "approved")
         self.assertEqual(approve_response.json()["awarded_explore_points"], 25)
+        self.assertIsNotNone(approve_response.json()["promoted_spot_image_id"])
+
+        spot_checkins_response = self.client.get("/api/v1/admin/spots/1/checkins", headers=headers)
+        self.assertEqual(spot_checkins_response.status_code, 200)
+        self.assertEqual(spot_checkins_response.json()["items"][0]["media_type"], "image")
+        self.assertEqual(spot_checkins_response.json()["items"][0]["promoted_spot_image_id"], approve_response.json()["promoted_spot_image_id"])
+
+        detail_response = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1&explore_points=120")
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertTrue(any(item["image_url"] == "/media/mini-shares/checkin-photo.jpg" for item in detail_response.json()["images"]))
 
         user_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_response.json()["checkin_count"], 9)
@@ -739,6 +766,16 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(upload_response.status_code, 201)
         self.assertTrue(upload_response.json()["image_url"].startswith("/media/spots/"))
         self.assertTrue(upload_response.json()["is_cover"])
+
+    def test_mini_upload_accepts_media_type_when_temp_file_has_no_suffix(self):
+        response = self.client.post(
+            "/api/v1/mini/uploads",
+            data={"user_id": "1", "media_type": "image"},
+            files={"file": ("wxfile", b"fake-image", "application/octet-stream")},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["media_type"], "image")
+        self.assertTrue(response.json()["media_url"].startswith("/media/mini-shares/"))
 
     def test_admin_can_review_notes_and_comments(self):
         headers = self.login_headers()

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from app.schemas.content import SpotImageOut
 
 from app.schemas.content import RecommendationOut, TravelNoteOut, UserCommentOut
+from app.schemas.user import CheckinRecordOut
 
 
 class LocalizedTag(BaseModel):
@@ -151,4 +152,5 @@ class SpotDetailOut(MapSpotOut):
     images: list[SpotImageOut] = Field(default_factory=list)
     travel_notes: list[TravelNoteOut] = Field(default_factory=list)
     comments: list[UserCommentOut] = Field(default_factory=list)
+    my_checkins: list[CheckinRecordOut] = Field(default_factory=list)
     lifestyle_recommendations: list[RecommendationOut] = Field(default_factory=list)

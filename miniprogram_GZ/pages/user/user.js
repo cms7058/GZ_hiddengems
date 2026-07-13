@@ -3,9 +3,8 @@ const app = getApp()
 const COPY = {
   "zh-CN": {
     title: "用户",
-    subtitle: "查看探秘积分、等级和解锁进度",
+    subtitle: "查看探秘积分和解锁进度",
     points: "探秘积分",
-    level: "探索等级",
     member: "会员状态",
     activeMember: "已开通",
     regular: "普通用户",
@@ -28,9 +27,8 @@ const COPY = {
   },
   "en-US": {
     title: "Profile",
-    subtitle: "Track explore points, level, and unlock progress",
+    subtitle: "Track explore points and unlock progress",
     points: "Explore Points",
-    level: "Explorer Level",
     member: "Membership",
     activeMember: "Active",
     regular: "Regular",

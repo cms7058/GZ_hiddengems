@@ -11,7 +11,8 @@ from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url
 from app.services.pass_levels import get_spot_unlock_state
-from app.models.user import MiniProgramUser, PassLevelSetting
+from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
+from app.schemas.user import CheckinRecordOut
 
 
 def tag_to_localized(tag: Tag, lang: str) -> LocalizedTag:
@@ -120,6 +121,7 @@ def spot_to_detail_out(
     marker_colors_by_level: Optional[dict[int, str]] = None,
     pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
     user: Optional[MiniProgramUser] = None,
+    my_checkins: Optional[list[CheckinRecord]] = None,
 ) -> SpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     base = spot_to_map_out(
@@ -140,13 +142,14 @@ def spot_to_detail_out(
         travel_notes=[
             travel_note_to_out(note, db)
             for note in getattr(spot, "travel_notes", [])
-            if note.status == "approved"
+            if note.status == "approved" or (user is not None and note.user_id == user.id)
         ],
         comments=[
             comment_to_out(comment, db)
             for comment in getattr(spot, "comments", [])
-            if comment.status == "approved"
+            if comment.status == "approved" or (user is not None and comment.user_id == user.id)
         ],
+        my_checkins=[checkin_to_out(record, db) for record in my_checkins or []],
         lifestyle_recommendations=[
             recommendation_to_out(recommendation, db)
             for recommendation in getattr(spot, "lifestyle_recommendations", [])
@@ -176,6 +179,7 @@ def travel_note_to_out(note: TravelNote, db: Optional[Session] = None) -> Travel
         id=note.id,
         user_id=note.user_id,
         nickname=note.user.nickname,
+        avatar_url=note.user.avatar_url,
         spot_id=note.spot_id,
         spot_name_zh=note.spot.name_zh if note.spot else None,
         title=note.title,
@@ -193,12 +197,33 @@ def comment_to_out(comment: UserComment, db: Optional[Session] = None) -> UserCo
         id=comment.id,
         user_id=comment.user_id,
         nickname=comment.user.nickname,
+        avatar_url=comment.user.avatar_url,
         spot_id=comment.spot_id,
         spot_name_zh=comment.spot.name_zh if comment.spot else None,
         content=comment.content,
         image_url=comment.image_url,
         display_url=display_url,
         status=comment.status,
+    )
+
+
+def checkin_to_out(record: CheckinRecord, db: Optional[Session] = None) -> CheckinRecordOut:
+    return CheckinRecordOut(
+        id=record.id,
+        user_id=record.user_id,
+        nickname=record.user.nickname,
+        spot_id=record.spot_id,
+        spot_name_zh=record.spot.name_zh,
+        status=record.status,
+        latitude=record.latitude,
+        longitude=record.longitude,
+        image_url=record.image_url,
+        media_url=record.media_url,
+        media_type=record.media_type,
+        note=record.note,
+        review_note=record.review_note,
+        awarded_explore_points=record.awarded_explore_points,
+        promoted_spot_image_id=record.promoted_spot_image_id,
     )
 
 

@@ -189,3 +189,4 @@ class CheckinRecordOut(BaseModel):
     note: Optional[str] = None
     review_note: Optional[str] = None
     awarded_explore_points: int = 0
+    promoted_spot_image_id: Optional[int] = None

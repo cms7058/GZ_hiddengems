@@ -23,6 +23,8 @@ Page({
   data: {
     lang: "zh-CN",
     copy: COPY["zh-CN"],
+    inputValue: "",
+    messages: [],
   },
 
   onShow() {
@@ -34,7 +36,18 @@ Page({
     })
   },
 
+  onInputChange(event) {
+    this.setData({ inputValue: event.detail.value })
+  },
+
   onSendTap() {
+    const content = (this.data.inputValue || "").trim()
+    if (!content) {
+      wx.showToast({ title: this.data.copy.input, icon: "none" })
+      return
+    }
+    const messages = this.data.messages.concat({ id: Date.now(), content })
+    this.setData({ messages, inputValue: "" })
     wx.showToast({
       title: this.data.copy.message,
       icon: "none",
