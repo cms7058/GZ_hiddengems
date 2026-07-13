@@ -75,6 +75,7 @@ class PassLevelSettingCreate(BaseModel):
     level: int = Field(..., ge=0, le=99)
     name_zh: str = Field(..., max_length=64)
     name_en: str = Field(..., max_length=64)
+    required_explore_points: int = Field(default=0, ge=0)
     required_checkins: int = Field(default=0, ge=0)
     required_contributions: int = Field(default=0, ge=0)
     required_eco_credit: int = Field(default=0, ge=0, le=100)
@@ -88,6 +89,7 @@ class PassLevelSettingCreate(BaseModel):
 class PassLevelSettingUpdate(BaseModel):
     name_zh: Optional[str] = Field(default=None, max_length=64)
     name_en: Optional[str] = Field(default=None, max_length=64)
+    required_explore_points: Optional[int] = Field(default=None, ge=0)
     required_checkins: Optional[int] = Field(default=None, ge=0)
     required_contributions: Optional[int] = Field(default=None, ge=0)
     required_eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
@@ -103,6 +105,7 @@ class PassLevelSettingOut(BaseModel):
     level: int
     name_zh: str
     name_en: str
+    required_explore_points: int
     required_checkins: int
     required_contributions: int
     required_eco_credit: int

@@ -35,6 +35,7 @@ class PassLevelSetting(Base):
     level = Column(Integer, nullable=False, unique=True, index=True)
     name_zh = Column(String(64), nullable=False)
     name_en = Column(String(64), nullable=False)
+    required_explore_points = Column(Integer, default=0, nullable=False)
     required_checkins = Column(Integer, default=0, nullable=False)
     required_contributions = Column(Integer, default=0, nullable=False)
     required_eco_credit = Column(Integer, default=0, nullable=False)

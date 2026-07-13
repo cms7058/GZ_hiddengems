@@ -86,6 +86,7 @@ const I18N = {
   "管理小程序注册用户、会员状态、探索等级、探秘积分和环保信用。": "Manage registered users, membership status, explorer levels, explore points, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
   "配置探索等级的通关条件、会员要求、地图标识颜色和解锁权益。": "Configure pass requirements, membership rules, map marker colors, and unlock benefits.",
+  "配置探索等级的探秘积分、打卡、贡献、环保信用、会员要求和解锁权益。": "Configure explore points, check-ins, contributions, eco credit, membership, and unlock benefits.",
   "新增等级": "New Level",
   "标识颜色": "Marker Color",
   "请先配置通关等级": "Configure a pass level first",
@@ -229,6 +230,7 @@ const I18N = {
   "中文权益": "Chinese Benefits",
   "英文权益": "English Benefits",
   "所需打卡": "Required Check-ins",
+  "所需探秘积分": "Required Explore Points",
   "所需贡献": "Required Contributions",
   "环保信用": "Eco Credit",
   "所属秘境": "Linked Spot",
@@ -701,8 +703,8 @@ function renderPassSettings() {
           </td>
           <td>
             <div class="cell-title">
-              <span>${t("打卡")} ${setting.required_checkins} / ${t("贡献")} ${setting.required_contributions}</span>
-              <span class="muted">${t("环保信用")} ${setting.required_eco_credit}</span>
+              <span>${t("探秘积分")} ${setting.required_explore_points || 0} / ${t("打卡")} ${setting.required_checkins}</span>
+              <span class="muted">${t("贡献")} ${setting.required_contributions} / ${t("环保信用")} ${setting.required_eco_credit}</span>
             </div>
           </td>
           <td>
@@ -1484,6 +1486,7 @@ function fillPassSettingForm(setting) {
   form.elements.level.disabled = Boolean(setting);
   setPassMarkerColorInputs(markerColor);
   if (!setting) {
+    form.elements.required_explore_points.value = 0;
     form.elements.required_checkins.value = 0;
     form.elements.required_contributions.value = 0;
     form.elements.required_eco_credit.value = 0;
@@ -1494,6 +1497,7 @@ function fillPassSettingForm(setting) {
   [
     "name_zh",
     "name_en",
+    "required_explore_points",
     "required_checkins",
     "required_contributions",
     "required_eco_credit",
@@ -2384,6 +2388,7 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
     level: Number(form.elements.level.value),
     name_zh: data.name_zh,
     name_en: data.name_en,
+    required_explore_points: Number(data.required_explore_points),
     required_checkins: Number(data.required_checkins),
     required_contributions: Number(data.required_contributions),
     required_eco_credit: Number(data.required_eco_credit),

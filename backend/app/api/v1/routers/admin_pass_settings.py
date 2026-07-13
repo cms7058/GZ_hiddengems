@@ -10,7 +10,7 @@ from app.models.user import PassLevelSetting
 from app.schemas.pagination import Page
 from app.schemas.user import PassLevelSettingCreate, PassLevelSettingOut, PassLevelSettingUpdate
 from app.services.pagination import paginated_scalars
-from app.services.pass_levels import ensure_pass_level_marker_color_column
+from app.services.pass_levels import ensure_pass_level_marker_color_column, sync_all_user_explorer_levels
 
 
 router = APIRouter()
@@ -40,6 +40,8 @@ def create_pass_setting(
 
     setting = PassLevelSetting(**payload.model_dump())
     db.add(setting)
+    db.flush()
+    sync_all_user_explorer_levels(db)
     db.commit()
     db.refresh(setting)
     return setting
@@ -61,6 +63,8 @@ def update_pass_setting(
         setattr(setting, field, value)
 
     db.add(setting)
+    db.flush()
+    sync_all_user_explorer_levels(db)
     db.commit()
     db.refresh(setting)
     return setting
@@ -83,4 +87,6 @@ def delete_pass_setting(
         raise HTTPException(status_code=409, detail="Reassign linked spots before deleting this pass level")
 
     db.delete(setting)
+    db.flush()
+    sync_all_user_explorer_levels(db)
     db.commit()

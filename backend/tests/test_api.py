@@ -493,7 +493,7 @@ class ApiTest(unittest.TestCase):
         )
         self.assertEqual(update_response.status_code, 200)
         data = update_response.json()
-        self.assertEqual(data["explorer_level"], 3)
+        self.assertEqual(data["explorer_level"], 2)
         self.assertEqual(data["explore_points"], 160)
         self.assertEqual(data["avatar_url"], "/media/avatars/test.jpg")
         self.assertTrue(data["is_member"])
@@ -528,6 +528,41 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["required_checkins"], 6)
         self.assertTrue(data["requires_membership"])
         self.assertEqual(data["unlock_benefit_zh"], "更新后的解锁权益。")
+
+    def test_pass_setting_explore_points_controls_spot_unlock(self):
+        headers = self.login_headers()
+        create_response = self.client.post(
+            "/api/v1/admin/pass-settings",
+            headers=headers,
+            json={
+                "level": 5,
+                "name_zh": "守护者",
+                "name_en": "Guardian",
+                "required_explore_points": 180,
+                "unlock_benefit_zh": "高级秘境解锁",
+                "unlock_benefit_en": "Unlock advanced gems",
+            },
+        )
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(create_response.json()["required_explore_points"], 180)
+
+        locked_response = self.client.get("/api/v1/spots/map?user_id=1&lang=zh-CN")
+        self.assertEqual(locked_response.status_code, 200)
+        locked_spot = locked_response.json()[0]
+        self.assertFalse(locked_spot["is_unlocked"])
+        self.assertEqual(locked_spot["required_explore_points"], 180)
+
+        user_response = self.client.patch(
+            "/api/v1/admin/users/1",
+            headers=headers,
+            json={"explore_points": 180},
+        )
+        self.assertEqual(user_response.status_code, 200)
+        self.assertEqual(user_response.json()["explorer_level"], 5)
+
+        unlocked_response = self.client.get("/api/v1/spots/1?user_id=1&lang=zh-CN")
+        self.assertEqual(unlocked_response.status_code, 200)
+        self.assertTrue(unlocked_response.json()["is_unlocked"])
 
     def test_admin_can_delete_unlinked_pass_setting(self):
         headers = self.login_headers()

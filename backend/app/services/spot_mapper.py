@@ -7,9 +7,11 @@ from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, U
 from app.models.spot import ScenicSpot, Tag
 from app.schemas.content import RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
 from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
-from app.services.geo import can_unlock_spot, mask_coordinate
+from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url
+from app.services.pass_levels import get_spot_unlock_state
+from app.models.user import MiniProgramUser, PassLevelSetting
 
 
 def tag_to_localized(tag: Tag, lang: str) -> LocalizedTag:
@@ -70,9 +72,17 @@ def spot_to_map_out(
     is_member: bool = False,
     user_explore_points: int = 0,
     marker_colors_by_level: Optional[dict[int, str]] = None,
+    pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
+    user: Optional[MiniProgramUser] = None,
 ) -> MapSpotOut:
     normalized_lang = normalize_language(lang, settings.default_language)
-    is_unlocked = can_unlock_spot(spot.required_explore_points, user_explore_points)
+    is_unlocked, required_explore_points = get_spot_unlock_state(
+        spot_required_explore_points=spot.required_explore_points,
+        recommendation_level=spot.recommendation_level,
+        user=user,
+        fallback_explore_points=user_explore_points,
+        settings_by_level=pass_settings_by_level,
+    )
     coordinate = mask_coordinate(
         spot.latitude,
         spot.longitude,
@@ -90,7 +100,7 @@ def spot_to_map_out(
         latitude=coordinate.latitude,
         longitude=coordinate.longitude,
         visibility_level=spot.visibility_level,
-        required_explore_points=spot.required_explore_points,
+        required_explore_points=required_explore_points,
         user_explore_points=user_explore_points,
         is_unlocked=is_unlocked,
         is_precise_location=coordinate.is_precise,
@@ -108,6 +118,8 @@ def spot_to_detail_out(
     user_explore_points: int = 0,
     db: Optional[Session] = None,
     marker_colors_by_level: Optional[dict[int, str]] = None,
+    pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
+    user: Optional[MiniProgramUser] = None,
 ) -> SpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     base = spot_to_map_out(
@@ -117,6 +129,8 @@ def spot_to_detail_out(
         is_member,
         user_explore_points,
         marker_colors_by_level,
+        pass_settings_by_level,
+        user,
     )
     return SpotDetailOut(
         **base.model_dump(),

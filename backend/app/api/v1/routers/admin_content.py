@@ -27,6 +27,7 @@ from app.schemas.content import (
 from app.schemas.pagination import Page
 from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
 from app.services.pagination import build_page, paginated_scalars
+from app.services.pass_levels import sync_user_explorer_level
 
 
 router = APIRouter()
@@ -38,6 +39,16 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
+
+
+def sync_content_contribution(user, previous_status: str, next_status: str, db: Session) -> None:
+    was_approved = previous_status == "approved"
+    is_approved = next_status == "approved"
+    if is_approved and not was_approved:
+        user.contribution_count += 1
+    elif was_approved and not is_approved and user.contribution_count > 0:
+        user.contribution_count -= 1
+    sync_user_explorer_level(db, user)
 
 
 def detect_media_type(file: UploadFile, allow_video: bool = False) -> tuple[str, str]:
@@ -318,6 +329,8 @@ def create_travel_note(
     ensure_spot_exists(db, payload.spot_id)
     note = TravelNote(**payload.model_dump())
     db.add(note)
+    db.flush()
+    sync_content_contribution(note.user, "pending", note.status, db)
     db.commit()
     db.refresh(note)
     return travel_note_to_out(get_note(db, note.id), db)
@@ -331,6 +344,7 @@ def update_travel_note(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> TravelNoteOut:
     note = get_note(db, note_id)
+    previous_status = note.status
     update_data = payload.model_dump(exclude_unset=True)
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
@@ -338,6 +352,8 @@ def update_travel_note(
         delete_media_or_502(db, note.image_url)
     for field, value in update_data.items():
         setattr(note, field, value)
+    if "status" in update_data:
+        sync_content_contribution(note.user, previous_status, note.status, db)
     db.add(note)
     db.commit()
     return travel_note_to_out(get_note(db, note_id), db)
@@ -351,9 +367,11 @@ def update_travel_note_status(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> TravelNoteOut:
     note = get_note(db, note_id)
+    previous_status = note.status
     note.status = payload.status
     if payload.is_featured is not None:
         note.is_featured = payload.is_featured
+    sync_content_contribution(note.user, previous_status, note.status, db)
     db.add(note)
     db.commit()
     db.refresh(note)
@@ -367,6 +385,7 @@ def delete_travel_note(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> None:
     note = get_note(db, note_id)
+    sync_content_contribution(note.user, note.status, "deleted", db)
     delete_media_or_502(db, note.image_url)
     db.delete(note)
     db.commit()
@@ -404,6 +423,8 @@ def create_comment(
     ensure_spot_exists(db, payload.spot_id)
     comment = UserComment(**payload.model_dump())
     db.add(comment)
+    db.flush()
+    sync_content_contribution(comment.user, "pending", comment.status, db)
     db.commit()
     db.refresh(comment)
     return comment_to_out(get_comment(db, comment.id), db)
@@ -417,6 +438,7 @@ def update_comment(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> UserCommentOut:
     comment = get_comment(db, comment_id)
+    previous_status = comment.status
     update_data = payload.model_dump(exclude_unset=True)
     if "spot_id" in update_data and update_data["spot_id"] is not None:
         ensure_spot_exists(db, update_data["spot_id"])
@@ -424,6 +446,8 @@ def update_comment(
         delete_media_or_502(db, comment.image_url)
     for field, value in update_data.items():
         setattr(comment, field, value)
+    if "status" in update_data:
+        sync_content_contribution(comment.user, previous_status, comment.status, db)
     db.add(comment)
     db.commit()
     return comment_to_out(get_comment(db, comment_id), db)
@@ -437,7 +461,9 @@ def update_comment_status(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> UserCommentOut:
     comment = get_comment(db, comment_id)
+    previous_status = comment.status
     comment.status = payload.status
+    sync_content_contribution(comment.user, previous_status, comment.status, db)
     db.add(comment)
     db.commit()
     db.refresh(comment)
@@ -451,6 +477,7 @@ def delete_comment(
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> None:
     comment = get_comment(db, comment_id)
+    sync_content_contribution(comment.user, comment.status, "deleted", db)
     delete_media_or_502(db, comment.image_url)
     db.delete(comment)
     db.commit()

@@ -9,25 +9,24 @@ from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, U
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import MiniProgramUser
 from app.schemas.spot import MapSpotOut, SpotDetailOut
-from app.services.geo import can_unlock_spot
-from app.services.pass_levels import get_marker_colors_by_level
+from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
 from app.services.spot_mapper import spot_to_detail_out, spot_to_map_out
 
 
 router = APIRouter()
 
 
-def resolve_user_explore_points(
+def resolve_user_context(
     db: Session,
     user_id: Optional[int] = None,
     explore_points: int = 0,
-) -> int:
+) -> tuple[Optional[MiniProgramUser], int]:
     if user_id is None:
-        return explore_points
+        return None, explore_points
     user = db.get(MiniProgramUser, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
-    return user.explore_points
+    return user, user.explore_points
 
 
 @router.get("/map", response_model=list[MapSpotOut])
@@ -40,7 +39,7 @@ def list_map_spots(
     explore_points: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[MapSpotOut]:
-    user_explore_points = resolve_user_explore_points(db, user_id, explore_points)
+    user, user_explore_points = resolve_user_context(db, user_id, explore_points)
     statement = (
         select(ScenicSpot)
         .options(selectinload(ScenicSpot.tags))
@@ -55,6 +54,7 @@ def list_map_spots(
 
     spots = db.scalars(statement).all()
     marker_colors_by_level = get_marker_colors_by_level(db)
+    pass_settings_by_level = get_active_pass_settings_by_level(db)
     return [
         spot_to_map_out(
             spot,
@@ -63,6 +63,8 @@ def list_map_spots(
             is_member=is_member,
             user_explore_points=user_explore_points,
             marker_colors_by_level=marker_colors_by_level,
+            pass_settings_by_level=pass_settings_by_level,
+            user=user,
         )
         for spot in spots
     ]
@@ -78,7 +80,7 @@ def get_spot_detail(
     explore_points: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> SpotDetailOut:
-    user_explore_points = resolve_user_explore_points(db, user_id, explore_points)
+    user, user_explore_points = resolve_user_context(db, user_id, explore_points)
     spot = db.scalar(
         select(ScenicSpot)
         .options(
@@ -98,12 +100,20 @@ def get_spot_detail(
     )
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
-    if not can_unlock_spot(spot.required_explore_points, user_explore_points):
+    pass_settings_by_level = get_active_pass_settings_by_level(db)
+    is_unlocked, required_explore_points = get_spot_unlock_state(
+        spot_required_explore_points=spot.required_explore_points,
+        recommendation_level=spot.recommendation_level,
+        user=user,
+        fallback_explore_points=user_explore_points,
+        settings_by_level=pass_settings_by_level,
+    )
+    if not is_unlocked:
         raise HTTPException(
             status_code=403,
             detail={
                 "message": "Explore points required to unlock this spot",
-                "required_explore_points": spot.required_explore_points,
+                "required_explore_points": required_explore_points,
                 "user_explore_points": user_explore_points,
             },
         )
@@ -116,4 +126,6 @@ def get_spot_detail(
         user_explore_points=user_explore_points,
         db=db,
         marker_colors_by_level=marker_colors_by_level,
+        pass_settings_by_level=pass_settings_by_level,
+        user=user,
     )

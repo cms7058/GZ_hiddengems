@@ -17,6 +17,7 @@ from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn
 from app.services.integrations import get_mini_program_service_hours
 from app.services.media_storage import MediaStorageError, save_media
 from app.services.memberships import sync_user_membership_by_points
+from app.services.pass_levels import sync_user_explorer_level
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
 
@@ -126,6 +127,7 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
     db.add(user)
     db.flush()
     sync_user_membership_by_points(db, user)
+    sync_user_explorer_level(db, user)
     db.commit()
     db.refresh(user)
     return user
