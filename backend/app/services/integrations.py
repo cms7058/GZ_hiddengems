@@ -53,6 +53,7 @@ DEFAULT_SETTINGS = [
     ("ai", "AI_API_BASE", "大模型 API 地址", "AI API Base URL", "text", False, 20),
     ("ai", "AI_MODEL", "模型名称", "Model Name", "text", False, 30),
     ("ai", "AI_API_KEY", "大模型 API KEY", "AI API Key", "password", True, 40),
+    ("ai", "AI_VISION_ENABLED", "启用图片视觉初审", "Enable Image Vision Review", "checkbox", False, 50),
     ("flood", "FLOOD_API_PROVIDER", "洪水接口服务商", "Flood API Provider", "text", False, 10),
     ("flood", "FLOOD_API_BASE", "洪水接口地址", "Flood API Base URL", "text", False, 20),
     ("flood", "FLOOD_API_KEY", "洪水接口 API KEY", "Flood API Key", "password", True, 30),

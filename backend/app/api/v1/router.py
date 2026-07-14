@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.routers import (
     admin_checkins,
+    admin_assistant,
     admin_content,
     admin_integrations,
     admin_memberships,
@@ -37,6 +38,7 @@ api_router.include_router(
     tags=["admin-memberships"],
 )
 api_router.include_router(admin_checkins.router, prefix="/admin/checkins", tags=["admin-checkins"])
+api_router.include_router(admin_assistant.router, prefix="/admin/assistant", tags=["admin-assistant"])
 api_router.include_router(admin_content.router, prefix="/admin/content", tags=["admin-content"])
 api_router.include_router(
     admin_integrations.router,

@@ -475,6 +475,29 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.json()["response"], "OK")
         self.assertEqual(urlopen_mock.call_args.args[0].full_url, "https://ai.example.test/v1/chat/completions")
 
+    def test_admin_assistant_returns_knowledge_base_answer_without_ai_config(self):
+        response = self.client.post(
+            "/api/v1/admin/assistant/chat",
+            headers=self.login_headers(),
+            json={"mode": "guide", "message": "如何新增一个秘境并设置解锁积分？"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["source"], "knowledge_base")
+        self.assertIn("待审", response.json()["answer"])
+        self.assertIn("checkins", response.json()["pending"])
+
+    def test_admin_assistant_can_create_content_review_suggestion(self):
+        response = self.client.post(
+            "/api/v1/admin/assistant/review",
+            headers=self.login_headers(),
+            json={"content_type": "travel_note", "content_id": 1},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["content_id"], 1)
+        self.assertEqual(response.json()["source"], "knowledge_base")
+
     def test_qweather_prefers_jwt_when_both_auth_configs_exist(self):
         client = QWeatherClient(
             {

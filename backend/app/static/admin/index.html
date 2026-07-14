@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260712-pass-color-save" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260714-admin-ai" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -785,7 +785,40 @@
       </form>
     </dialog>
 
+    <button id="adminAssistantToggle" class="admin-assistant-fab hidden" type="button" aria-label="打开 AI 小助手">
+      <span>AI</span>
+      <strong id="assistantPendingBadge" class="assistant-badge hidden">0</strong>
+    </button>
+
+    <dialog id="adminAssistantDialog" class="dialog assistant-dialog">
+      <section class="dialog-body">
+        <header>
+          <div>
+            <h2>AI 小助手</h2>
+            <p class="muted">操作指南、双语简介、坐标采集与内容初审建议。</p>
+          </div>
+          <button type="button" class="icon-btn" data-close-dialog="adminAssistantDialog">×</button>
+        </header>
+        <div id="assistantPendingSummary" class="assistant-pending-summary"></div>
+        <div class="assistant-quick-actions">
+          <button type="button" class="secondary-btn" data-assistant-mode="guide">操作指南</button>
+          <button type="button" class="secondary-btn" data-assistant-mode="spot_summary">生成中英文简介</button>
+          <button type="button" class="secondary-btn" data-assistant-mode="coordinate">获取坐标方法</button>
+          <button type="button" class="secondary-btn" data-assistant-mode="review">内容初审建议</button>
+        </div>
+        <div id="assistantMessages" class="assistant-messages"></div>
+        <label>
+          <span>向小助手提问</span>
+          <textarea id="assistantInput" rows="4" maxlength="4000" placeholder="例如：如何新增一个 L3 秘境？"></textarea>
+        </label>
+        <footer>
+          <button type="button" class="secondary-btn" data-close-dialog="adminAssistantDialog">关闭</button>
+          <button id="assistantSendBtn" type="button" class="primary-btn">发送</button>
+        </footer>
+      </section>
+    </dialog>
+
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260713-avatar-fallback"></script>
+    <script src="/admin/static/app.js?v=20260714-admin-ai"></script>
   </body>
 </html>

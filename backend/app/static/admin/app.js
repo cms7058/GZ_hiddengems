@@ -30,6 +30,9 @@ const state = {
   editingCommentId: null,
   editingRecommendationId: null,
   checkinFilters: {},
+  assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
+  assistantMode: "guide",
+  assistantMessages: [],
 };
 
 const PAGE_SIZE = 10;
@@ -110,6 +113,12 @@ const I18N = {
   "小程序数据时间管理": "Mini Program Data Hours",
   "对象存储管理": "Object Storage",
   "测试连接": "Test Connection",
+  "AI 小助手": "AI Assistant",
+  "操作指南": "Operation Guide",
+  "生成中英文简介": "Generate Bilingual Summary",
+  "获取坐标方法": "Get Coordinates",
+  "内容初审建议": "Content Review Advice",
+  "发送": "Send",
   "正在测试 OSS 连接...": "Testing OSS connection...",
   "OSS 连接失败": "OSS connection failed",
   "OSS 连接成功": "OSS connection successful",
@@ -471,6 +480,7 @@ async function request(path, options = {}) {
 function setAuthenticated(isAuthenticated) {
   $("#loginView").classList.toggle("hidden", isAuthenticated);
   $("#appView").classList.toggle("hidden", !isAuthenticated);
+  $("#adminAssistantToggle")?.classList.toggle("hidden", !isAuthenticated);
 }
 
 function statusPill(status) {
@@ -528,6 +538,70 @@ function renderMetrics() {
     state.travelNotes.filter((note) => note.status === "pending").length +
     state.comments.filter((comment) => comment.status === "pending").length;
   $("#recommendationCount").textContent = state.pagination.recommendations?.total ?? state.recommendations.length;
+  renderAssistantPending();
+}
+
+function renderAssistantPending() {
+  const pending = state.assistantPending || {};
+  const total = Number(pending.checkins || 0) + Number(pending.travel_notes || 0) + Number(pending.comments || 0) + Number(pending.media || 0);
+  const badge = $("#assistantPendingBadge");
+  if (badge) {
+    badge.textContent = total > 99 ? "99+" : String(total);
+    badge.classList.toggle("hidden", total === 0);
+  }
+  const summary = $("#assistantPendingSummary");
+  if (summary) summary.textContent = `待审核：打卡 ${pending.checkins || 0}，游记 ${pending.travel_notes || 0}，留言 ${pending.comments || 0}，图片/视频 ${pending.media || 0}`;
+}
+
+function renderAssistantMessages() {
+  const container = $("#assistantMessages");
+  if (!container) return;
+  container.innerHTML = state.assistantMessages.length
+    ? state.assistantMessages.map((item) => `<div class="assistant-message ${item.role}"><strong>${item.role === "user" ? "管理员" : "AI 小助手"}</strong>\n${escapeHtml(item.content)}</div>`).join("")
+    : '<div class="muted">可询问菜单操作、字段配置、双语简介、坐标采集，或使用 AI 初审辅助审核。</div>';
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendAssistantMessage(message, mode = state.assistantMode) {
+  const content = String(message || "").trim();
+  if (!content) return;
+  state.assistantMessages.push({ role: "user", content });
+  renderAssistantMessages();
+  const button = $("#assistantSendBtn");
+  button.disabled = true;
+  try {
+    const result = await request("/admin/assistant/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: content, mode }),
+    });
+    state.assistantPending = result.pending || state.assistantPending;
+    state.assistantMessages.push({ role: "assistant", content: result.answer });
+    renderAssistantPending();
+    renderAssistantMessages();
+  } catch (error) {
+    state.assistantMessages.push({ role: "assistant", content: `请求失败：${error.message}` });
+    renderAssistantMessages();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function reviewWithAssistant(contentType, contentId) {
+  const dialog = $("#adminAssistantDialog");
+  state.assistantMode = "review";
+  if (!dialog.open) dialog.showModal();
+  state.assistantMessages.push({ role: "user", content: `请初审${contentType === "travel_note" ? "游记" : "留言"} #${contentId}` });
+  renderAssistantMessages();
+  try {
+    const result = await request("/admin/assistant/review", {
+      method: "POST",
+      body: JSON.stringify({ content_type: contentType, content_id: Number(contentId) }),
+    });
+    state.assistantMessages.push({ role: "assistant", content: result.answer });
+  } catch (error) {
+    state.assistantMessages.push({ role: "assistant", content: `初审请求失败：${error.message}` });
+  }
+  renderAssistantMessages();
 }
 
 function memberPill(isMember) {
@@ -853,6 +927,7 @@ function renderCommunity() {
               <button class="small-btn" data-note-status="${note.id}" data-status="hidden">${t("隐藏")}</button>
               <button class="small-btn" data-note-feature="${note.id}">${note.is_featured ? t("取消精选") : t("设为精选")}</button>
               <button class="small-btn" data-edit-note="${note.id}">${t("审核")}</button>
+              <button class="small-btn" data-assistant-review="travel_note:${note.id}">AI 初审</button>
               <button class="small-btn danger" data-delete-note="${note.id}">${t("删除")}</button>
             </div>
           </td>
@@ -876,6 +951,7 @@ function renderCommunity() {
               <button class="small-btn" data-comment-status="${comment.id}" data-status="approved">${t("通过")}</button>
               <button class="small-btn danger" data-comment-status="${comment.id}" data-status="hidden">${t("隐藏")}</button>
               <button class="small-btn" data-edit-comment="${comment.id}">${t("审核")}</button>
+              <button class="small-btn" data-assistant-review="comment:${comment.id}">AI 初审</button>
               <button class="small-btn danger" data-delete-comment="${comment.id}">${t("删除")}</button>
             </div>
           </td>
@@ -1280,6 +1356,7 @@ async function loadData() {
     comments,
     recommendations,
     integrations,
+    assistantPending,
   ] = await Promise.all([
     requestPage("tags", "/admin/tags"),
     requestPage("spots", "/admin/spots"),
@@ -1292,6 +1369,7 @@ async function loadData() {
     requestPage("comments", "/admin/content/comments"),
     requestPage("recommendations", "/admin/content/recommendations"),
     request("/admin/integrations"),
+    request("/admin/assistant/pending-summary"),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -1304,6 +1382,7 @@ async function loadData() {
   state.comments = comments;
   state.recommendations = recommendations;
   state.integrations = integrations;
+  state.assistantPending = assistantPending;
   renderAll();
 }
 
@@ -1879,6 +1958,41 @@ $$("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => {
     $(`#${button.dataset.closeDialog}`).close();
   });
+});
+
+$("#adminAssistantToggle").addEventListener("click", () => {
+  renderAssistantPending();
+  renderAssistantMessages();
+  $("#adminAssistantDialog").showModal();
+});
+
+$$("[data-assistant-mode]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const mode = button.dataset.assistantMode;
+    state.assistantMode = mode;
+    const prompts = {
+      guide: "请说明当前页面的常用操作和字段配置方法。",
+      spot_summary: "请根据我接下来提供的景点资料，生成适合小程序展示的中英文简介，并提示需要人工核实的内容。",
+      coordinate: "请说明如何合法、准确地采集景点坐标，并如何处理需要保护的精确坐标。",
+      review: "请说明游记、留言及其图片/视频的初审流程与风险检查要点。",
+    };
+    $("#assistantInput").value = prompts[mode] || "";
+    $("#assistantInput").focus();
+  });
+});
+
+$("#assistantSendBtn").addEventListener("click", async () => {
+  const input = $("#assistantInput");
+  const message = input.value;
+  input.value = "";
+  await sendAssistantMessage(message);
+});
+
+document.addEventListener("click", (event) => {
+  const value = event.target.dataset.assistantReview;
+  if (!value) return;
+  const [contentType, contentId] = value.split(":");
+  reviewWithAssistant(contentType, contentId);
 });
 
 $$(".nav-btn").forEach((button) => {
