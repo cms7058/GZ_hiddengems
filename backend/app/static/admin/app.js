@@ -33,6 +33,7 @@ const state = {
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
   assistantMessages: [],
+  assistantThinking: false,
 };
 
 const PAGE_SIZE = 10;
@@ -550,14 +551,26 @@ function renderAssistantPending() {
     badge.classList.toggle("hidden", total === 0);
   }
   const summary = $("#assistantPendingSummary");
-  if (summary) summary.textContent = `待审核：打卡 ${pending.checkins || 0}，游记 ${pending.travel_notes || 0}，留言 ${pending.comments || 0}，图片/视频 ${pending.media || 0}`;
+  if (summary) {
+    const items = [
+      ["checkinsSection", "打卡", pending.checkins || 0],
+      ["communitySection", "游记", pending.travel_notes || 0],
+      ["communitySection", "留言", pending.comments || 0],
+      ["communitySection", "图片/视频", pending.media || 0],
+    ];
+    summary.innerHTML = items
+      .map(([section, label, count]) => `<button type="button" class="assistant-pending-link" data-assistant-pending-section="${section}">${label}待审 ${count}</button>`)
+      .join("");
+  }
 }
 
 function renderAssistantMessages() {
   const container = $("#assistantMessages");
   if (!container) return;
-  container.innerHTML = state.assistantMessages.length
-    ? state.assistantMessages.map((item) => `<div class="assistant-message ${item.role}"><strong>${item.role === "user" ? "管理员" : "AI 小助手"}</strong>\n${escapeHtml(item.content)}</div>`).join("")
+  const messages = [...state.assistantMessages];
+  if (state.assistantThinking) messages.push({ role: "assistant thinking", content: "正在思考中..." });
+  container.innerHTML = messages.length
+    ? messages.map((item) => `<div class="assistant-message ${item.role}"><strong>${item.role === "user" ? "管理员" : "AI 小助手"}</strong>\n${escapeHtml(item.content)}</div>`).join("")
     : '<div class="muted">可询问菜单操作、字段配置、双语简介、坐标采集，或使用 AI 初审辅助审核。</div>';
   container.scrollTop = container.scrollHeight;
 }
@@ -569,6 +582,8 @@ async function sendAssistantMessage(message, mode = state.assistantMode) {
   renderAssistantMessages();
   const button = $("#assistantSendBtn");
   button.disabled = true;
+  state.assistantThinking = true;
+  renderAssistantMessages();
   try {
     const result = await request("/admin/assistant/chat", {
       method: "POST",
@@ -582,7 +597,9 @@ async function sendAssistantMessage(message, mode = state.assistantMode) {
     state.assistantMessages.push({ role: "assistant", content: `请求失败：${error.message}` });
     renderAssistantMessages();
   } finally {
+    state.assistantThinking = false;
     button.disabled = false;
+    renderAssistantMessages();
   }
 }
 
@@ -591,6 +608,7 @@ async function reviewWithAssistant(contentType, contentId) {
   state.assistantMode = "review";
   if (!dialog.open) dialog.showModal();
   state.assistantMessages.push({ role: "user", content: `请初审${contentType === "travel_note" ? "游记" : "留言"} #${contentId}` });
+  state.assistantThinking = true;
   renderAssistantMessages();
   try {
     const result = await request("/admin/assistant/review", {
@@ -600,6 +618,8 @@ async function reviewWithAssistant(contentType, contentId) {
     state.assistantMessages.push({ role: "assistant", content: result.answer });
   } catch (error) {
     state.assistantMessages.push({ role: "assistant", content: `初审请求失败：${error.message}` });
+  } finally {
+    state.assistantThinking = false;
   }
   renderAssistantMessages();
 }
@@ -1964,6 +1984,15 @@ $("#adminAssistantToggle").addEventListener("click", () => {
   renderAssistantPending();
   renderAssistantMessages();
   $("#adminAssistantDialog").showModal();
+});
+
+$("#assistantPendingSummary").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-assistant-pending-section]");
+  if (!button) return;
+  setActiveSection(button.dataset.assistantPendingSection);
+  if ($("#adminAssistantDialog").open) $("#adminAssistantDialog").close();
+  const target = button.dataset.assistantPendingSection === "checkinsSection" ? "#checkinsTable" : "#travelNotesTable";
+  window.setTimeout(() => $(target)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
 });
 
 $$("[data-assistant-mode]").forEach((button) => {

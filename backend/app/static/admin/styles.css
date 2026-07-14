@@ -728,7 +728,8 @@ td .image-thumb {
   min-height: 160px;
   max-height: 42vh;
   overflow: auto;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--line);
@@ -737,22 +738,53 @@ td .image-thumb {
 }
 
 .assistant-message {
+  align-self: flex-start;
+  max-width: min(84%, 540px);
   white-space: pre-wrap;
   line-height: 1.55;
   font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eaf4f7;
+  color: #183e4d;
 }
 
 .assistant-message.user {
-  color: var(--primary-strong);
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
   font-weight: 650;
 }
 
+.assistant-message.thinking {
+  color: #54706a;
+  font-style: italic;
+}
+
+.assistant-message strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+
 .assistant-pending-summary {
-  padding: 9px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.assistant-pending-link {
+  border: 1px solid #c9dfd3;
   border-radius: 6px;
+  padding: 7px 9px;
   background: #eef6f2;
   color: #365248;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.assistant-pending-link:hover {
+  background: #deeee5;
 }
 
 @media (max-width: 840px) {
