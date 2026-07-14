@@ -28,6 +28,9 @@ const COPY = {
     commentPlaceholder: "写下你的补充或提醒",
     submitNote: "发布游记",
     submitComment: "提交留言",
+    noteRequired: "请填写游记标题和内容",
+    commentRequired: "请填写留言内容",
+    submittingNotice: "正在提交，请稍候",
     submitted: "已提交，等待后台审核",
     submitFailed: "提交失败，请稍后重试",
     uploadFailed: "上传失败，请稍后重试",
@@ -59,6 +62,9 @@ const COPY = {
     commentPlaceholder: "Add a tip or reminder",
     submitNote: "Publish Note",
     submitComment: "Submit Comment",
+    noteRequired: "Enter both a title and note content",
+    commentRequired: "Enter a comment",
+    submittingNotice: "Submitting. Please wait",
     submitted: "Submitted for review",
     submitFailed: "Submit failed. Try again later",
     uploadFailed: "Upload failed. Try again later",
@@ -79,6 +85,7 @@ Page({
     spot: null,
     myCheckins: [],
     loading: true,
+    refreshing: false,
     error: "",
     submitting: false,
     userLocation: null,
@@ -99,8 +106,17 @@ Page({
     app.applyTabBarLanguage()
   },
 
+  onLanguageChanged() {
+    this.refreshCopy()
+    this.loadSpot()
+  },
+
   onPullDownRefresh() {
-    this.loadSpot().finally(() => wx.stopPullDownRefresh())
+    this.setData({ refreshing: true })
+    this.loadSpot().finally(() => {
+      this.setData({ refreshing: false })
+      wx.stopPullDownRefresh()
+    })
   },
 
   refreshCopy() {
@@ -200,7 +216,18 @@ Page({
 
   async onSubmitNote() {
     const { title, content } = this.data.noteForm
-    if (this.data.submitting || !title.trim() || !content.trim() || this.data.user.can_comment === false) return
+    if (this.data.submitting) {
+      wx.showToast({ title: this.data.copy.submittingNotice, icon: "none" })
+      return
+    }
+    if (this.data.user.can_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    if (!title.trim() || !content.trim()) {
+      wx.showToast({ title: this.data.copy.noteRequired, icon: "none" })
+      return
+    }
     await this.submitContent("/mini/travel-notes", {
       user_id: this.data.user.id,
       spot_id: this.data.spot.id,
@@ -212,7 +239,18 @@ Page({
 
   async onSubmitComment() {
     const content = this.data.commentForm.content.trim()
-    if (this.data.submitting || !content || this.data.user.can_comment === false) return
+    if (this.data.submitting) {
+      wx.showToast({ title: this.data.copy.submittingNotice, icon: "none" })
+      return
+    }
+    if (this.data.user.can_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    if (!content) {
+      wx.showToast({ title: this.data.copy.commentRequired, icon: "none" })
+      return
+    }
     await this.submitContent("/mini/comments", { user_id: this.data.user.id, spot_id: this.data.spot.id, content }, { commentForm: { content: "" } })
   },
 
@@ -223,7 +261,13 @@ Page({
       this.setData(resetData)
       wx.showToast({ title: this.data.copy.submitted, icon: "none" })
     } catch (error) {
-      if (!isServiceClosedError(error)) wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+      if (!isServiceClosedError(error)) {
+        wx.showModal({
+          title: this.data.copy.submitFailed,
+          content: error.message || this.data.copy.submitFailed,
+          showCancel: false,
+        })
+      }
     } finally { this.setData({ submitting: false }) }
   },
 

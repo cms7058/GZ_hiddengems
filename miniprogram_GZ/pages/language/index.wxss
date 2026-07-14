@@ -1,0 +1,7 @@
+page {
+  background: #f4f1e8;
+}
+
+.language-page {
+  min-height: 100vh;
+}

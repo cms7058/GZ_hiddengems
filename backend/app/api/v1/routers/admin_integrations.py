@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -6,12 +8,71 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.integration import IntegrationSetting
+from app.models.spot import ScenicSpot
 from app.schemas.integration import IntegrationGroupOut, IntegrationGroupUpdate, IntegrationSettingOut
-from app.services.integrations import GROUP_META, get_object_storage_config, mask_secret
+from app.services.integrations import GROUP_META, get_group_config, get_object_storage_config, mask_secret
 from app.services.media_storage import AliyunOssMediaStorage, MediaStorageError
+from app.services.qweather import QWeatherClient
 
 
 router = APIRouter()
+
+
+@router.post("/weather/test")
+def test_weather_connection(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    client = QWeatherClient(get_group_config(db, "weather"))
+    if not client.is_configured:
+        raise HTTPException(status_code=400, detail="QWeather is not fully configured")
+
+    spot = db.scalars(
+        select(ScenicSpot)
+        .where(ScenicSpot.is_active.is_(True), ScenicSpot.review_status == "approved")
+        .order_by(ScenicSpot.id)
+    ).first()
+    if spot is None:
+        raise HTTPException(status_code=400, detail="Create and approve a scenic spot before testing weather")
+
+    weather = client.get_weather_now(spot.longitude, spot.latitude, "zh")
+    alerts = client.get_weather_alerts(spot.longitude, spot.latitude, "zh")
+    weather_error = _qweather_error(weather)
+    alerts_error = _qweather_error(alerts)
+    if weather_error:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "QWeather real-time weather request failed",
+                "auth_mode": client.auth_mode,
+                "spot": spot.name_zh,
+                "weather_error": weather_error,
+                "alerts_error": alerts_error,
+            },
+        )
+
+    now = weather.get("now") or {}
+    return {
+        "success": True,
+        "auth_mode": client.auth_mode,
+        "spot": spot.name_zh,
+        "location": {"longitude": spot.longitude, "latitude": spot.latitude},
+        "weather": {"text": now.get("text"), "temp": now.get("temp"), "obs_time": now.get("obsTime")},
+        "alert_count": len(alerts.get("alerts") or []),
+        "alerts_error": alerts_error,
+    }
+
+
+def _qweather_error(response: object) -> Optional[str]:
+    if not isinstance(response, dict) or not response.get("error"):
+        return None
+    body = response.get("body")
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            return str(error.get("detail") or error.get("title") or response.get("error"))
+        return str(body.get("message") or body.get("detail") or response.get("error"))
+    return str(response.get("error"))
 
 
 @router.post("/object-storage/test")

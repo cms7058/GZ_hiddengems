@@ -1,7 +1,5 @@
 <view class="page">
-  <navigation-bar title="{{copy.navTitle}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)">
-    <view slot="right" class="nav-action" bindtap="onLanguageTap">{{copy.langButton}}</view>
-  </navigation-bar>
+  <navigation-bar title="{{copy.navTitle}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
 
   <view class="hero">
     <map
@@ -15,7 +13,7 @@
       bindregionchange="onMapRegionChange"
       show-location="{{hasUserLocation}}"
     ></map>
-    <canvas canvas-id="homeMarkerCanvas" class="marker-canvas" style="width: 80px; height: 100px;"></canvas>
+    <canvas canvas-id="homeMarkerCanvas" class="marker-canvas" style="width: 40px; height: 50px;"></canvas>
 
     <view class="map-controls">
       <view class="map-control" catchtap="onZoomIn">+</view>

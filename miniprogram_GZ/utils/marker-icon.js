@@ -9,23 +9,23 @@ function normalizeMarkerColor(color) {
 function drawMarkerIcon(page, canvasId, color) {
   return new Promise((resolve, reject) => {
     const context = wx.createCanvasContext(canvasId, page)
-    const width = 80
-    const height = 100
+    const width = 40
+    const height = 50
     context.clearRect(0, 0, width, height)
 
     // A compact map pin with a white center keeps the level color readable.
     context.setFillStyle(color)
     context.beginPath()
-    context.moveTo(40, 94)
-    context.bezierCurveTo(31, 79, 12, 57, 12, 35)
-    context.arc(40, 35, 28, Math.PI, 0, false)
-    context.bezierCurveTo(68, 57, 49, 79, 40, 94)
+    context.moveTo(20, 47)
+    context.bezierCurveTo(15.5, 39.5, 6, 28.5, 6, 17.5)
+    context.arc(20, 17.5, 14, Math.PI, 0, false)
+    context.bezierCurveTo(34, 28.5, 24.5, 39.5, 20, 47)
     context.closePath()
     context.fill()
 
     context.setFillStyle("#ffffff")
     context.beginPath()
-    context.arc(40, 35, 9, 0, Math.PI * 2, false)
+    context.arc(20, 17.5, 4.5, 0, Math.PI * 2, false)
     context.fill()
 
     context.draw(false, () => {

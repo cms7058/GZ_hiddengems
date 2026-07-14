@@ -3,11 +3,13 @@ const COPY = {
     home: "首页",
     assistant: "小助手",
     mine: "我的",
+    language: "EN",
   },
   "en-US": {
     home: "Home",
     assistant: "Assistant",
     mine: "My",
+    language: "中",
   },
 }
 
@@ -44,6 +46,9 @@ Component({
     },
     goMine() {
       wx.switchTab({ url: "/pages/user/user" })
+    },
+    toggleLanguage() {
+      getApp().toggleLanguage()
     },
   },
 })

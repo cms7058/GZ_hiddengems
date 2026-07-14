@@ -28,9 +28,9 @@ def ensure_pass_level_marker_color_column(db: Session) -> None:
 
 def get_marker_colors_by_level(db: Session) -> dict[int, str]:
     ensure_pass_level_marker_color_column(db)
-    settings = db.scalars(
-        select(PassLevelSetting).where(PassLevelSetting.is_active.is_(True))
-    ).all()
+    # Marker colors are visual metadata. Keep them available for existing spots
+    # even while an administrator temporarily disables a level for new unlocks.
+    settings = db.scalars(select(PassLevelSetting)).all()
     return {setting.level: setting.marker_color for setting in settings}
 
 

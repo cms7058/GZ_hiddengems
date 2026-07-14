@@ -458,7 +458,12 @@ async function request(path, options = {}) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `请求失败 ${response.status}`);
+    const detail = data.detail;
+    if (detail && typeof detail === "object") {
+      const messages = [detail.message, detail.weather_error, detail.alerts_error].filter(Boolean);
+      throw new Error(messages.join("；") || `请求失败 ${response.status}`);
+    }
+    throw new Error(detail || `请求失败 ${response.status}`);
   }
   return data;
 }
@@ -929,6 +934,7 @@ function renderIntegrations() {
             ${group.settings.map((setting) => renderIntegrationField(setting)).join("")}
           </div>
           <footer>
+            ${group.group === "weather" ? '<button type="button" class="secondary-btn" data-test-weather="true">测试和风天气</button>' : ""}
             ${group.group === "object_storage" ? '<button type="button" class="secondary-btn" data-test-object-storage="true">测试连接</button>' : ""}
             <button type="submit" class="primary-btn">${t("保存")}</button>
           </footer>
@@ -1885,6 +1891,32 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", async (event) => {
+  if (event.target.dataset.testWeather) {
+    const button = event.target;
+    const form = button.closest("[data-integration-form]");
+    const groupData = state.integrations.find((item) => item.group === "weather");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "正在测试天气接口...";
+    try {
+      const updated = await request("/admin/integrations/weather", {
+        method: "PATCH",
+        body: JSON.stringify({ settings: collectIntegrationSettings(form, groupData) }),
+      });
+      state.integrations = state.integrations.map((item) => (item.group === "weather" ? updated : item));
+      const result = await request("/admin/integrations/weather/test", { method: "POST" });
+      renderIntegrations();
+      applyLanguage($("#integrationsSection"));
+      showToast(`天气获取成功：${result.spot} · ${result.weather.text || "-"} ${result.weather.temp || "-"}°C`);
+    } catch (error) {
+      const detail = error.message || "未知错误";
+      showToast(`天气接口测试失败：${detail}`);
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+    return;
+  }
+
   if (event.target.dataset.testObjectStorage) {
     const button = event.target;
     const form = button.closest("[data-integration-form]");

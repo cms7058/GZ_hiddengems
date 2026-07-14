@@ -216,6 +216,14 @@ Page({
 
   onShow() {
     app.applyTabBarLanguage()
+    app.rememberTab("pages/index/index")
+    if (this.data.lang !== (app.globalData.lang || "zh-CN")) this.onLanguageChanged()
+  },
+
+  onLanguageChanged() {
+    this.refreshCopy()
+    this.mapAutoFit = true
+    this.loadHomeData()
   },
 
   refreshCopy() {
@@ -368,8 +376,8 @@ Page({
   buildLevelOptions(spots, selectedLevelIds, eligibleSpots = []) {
     const eligibleSpotIds = new Set((eligibleSpots || []).map((spot) => Number(spot.id)))
     const byLevel = (spots || []).reduce((result, spot) => {
-      const level = Number(spot.recommendation_level || 0)
-      if (!level) return result
+      const level = Number(spot.recommendation_level)
+      if (!Number.isFinite(level) || level < 0) return result
       if (!result[level]) {
         result[level] = {
           level,
@@ -536,8 +544,8 @@ Page({
       id: spot.id,
       latitude: spot.latitude,
       longitude: spot.longitude,
-      width: 42,
-      height: 52,
+      width: 21,
+      height: 26,
       ...(iconPath ? { iconPath } : {}),
       callout: {
         content: `${locked ? "🔒 " : ""}${spot.name}`,
@@ -573,7 +581,7 @@ Page({
 
   onLevelTap(event) {
     const level = Number(event.currentTarget.dataset.level)
-    if (!level) return
+    if (!Number.isFinite(level) || level < 0) return
     this.mapAutoFit = true
     const selectedLevelIds = this.data.selectedLevelIds.slice()
     const index = selectedLevelIds.indexOf(level)
@@ -655,13 +663,6 @@ Page({
     if (wx.hideOptionMenu) {
       wx.hideOptionMenu()
     }
-  },
-
-  onLanguageTap() {
-    app.setLanguage(this.data.lang === "zh-CN" ? "en-US" : "zh-CN")
-    this.refreshCopy()
-    this.mapAutoFit = true
-    this.loadHomeData()
   },
 
   onAcceptSafetyAgreement() {

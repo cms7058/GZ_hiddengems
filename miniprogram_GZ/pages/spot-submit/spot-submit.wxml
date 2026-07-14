@@ -1,6 +1,6 @@
 <view class="page">
   <navigation-bar title="{{copy.navTitle}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
-  <scroll-view class="submit-scroll" scroll-y>
+  <scroll-view class="submit-scroll" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view wx:if="{{loading}}" class="notice">{{copy.loading}}</view>
     <view wx:elif="{{error}}" class="notice error">{{error}}</view>
     <view wx:elif="{{spot}}" class="content">

@@ -73,6 +73,11 @@ Page({
   },
 
   onShow() {
+    app.rememberTab("pages/user/user")
+    this.refreshUserView()
+  },
+
+  refreshUserView() {
     app.applyTabBarLanguage()
     const lang = app.globalData.lang || "zh-CN"
     this.setData({
@@ -86,6 +91,19 @@ Page({
       },
       avatarNeedsUpload: false,
     })
+  },
+
+  onLanguageChanged() {
+    this.refreshUserView()
+  },
+
+  onPullDownRefresh() {
+    app.bootstrapUser({ force: true })
+      .catch((error) => console.warn("profile refresh failed", error))
+      .finally(() => {
+        this.refreshUserView()
+        wx.stopPullDownRefresh()
+      })
   },
 
   onChooseAvatar(event) {

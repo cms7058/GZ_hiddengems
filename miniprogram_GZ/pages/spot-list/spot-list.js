@@ -38,6 +38,7 @@ Page({
     loading: true,
     offline: false,
     serviceClosed: false,
+    refreshing: false,
     summary: {
       tags: "",
       levels: "",
@@ -55,8 +56,17 @@ Page({
     app.applyTabBarLanguage()
   },
 
+  onLanguageChanged() {
+    this.refreshCopy()
+    this.loadSpots()
+  },
+
   onPullDownRefresh() {
-    this.loadSpots().finally(() => wx.stopPullDownRefresh())
+    this.setData({ refreshing: true })
+    this.loadSpots().finally(() => {
+      this.setData({ refreshing: false })
+      wx.stopPullDownRefresh()
+    })
   },
 
   refreshCopy() {

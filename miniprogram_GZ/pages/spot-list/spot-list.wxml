@@ -11,7 +11,7 @@
   <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
   <view wx:elif="{{spots.length === 0}}" class="notice">{{copy.empty}}</view>
 
-  <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y>
+  <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view wx:for="{{spots}}" wx:key="id" class="spot-card" data-id="{{item.id}}" bindtap="onSpotTap">
       <view class="card-head">
         <view class="marker" style="background: {{item.markerColor}};"></view>

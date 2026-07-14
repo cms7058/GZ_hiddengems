@@ -13,12 +13,13 @@ const DEFAULT_USER = {
 const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
 
 const TAB_BAR_TEXT = {
-  "zh-CN": ["首页", "小助手", "我的"],
-  "en-US": ["Home", "Assistant", "My"],
+  "zh-CN": ["首页", "小助手", "我的", "EN"],
+  "en-US": ["Home", "Assistant", "My", "中"],
 }
 
 App({
   onLaunch() {
+    this.captureDeviceContext()
     if (wx.hideShareMenu) {
       wx.hideShareMenu({
         menus: ["shareAppMessage", "shareTimeline"],
@@ -101,6 +102,33 @@ App({
   setLanguage(lang) {
     this.globalData.lang = lang
     this.applyTabBarLanguage()
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1]
+    if (currentPage && typeof currentPage.onLanguageChanged === "function") {
+      currentPage.onLanguageChanged(lang)
+    }
+  },
+
+  toggleLanguage() {
+    this.setLanguage(this.globalData.lang === "zh-CN" ? "en-US" : "zh-CN")
+  },
+
+  rememberTab(path) {
+    if (path) this.globalData.lastTabPath = path
+  },
+
+  captureDeviceContext() {
+    const fallback = wx.getSystemInfoSync ? wx.getSystemInfoSync() : {}
+    try {
+      this.globalData.device = wx.getDeviceInfo ? wx.getDeviceInfo() : fallback
+    } catch (error) {
+      this.globalData.device = fallback
+    }
+    try {
+      this.globalData.window = wx.getWindowInfo ? wx.getWindowInfo() : fallback
+    } catch (error) {
+      this.globalData.window = fallback
+    }
   },
 
   applyTabBarLanguage() {
@@ -123,5 +151,8 @@ App({
     spotListCache: [],
     user: DEFAULT_USER,
     userLoginPromise: null,
+    device: {},
+    window: {},
+    lastTabPath: "pages/index/index",
   },
 })

@@ -5,7 +5,8 @@
     "pages/spot-detail/spot-detail",
     "pages/spot-submit/spot-submit",
     "pages/user/user",
-    "pages/assistant/assistant"
+    "pages/assistant/assistant",
+    "pages/language/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -30,6 +31,10 @@
       {
         "pagePath": "pages/user/user",
         "text": "我的"
+      },
+      {
+        "pagePath": "pages/language/index",
+        "text": "EN"
       }
     ]
   },

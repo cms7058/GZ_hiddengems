@@ -28,12 +28,24 @@ Page({
   },
 
   onShow() {
+    app.rememberTab("pages/assistant/assistant")
     app.applyTabBarLanguage()
     const lang = app.globalData.lang || "zh-CN"
     this.setData({
       lang,
       copy: COPY[lang],
     })
+  },
+
+  onPullDownRefresh() {
+    const lang = app.globalData.lang || "zh-CN"
+    this.setData({ lang, copy: COPY[lang] })
+    wx.stopPullDownRefresh()
+  },
+
+  onLanguageChanged() {
+    const lang = app.globalData.lang || "zh-CN"
+    this.setData({ lang, copy: COPY[lang] })
   },
 
   onInputChange(event) {

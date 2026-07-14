@@ -11,19 +11,6 @@ page {
   overflow: hidden;
 }
 
-.nav-action {
-  min-width: 72rpx;
-  height: 56rpx;
-  padding: 0 18rpx;
-  border-radius: 28rpx;
-  background: #193127;
-  color: #ffffff;
-  font-size: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .hero {
   position: relative;
   flex: none;
@@ -48,8 +35,8 @@ page {
 
 .map-controls {
   position: absolute;
-  right: 24rpx;
-  top: 20%;
+  left: 24rpx;
+  bottom: 28rpx;
   z-index: 3;
   width: 218rpx;
   display: flex;

@@ -169,6 +169,7 @@ Page({
     safety: null,
     userCount: 0,
     loading: true,
+    refreshing: false,
     error: "",
     fallbackMode: false,
     interactionMessages: [],
@@ -208,7 +209,11 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadDetail().finally(() => wx.stopPullDownRefresh())
+    this.setData({ refreshing: true })
+    this.loadDetail().finally(() => {
+      this.setData({ refreshing: false })
+      wx.stopPullDownRefresh()
+    })
   },
 
   onShow() {
@@ -410,8 +415,8 @@ Page({
         id: spot.id,
         latitude: spot.latitude,
         longitude: spot.longitude,
-        width: 42,
-        height: 52,
+        width: 21,
+        height: 26,
         ...(iconPath ? { iconPath } : {}),
         callout: {
           content: spot.name,
@@ -493,8 +498,7 @@ Page({
     })).filter((group) => group.items.length)
   },
 
-  onLanguageTap() {
-    app.setLanguage(this.data.lang === "zh-CN" ? "en-US" : "zh-CN")
+  onLanguageChanged() {
     this.refreshCopy()
     this.loadDetail()
   },

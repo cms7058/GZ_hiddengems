@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import PropertyMock, patch
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models.admin import AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
 from app.services.security import hash_password
@@ -201,6 +202,21 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["id"], 1)
+
+    def test_map_spot_uses_pass_level_marker_color_even_when_level_is_inactive(self):
+        db = self.SessionLocal()
+        setting = db.get(PassLevelSetting, 1)
+        setting.level = 5
+        setting.marker_color = "#C63D52"
+        setting.is_active = False
+        db.add(setting)
+        db.commit()
+        db.close()
+
+        response = self.client.get("/api/v1/spots/map?lang=zh-CN&explore_points=120")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["marker_color"], "#C63D52")
 
     def test_spot_detail_supports_english(self):
         response = self.client.get("/api/v1/spots/1?lang=en-US&user_level=3&is_member=true&explore_points=120")
@@ -394,6 +410,36 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(settings["QWEATHER_API_HOST"]["value"], "abc.qweatherapi.com")
         self.assertEqual(settings["QWEATHER_API_KEY"]["value"], "sec****456")
         self.assertTrue(settings["QWEATHER_API_KEY"]["is_configured"])
+
+    def test_admin_can_test_weather_integration(self):
+        headers = self.login_headers()
+        db = self.SessionLocal()
+        setting = db.scalars(
+            select(IntegrationSetting).where(
+                IntegrationSetting.group == "weather",
+                IntegrationSetting.key == "QWEATHER_API_KEY",
+            )
+        ).one()
+        setting.value = "test-key"
+        host = db.scalars(
+            select(IntegrationSetting).where(
+                IntegrationSetting.group == "weather",
+                IntegrationSetting.key == "QWEATHER_API_HOST",
+            )
+        ).one()
+        host.value = "api.qweather.com"
+        db.commit()
+        db.close()
+
+        with (
+            patch.object(QWeatherClient, "get_weather_now", return_value={"now": {"text": "晴", "temp": "26", "obsTime": "2026-07-14T10:00+08:00"}}),
+            patch.object(QWeatherClient, "get_weather_alerts", return_value={"alerts": []}),
+        ):
+            response = self.client.post("/api/v1/admin/integrations/weather/test", headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        self.assertEqual(response.json()["weather"]["text"], "晴")
 
     def test_qweather_prefers_jwt_when_both_auth_configs_exist(self):
         client = QWeatherClient(
