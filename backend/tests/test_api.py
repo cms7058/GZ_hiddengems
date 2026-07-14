@@ -1,4 +1,5 @@
 import unittest
+import json
 from unittest.mock import PropertyMock, patch
 
 from fastapi.testclient import TestClient
@@ -440,6 +441,39 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["success"])
         self.assertEqual(response.json()["weather"]["text"], "晴")
+
+    def test_admin_can_test_ai_integration(self):
+        headers = self.login_headers()
+        response = self.client.patch(
+            "/api/v1/admin/integrations/ai",
+            headers=headers,
+            json={
+                "settings": {
+                    "AI_PROVIDER": "Test Provider",
+                    "AI_API_BASE": "https://ai.example.test/v1",
+                    "AI_MODEL": "test-model",
+                    "AI_API_KEY": "test-key",
+                }
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": "OK"}}]}).encode("utf-8")
+
+        with patch("app.api.v1.routers.admin_integrations.urlopen", return_value=FakeResponse()) as urlopen_mock:
+            response = self.client.post("/api/v1/admin/integrations/ai/test", headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["response"], "OK")
+        self.assertEqual(urlopen_mock.call_args.args[0].full_url, "https://ai.example.test/v1/chat/completions")
 
     def test_qweather_prefers_jwt_when_both_auth_configs_exist(self):
         client = QWeatherClient(

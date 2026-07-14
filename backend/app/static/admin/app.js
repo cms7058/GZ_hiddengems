@@ -935,6 +935,7 @@ function renderIntegrations() {
           </div>
           <footer>
             ${group.group === "weather" ? '<button type="button" class="secondary-btn" data-test-weather="true">测试和风天气</button>' : ""}
+            ${group.group === "ai" ? '<button type="button" class="secondary-btn" data-test-ai="true">测试大模型连接</button>' : ""}
             ${group.group === "object_storage" ? '<button type="button" class="secondary-btn" data-test-object-storage="true">测试连接</button>' : ""}
             <button type="submit" class="primary-btn">${t("保存")}</button>
           </footer>
@@ -1891,6 +1892,31 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", async (event) => {
+  if (event.target.dataset.testAi) {
+    const button = event.target;
+    const form = button.closest("[data-integration-form]");
+    const groupData = state.integrations.find((item) => item.group === "ai");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "正在测试大模型连接...";
+    try {
+      const updated = await request("/admin/integrations/ai", {
+        method: "PATCH",
+        body: JSON.stringify({ settings: collectIntegrationSettings(form, groupData) }),
+      });
+      state.integrations = state.integrations.map((item) => (item.group === "ai" ? updated : item));
+      const result = await request("/admin/integrations/ai/test", { method: "POST" });
+      renderIntegrations();
+      applyLanguage($("#integrationsSection"));
+      showToast(`大模型连接成功：${result.provider} / ${result.model} · ${result.response}`);
+    } catch (error) {
+      showToast(`大模型连接失败：${error.message || "未知错误"}`);
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+    return;
+  }
+
   if (event.target.dataset.testWeather) {
     const button = event.target;
     const form = button.closest("[data-integration-form]");

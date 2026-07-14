@@ -1,4 +1,7 @@
 from typing import Optional
+import json
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -16,6 +19,75 @@ from app.services.qweather import QWeatherClient
 
 
 router = APIRouter()
+
+
+@router.post("/ai/test")
+def test_ai_connection(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    config = get_group_config(db, "ai")
+    provider = (config.get("AI_PROVIDER") or "OpenAI compatible").strip()
+    api_base = (config.get("AI_API_BASE") or "").strip()
+    model = (config.get("AI_MODEL") or "").strip()
+    api_key = (config.get("AI_API_KEY") or "").strip()
+    if not api_base or not model or not api_key:
+        raise HTTPException(status_code=400, detail="Set AI API Base URL, model, and API key before testing")
+
+    url = _ai_chat_url(api_base)
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+            "max_tokens": 8,
+            "temperature": 0,
+        }
+    ).encode("utf-8")
+    request = Request(
+        url,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "GZ-HiddenGems/0.1",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=12) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        detail = _ai_error_message(error.read())
+        raise HTTPException(status_code=502, detail=f"AI provider returned HTTP {error.code}: {detail}") from error
+    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=502, detail=f"AI connection failed: {error}") from error
+
+    choices = data.get("choices") if isinstance(data, dict) else []
+    message = choices[0].get("message") if choices and isinstance(choices[0], dict) else {}
+    content = message.get("content") if isinstance(message, dict) else ""
+    return {
+        "success": True,
+        "provider": provider,
+        "model": model,
+        "response": str(content or "Connection succeeded")[:160],
+    }
+
+
+def _ai_chat_url(api_base: str) -> str:
+    base = api_base.rstrip("/")
+    return base if base.endswith("/chat/completions") else f"{base}/chat/completions"
+
+
+def _ai_error_message(body: bytes) -> str:
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return body.decode("utf-8", errors="replace")[:240] or "Unknown provider error"
+    error = data.get("error") if isinstance(data, dict) else None
+    if isinstance(error, dict):
+        return str(error.get("message") or error.get("detail") or error.get("type") or "Provider error")
+    return str(data.get("message") or data.get("detail") or "Provider error") if isinstance(data, dict) else "Provider error"
 
 
 @router.post("/weather/test")
