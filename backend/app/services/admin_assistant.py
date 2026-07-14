@@ -47,6 +47,14 @@ def answer_admin_question(config: dict[str, str], message: str, mode: str, summa
             "answer": local_answer(mode, summary, knowledge),
             "source": "knowledge_base",
         }
+    try:
+        answer = call_ai(config, system, f"{context}\n\nAdministrator request:\n{message}")
+        return {"answer": answer, "source": "ai"}
+    except RuntimeError as error:
+        return {
+            "answer": f"大模型暂不可用：{error}\n\n{local_answer(mode, summary, knowledge)}",
+            "source": "knowledge_base",
+        }
 
 
 def answer_content_review(config: dict[str, str], message: str, image_urls: list[str], summary: dict[str, int]) -> dict[str, str]:
@@ -65,14 +73,6 @@ def answer_content_review(config: dict[str, str], message: str, image_urls: list
         return {"answer": answer, "source": "ai"}
     except RuntimeError as error:
         return {"answer": f"大模型暂不可用：{error}\n\n{local_answer('review', summary, knowledge)}", "source": "knowledge_base"}
-    try:
-        answer = call_ai(config, system, f"{context}\n\nAdministrator request:\n{message}")
-        return {"answer": answer, "source": "ai"}
-    except RuntimeError as error:
-        return {
-            "answer": f"大模型暂不可用：{error}\n\n{local_answer(mode, summary, knowledge)}",
-            "source": "knowledge_base",
-        }
 
 
 def find_knowledge(message: str, mode: str) -> str:

@@ -487,6 +487,33 @@ class ApiTest(unittest.TestCase):
         self.assertIn("待审", response.json()["answer"])
         self.assertIn("checkins", response.json()["pending"])
 
+    def test_admin_assistant_returns_ai_answer_when_model_is_configured(self):
+        headers = self.login_headers()
+        response = self.client.patch(
+            "/api/v1/admin/integrations/ai",
+            headers=headers,
+            json={
+                "settings": {
+                    "AI_PROVIDER": "MiniMax",
+                    "AI_API_BASE": "https://api.minimaxi.com/v1",
+                    "AI_MODEL": "MiniMax-M2.7",
+                    "AI_API_KEY": "test-key",
+                }
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        with patch("app.services.admin_assistant.call_ai", return_value="MiniMax response"):
+            response = self.client.post(
+                "/api/v1/admin/assistant/chat",
+                headers=headers,
+                json={"mode": "guide", "message": "如何新增秘境？"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["source"], "ai")
+        self.assertEqual(response.json()["answer"], "MiniMax response")
+
     def test_admin_assistant_can_create_content_review_suggestion(self):
         response = self.client.post(
             "/api/v1/admin/assistant/review",

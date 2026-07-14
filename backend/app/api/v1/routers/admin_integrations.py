@@ -35,14 +35,17 @@ def test_ai_connection(
         raise HTTPException(status_code=400, detail="Set AI API Base URL, model, and API key before testing")
 
     url = _ai_chat_url(api_base)
-    payload = json.dumps(
-        {
-            "model": model,
-            "messages": [{"role": "user", "content": "Reply with OK."}],
-            "max_tokens": 8,
-            "temperature": 0,
-        }
-    ).encode("utf-8")
+    payload_data = {
+        "model": model,
+        "messages": [{"role": "user", "content": "Reply with OK."}],
+        "temperature": 0,
+    }
+    # MiniMax's OpenAI-compatible API uses max_completion_tokens.
+    if "minimax" in provider.lower():
+        payload_data["max_completion_tokens"] = 32
+    else:
+        payload_data["max_tokens"] = 8
+    payload = json.dumps(payload_data).encode("utf-8")
     request = Request(
         url,
         data=payload,
