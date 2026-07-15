@@ -31,6 +31,8 @@ class AdminAccountIn(BaseModel):
 
 
 class AdminAccountUpdate(BaseModel):
+    username: Optional[str] = Field(default=None, min_length=3, max_length=64)
+    password: Optional[str] = Field(default=None, min_length=8, max_length=128)
     role: Optional[str] = Field(default=None, min_length=3, max_length=32)
     is_active: Optional[bool] = None
 

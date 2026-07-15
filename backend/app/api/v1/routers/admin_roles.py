@@ -111,6 +111,15 @@ def update_admin(admin_id: int, payload: AdminAccountUpdate, db: Session = Depen
     admin = db.get(AdminUser, admin_id)
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin user not found")
+    if payload.username is not None:
+        username = payload.username.strip()
+        if not username:
+            raise HTTPException(status_code=400, detail="Username cannot be empty")
+        if db.scalar(select(AdminUser).where(AdminUser.username == username, AdminUser.id != admin.id)) is not None:
+            raise HTTPException(status_code=409, detail="Username already exists")
+        admin.username = username
+    if payload.password is not None:
+        admin.password_hash = hash_password(payload.password)
     if payload.role is not None:
         if payload.role != "super_admin" and db.scalar(select(AdminRole).where(AdminRole.code == payload.role, AdminRole.is_active.is_(True))) is None:
             raise HTTPException(status_code=400, detail="Role does not exist or is inactive")

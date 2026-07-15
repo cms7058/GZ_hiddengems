@@ -486,6 +486,19 @@ button:disabled {
   width: 18px;
 }
 
+.password-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.password-toggle input {
+  width: auto;
+  min-height: auto;
+}
+
 .checks label {
   display: flex;
   align-items: center;

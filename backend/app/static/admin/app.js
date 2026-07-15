@@ -32,6 +32,7 @@ const state = {
   editingCommentId: null,
   editingRecommendationId: null,
   editingRoleId: null,
+  editingAdminAccountId: null,
   checkinFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
@@ -380,6 +381,18 @@ const I18N_REVERSE = Object.fromEntries(Object.entries(I18N).map(([zh, en]) => [
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function resetPasswordVisibility(dialogId) {
+  const dialog = $(`#${dialogId}`);
+  if (!dialog) return;
+  $$('[data-password-toggle-group]', dialog).forEach((toggle) => {
+    toggle.checked = false;
+  });
+  Array.from(dialog.querySelectorAll('input[type="text"][data-password-visible="true"]')).forEach((input) => {
+    input.type = "password";
+    input.dataset.passwordVisible = "false";
+  });
+}
 
 function t(text) {
   return state.lang === "en-US" ? I18N[text] || text : text;
@@ -1118,7 +1131,7 @@ function renderRoles() {
     ? state.roles.map((role) => `<tr><td>${escapeHtml(role.code)}</td><td>${escapeHtml(role.name)}</td><td>${role.permissions.length}</td><td>${role.is_active ? "启用" : "停用"}</td><td><div class="row-actions"><button class="small-btn" data-edit-role="${role.id}">编辑</button><button class="small-btn danger" data-delete-role="${role.id}">删除</button></div></td></tr>`).join("")
     : '<tr><td colspan="5" class="muted">仅超级管理员可管理角色。</td></tr>';
   accountsTable.innerHTML = state.adminAccounts.length
-    ? state.adminAccounts.map((admin) => `<tr><td>${escapeHtml(admin.username)}</td><td><select data-admin-role="${admin.id}"><option value="super_admin" ${admin.role === "super_admin" ? "selected" : ""}>super_admin</option>${state.roles.filter((role) => role.is_active).map((role) => `<option value="${role.code}" ${admin.role === role.code ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}</select></td><td>${admin.is_active ? "启用" : "停用"}</td><td><button class="small-btn ${admin.is_active ? "danger" : ""}" data-toggle-admin="${admin.id}" data-next-active="${admin.is_active ? "false" : "true"}">${admin.is_active ? "停用" : "启用"}</button></td></tr>`).join("")
+    ? state.adminAccounts.map((admin) => `<tr><td>${escapeHtml(admin.username)}</td><td><select data-admin-role="${admin.id}"><option value="super_admin" ${admin.role === "super_admin" ? "selected" : ""}>super_admin</option>${state.roles.filter((role) => role.is_active).map((role) => `<option value="${role.code}" ${admin.role === role.code ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}</select></td><td>${admin.is_active ? "启用" : "停用"}</td><td><div class="row-actions"><button class="small-btn" data-edit-admin="${admin.id}">编辑</button><button class="small-btn ${admin.is_active ? "danger" : ""}" data-toggle-admin="${admin.id}" data-next-active="${admin.is_active ? "false" : "true"}">${admin.is_active ? "停用" : "启用"}</button></div></td></tr>`).join("")
     : '<tr><td colspan="4" class="muted">暂无管理员账号。</td></tr>';
 }
 
@@ -1563,6 +1576,7 @@ function getSelectedSpotTagIds() {
 function fillAccountSettingsForm() {
   const form = $("#accountSettingsForm");
   form.reset();
+  resetPasswordVisibility("accountSettingsDialog");
   form.elements.username.value = state.admin?.username || "";
   form.elements.current_password.value = "";
   form.elements.new_password.value = "";
@@ -2053,6 +2067,11 @@ $("#newRoleBtn").addEventListener("click", () => {
 $("#newAdminAccountBtn").addEventListener("click", () => {
   const form = $("#adminAccountForm");
   form.reset();
+  resetPasswordVisibility("adminAccountDialog");
+  state.editingAdminAccountId = null;
+  $("#adminPasswordLabel").textContent = "登录密码";
+  form.elements.password.required = true;
+  form.elements.password.placeholder = "";
   form.elements.role.innerHTML = `<option value="super_admin">super_admin</option>${state.roles.filter((role) => role.is_active).map((role) => `<option value="${role.code}">${escapeHtml(role.name)}</option>`).join("")}`;
   $("#adminAccountDialog").showModal();
 });
@@ -2077,6 +2096,23 @@ $("#adminAccountsTable").addEventListener("change", async (event) => {
   await request(`/admin/roles/admins/${adminId}`, { method: "PATCH", body: JSON.stringify({ role: event.target.value }) });
   await loadData();
   showToast("管理员角色已更新");
+});
+
+$("#adminAccountsTable").addEventListener("click", (event) => {
+  const adminId = Number(event.target.dataset.editAdmin);
+  if (!adminId) return;
+  const admin = state.adminAccounts.find((item) => item.id === adminId);
+  if (!admin) return;
+  const form = $("#adminAccountForm");
+  form.reset();
+  resetPasswordVisibility("adminAccountDialog");
+  state.editingAdminAccountId = adminId;
+  form.elements.username.value = admin.username;
+  form.elements.password.required = false;
+  form.elements.password.placeholder = "留空表示不修改";
+  $("#adminPasswordLabel").textContent = "重置密码";
+  form.elements.role.innerHTML = `<option value="super_admin" ${admin.role === "super_admin" ? "selected" : ""}>super_admin</option>${state.roles.filter((role) => role.is_active || role.code === admin.role).map((role) => `<option value="${role.code}" ${admin.role === role.code ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}`;
+  $("#adminAccountDialog").showModal();
 });
 
 $("#adminAccountsTable").addEventListener("click", async (event) => {
@@ -2682,13 +2718,34 @@ $("#roleForm").addEventListener("submit", async (event) => {
 $("#adminAccountForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = formToObject(event.currentTarget);
-  await request("/admin/roles/admins", {
-    method: "POST",
-    body: JSON.stringify({ username: data.username.trim(), password: data.password, role: data.role }),
+  const payload = { username: data.username.trim(), role: data.role };
+  if (data.password) payload.password = data.password;
+  const path = state.editingAdminAccountId ? `/admin/roles/admins/${state.editingAdminAccountId}` : "/admin/roles/admins";
+  if (!state.editingAdminAccountId && !payload.password) return;
+  await request(path, {
+    method: state.editingAdminAccountId ? "PATCH" : "POST",
+    body: JSON.stringify(payload),
   });
   $("#adminAccountDialog").close();
   await loadData();
-  showToast("管理员已新增");
+  showToast(state.editingAdminAccountId ? "管理员账号已更新" : "管理员已新增");
+});
+
+$$('[data-password-toggle]').forEach((toggle) => {
+  toggle.addEventListener("change", () => {
+    const input = $(`#${toggle.dataset.passwordToggle}`);
+    if (input) input.type = toggle.checked ? "text" : "password";
+  });
+});
+
+$$('[data-password-toggle-group]').forEach((toggle) => {
+  toggle.addEventListener("change", () => {
+    const dialog = $(`#${toggle.dataset.passwordToggleGroup}`);
+    Array.from(dialog.querySelectorAll('input[type="password"], input[data-password-visible="true"]')).forEach((input) => {
+      input.type = toggle.checked ? "text" : "password";
+      input.dataset.passwordVisible = toggle.checked ? "true" : "false";
+    });
+  });
 });
 
 $("#uploadSpotImageBtn").addEventListener("click", async () => {

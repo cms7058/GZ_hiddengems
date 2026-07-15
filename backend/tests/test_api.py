@@ -652,6 +652,35 @@ class ApiTest(unittest.TestCase):
             403,
         )
 
+    def test_super_admin_can_update_admin_username_and_reset_password(self):
+        super_headers = self.login_headers()
+        create_response = self.client.post(
+            "/api/v1/admin/roles/admins",
+            headers=super_headers,
+            json={"username": "reviewer", "password": "reviewer-pass-123", "role": "super_admin"},
+        )
+        self.assertEqual(create_response.status_code, 201)
+        admin_id = create_response.json()["id"]
+
+        update_response = self.client.patch(
+            f"/api/v1/admin/roles/admins/{admin_id}",
+            headers=super_headers,
+            json={"username": "content_reviewer", "password": "reset-pass-456"},
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(update_response.json()["username"], "content_reviewer")
+
+        old_login = self.client.post(
+            "/api/v1/admin/login",
+            json={"username": "reviewer", "password": "reviewer-pass-123"},
+        )
+        self.assertEqual(old_login.status_code, 401)
+        new_login = self.client.post(
+            "/api/v1/admin/login",
+            json={"username": "content_reviewer", "password": "reset-pass-456"},
+        )
+        self.assertEqual(new_login.status_code, 200)
+
     def test_admin_spot_requires_existing_pass_level(self):
         response = self.client.patch(
             "/api/v1/admin/spots/1",

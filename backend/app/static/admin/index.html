@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260715-role-permissions" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260715-admin-password-reset" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -23,6 +23,7 @@
             <span>密码</span>
             <input id="loginPassword" type="password" autocomplete="new-password" required />
           </label>
+          <label class="password-toggle"><input type="checkbox" data-password-toggle="loginPassword" /> <span>显示密码</span></label>
           <button type="submit" class="primary-btn">登录</button>
           <button id="loginLangToggleBtn" type="button" class="secondary-btn">English</button>
           <p id="loginError" class="error-text"></p>
@@ -511,6 +512,7 @@
           <label class="full"><span>用户名</span><input name="username" required minlength="3" maxlength="64" autocomplete="username" /></label>
           <label class="full"><span>当前密码</span><input name="current_password" type="password" minlength="8" maxlength="128" autocomplete="current-password" /></label>
           <label class="full"><span>新密码</span><input name="new_password" type="password" minlength="8" maxlength="128" autocomplete="new-password" /></label>
+          <label class="password-toggle full"><input type="checkbox" data-password-toggle-group="accountSettingsDialog" /> <span>显示密码</span></label>
           <p class="muted full">只修改用户名时可不填写密码；修改密码时必须填写当前密码和新密码。</p>
         </div>
         <footer>
@@ -538,8 +540,9 @@
         <header><h2>管理员账号</h2><button type="button" class="icon-btn" data-close-dialog="adminAccountDialog">×</button></header>
         <div class="form-grid">
           <label><span>用户名</span><input name="username" required minlength="3" maxlength="64" /></label>
-          <label><span>登录密码</span><input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" /></label>
+          <label><span id="adminPasswordLabel">登录密码</span><input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" /></label>
           <label><span>角色</span><select name="role" required></select></label>
+          <label class="password-toggle"><input type="checkbox" data-password-toggle-group="adminAccountDialog" /> <span>显示密码</span></label>
         </div>
         <footer><button type="button" class="secondary-btn" data-close-dialog="adminAccountDialog">取消</button><button type="submit" class="primary-btn">保存</button></footer>
       </form>
@@ -864,6 +867,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260715-role-permissions"></script>
+    <script src="/admin/static/app.js?v=20260715-admin-password-reset"></script>
   </body>
 </html>
