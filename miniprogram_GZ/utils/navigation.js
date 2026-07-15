@@ -32,6 +32,12 @@ function showMapUnavailable(text) {
 }
 
 function openMapApp({ spot, mapId, page, text }) {
+  const latitude = Number(spot && spot.latitude)
+  const longitude = Number(spot && spot.longitude)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    showMapUnavailable(text)
+    return
+  }
   if (!wx.createMapContext || !mapId || !page) {
     showMapUnavailable(text)
     return
@@ -44,8 +50,8 @@ function openMapApp({ spot, mapId, page, text }) {
   }
 
   mapContext.openMapApp({
-    latitude: Number(spot.latitude),
-    longitude: Number(spot.longitude),
+    latitude,
+    longitude,
     destination: spot.name,
     fail: (error) => {
       if (String((error && error.errMsg) || "").toLowerCase().includes("cancel")) return

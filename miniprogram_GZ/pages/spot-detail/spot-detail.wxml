@@ -40,6 +40,16 @@
           markers="{{markers}}"
           show-location="{{hasUserLocation}}"
         ></map>
+        <!-- The gallery replaces the visible map, but MapContext still needs a rendered map to open a third-party map app. -->
+        <map
+          wx:if="{{photoSlides.length}}"
+          id="spotDetailMap"
+          class="navigation-map"
+          latitude="{{spot.latitude}}"
+          longitude="{{spot.longitude}}"
+          markers="{{markers}}"
+          show-location="{{hasUserLocation}}"
+        ></map>
       </view>
 
       <view class="content">
