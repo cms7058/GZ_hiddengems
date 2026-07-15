@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260714-admin-ai" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260715-coordinate-login" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -17,11 +17,11 @@
         <form id="loginForm" class="form-stack">
           <label>
             <span>用户名</span>
-            <input id="loginUsername" autocomplete="username" value="admin" />
+            <input id="loginUsername" autocomplete="username" required />
           </label>
           <label>
             <span>密码</span>
-            <input id="loginPassword" type="password" autocomplete="current-password" value="admin123456" />
+            <input id="loginPassword" type="password" autocomplete="current-password" required />
           </label>
           <button type="submit" class="primary-btn">登录</button>
           <button id="loginLangToggleBtn" type="button" class="secondary-btn">English</button>
@@ -387,6 +387,7 @@
           <label><span>区县</span><input name="county" required maxlength="64" /></label>
           <label><span>纬度</span><input name="latitude" required type="number" step="0.000001" /></label>
           <label><span>经度</span><input name="longitude" required type="number" step="0.000001" /></label>
+          <label><span>坐标来源</span><select name="coordinate_system"><option value="gcj02">腾讯/高德/微信（GCJ-02）</option><option value="wgs84">GPS/户外设备（WGS84，自动转换）</option><option value="bd09">百度地图（BD-09，自动转换）</option></select></label>
           <label><span>河流名称</span><input name="river_name" maxlength="128" placeholder="如：都柳江支流" /></label>
           <label><span>上游纬度</span><input name="river_upstream_latitude" type="number" step="0.000001" /></label>
           <label><span>上游经度</span><input name="river_upstream_longitude" type="number" step="0.000001" /></label>
@@ -466,6 +467,7 @@
               <label><span>点位名称</span><input id="childPointName" maxlength="128" /></label>
               <label><span>纬度</span><input id="childPointLatitude" type="number" step="0.000001" /></label>
               <label><span>经度</span><input id="childPointLongitude" type="number" step="0.000001" /></label>
+              <label><span>坐标来源</span><select id="childPointCoordinateSystem"><option value="gcj02">腾讯/高德/微信（GCJ-02）</option><option value="wgs84">GPS/户外设备（WGS84，自动转换）</option><option value="bd09">百度地图（BD-09，自动转换）</option></select></label>
               <label><span>排序</span><input id="childPointSort" type="number" value="0" /></label>
               <label class="full"><span>备注说明</span><input id="childPointNote" maxlength="512" /></label>
               <label class="switch-line"><input id="childPointWeather" type="checkbox" /> <span>获取天气</span></label>
@@ -819,6 +821,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260714-assistant-chat"></script>
+    <script src="/admin/static/app.js?v=20260715-coordinate-login"></script>
   </body>
 </html>

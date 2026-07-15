@@ -621,6 +621,27 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "Selected pass level does not exist")
 
+    def test_admin_normalizes_wgs84_coordinates_and_rejects_swapped_values(self):
+        headers = self.login_headers()
+        response = self.client.patch(
+            "/api/v1/admin/spots/1",
+            headers=headers,
+            json={"latitude": 25.7436, "longitude": 108.5062, "coordinate_system": "wgs84"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertNotEqual(data["latitude"], 25.7436)
+        self.assertNotEqual(data["longitude"], 108.5062)
+
+        swapped_response = self.client.patch(
+            "/api/v1/admin/spots/1",
+            headers=headers,
+            json={"latitude": 108.5062, "longitude": 25.7436, "coordinate_system": "gcj02"},
+        )
+        self.assertEqual(swapped_response.status_code, 400)
+        self.assertIn("纬度、经度", swapped_response.json()["detail"])
+
     def test_admin_can_permanently_delete_spot_and_related_content(self):
         headers = self.login_headers()
         response = self.client.delete("/api/v1/admin/spots/1", headers=headers)

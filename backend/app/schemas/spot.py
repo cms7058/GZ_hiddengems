@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -48,6 +48,7 @@ class SpotCreate(BaseModel):
     county: str = Field(..., max_length=64)
     latitude: float
     longitude: float
+    coordinate_system: Literal["gcj02", "wgs84", "bd09"] = "gcj02"
     river_name: Optional[str] = Field(default=None, max_length=128)
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
@@ -71,6 +72,7 @@ class SpotUpdate(BaseModel):
     county: Optional[str] = Field(default=None, max_length=64)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    coordinate_system: Optional[Literal["gcj02", "wgs84", "bd09"]] = None
     river_name: Optional[str] = Field(default=None, max_length=128)
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
@@ -91,6 +93,7 @@ class SpotChildPointBase(BaseModel):
     name: str = Field(..., max_length=128)
     latitude: float
     longitude: float
+    coordinate_system: Literal["gcj02", "wgs84", "bd09"] = "gcj02"
     note: Optional[str] = Field(default=None, max_length=512)
     fetch_weather: bool = False
     sort_order: int = 0
@@ -105,6 +108,7 @@ class SpotChildPointUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=128)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    coordinate_system: Optional[Literal["gcj02", "wgs84", "bd09"]] = None
     note: Optional[str] = Field(default=None, max_length=512)
     fetch_weather: Optional[bool] = None
     sort_order: Optional[int] = None

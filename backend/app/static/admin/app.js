@@ -1288,6 +1288,7 @@ function clearChildPointForm() {
   $("#childPointName").value = "";
   $("#childPointLatitude").value = "";
   $("#childPointLongitude").value = "";
+  $("#childPointCoordinateSystem").value = "gcj02";
   $("#childPointNote").value = "";
   $("#childPointSort").value = "0";
   $("#childPointWeather").checked = false;
@@ -1494,12 +1495,14 @@ function fillSpotForm(spot = null) {
     form.elements.river_name.value = "";
     form.elements.river_upstream_latitude.value = "";
     form.elements.river_upstream_longitude.value = "";
+    form.elements.coordinate_system.value = "gcj02";
     form.elements.is_active.checked = true;
     return;
   }
   state.currentSpotChildPoints = spot.child_points || [];
   renderChildPoints();
   clearChildPointForm();
+  form.elements.coordinate_system.value = "gcj02";
 
   [
     "name_zh",
@@ -2576,6 +2579,7 @@ $("#addChildPointBtn").addEventListener("click", async () => {
       name,
       latitude: Number(latitude),
       longitude: Number(longitude),
+      coordinate_system: $("#childPointCoordinateSystem").value,
       note: $("#childPointNote").value.trim() || null,
       fetch_weather: $("#childPointWeather").checked,
       sort_order: Number($("#childPointSort").value || 0),
