@@ -787,6 +787,39 @@ td .image-thumb {
   background: #deeee5;
 }
 
+.permission-matrix {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.permission-matrix-head,
+.permission-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.5fr) repeat(4, minmax(60px, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.permission-matrix-head {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-matrix-row {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbf8;
+}
+
+.permission-matrix-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
 @media (max-width: 840px) {
   .login-panel,
   .app-shell,

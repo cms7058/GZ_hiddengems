@@ -4,16 +4,18 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin
 from app.db.session import get_db
-from app.models.admin import AdminUser
+from app.models.admin import AdminRole, AdminUser
 from app.schemas.auth import AdminLoginIn, AdminProfileUpdate, AdminUserOut, TokenOut
 from app.services.security import create_access_token, hash_password, verify_password
+from app.services.permissions import role_permissions
 
 
 router = APIRouter()
 
 
-def admin_to_out(admin: AdminUser) -> AdminUserOut:
-    return AdminUserOut(id=admin.id, username=admin.username, role=admin.role)
+def admin_to_out(admin: AdminUser, db: Session) -> AdminUserOut:
+    role = db.scalar(select(AdminRole).where(AdminRole.code == admin.role))
+    return AdminUserOut(id=admin.id, username=admin.username, role=admin.role, permissions=role_permissions(role, admin))
 
 
 @router.post("/admin/login", response_model=TokenOut)
@@ -32,13 +34,13 @@ def admin_login(payload: AdminLoginIn, db: Session = Depends(get_db)) -> TokenOu
 
     return TokenOut(
         access_token=create_access_token(str(admin.id)),
-        admin=admin_to_out(admin),
+        admin=admin_to_out(admin, db),
     )
 
 
 @router.get("/admin/me", response_model=AdminUserOut)
-def get_admin_me(current_admin: AdminUser = Depends(get_current_admin)) -> AdminUserOut:
-    return admin_to_out(current_admin)
+def get_admin_me(db: Session = Depends(get_db), current_admin: AdminUser = Depends(get_current_admin)) -> AdminUserOut:
+    return admin_to_out(current_admin, db)
 
 
 @router.patch("/admin/me", response_model=AdminUserOut)
@@ -67,4 +69,4 @@ def update_admin_me(
     db.add(current_admin)
     db.commit()
     db.refresh(current_admin)
-    return admin_to_out(current_admin)
+    return admin_to_out(current_admin, db)

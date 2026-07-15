@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260715-coordinate-login" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260715-role-permissions" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -46,6 +46,7 @@
           <button class="nav-btn" data-section="communitySection">游记留言</button>
           <button class="nav-btn" data-section="recommendationsSection">衣食住行</button>
           <button class="nav-btn" data-section="integrationsSection">接口管理</button>
+          <button id="rolesNavBtn" class="nav-btn" data-section="rolesSection">角色权限</button>
         </nav>
         <button id="logoutBtn" class="ghost-btn">退出登录</button>
       </aside>
@@ -367,6 +368,23 @@
           </div>
           <div id="integrationsPanel" class="integration-grid"></div>
         </section>
+
+        <section id="rolesSection" class="panel-section hidden">
+          <div class="section-head">
+            <div>
+              <h2>角色权限</h2>
+              <p class="muted">为管理员分配角色，并按模块设置查看、新增、修改和删除权限。</p>
+            </div>
+            <div class="row-actions">
+              <button id="newRoleBtn" class="primary-btn">新增角色</button>
+              <button id="newAdminAccountBtn" class="secondary-btn">新增管理员</button>
+            </div>
+          </div>
+          <h3>角色列表</h3>
+          <div class="table-wrap"><table><thead><tr><th>角色代码</th><th>角色名称</th><th>权限数</th><th>状态</th><th>操作</th></tr></thead><tbody id="rolesTable"></tbody></table></div>
+          <h3>管理员账号</h3>
+          <div class="table-wrap"><table><thead><tr><th>用户名</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody id="adminAccountsTable"></tbody></table></div>
+        </section>
       </section>
     </main>
 
@@ -499,6 +517,31 @@
           <button type="button" class="secondary-btn" data-close-dialog="accountSettingsDialog">取消</button>
           <button type="submit" class="primary-btn">保存</button>
         </footer>
+      </form>
+    </dialog>
+
+    <dialog id="roleDialog" class="dialog wide-dialog">
+      <form id="roleForm" method="dialog" class="dialog-body">
+        <header><h2 id="roleDialogTitle">角色</h2><button type="button" class="icon-btn" data-close-dialog="roleDialog">×</button></header>
+        <div class="form-grid">
+          <label><span>角色代码</span><input name="code" required pattern="[a-z0-9_]+" maxlength="32" placeholder="content_reviewer" /></label>
+          <label><span>角色名称</span><input name="name" required maxlength="64" /></label>
+          <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用角色</span></label>
+          <div class="full"><span>模块权限</span><div id="rolePermissionChecks" class="permission-matrix"></div></div>
+        </div>
+        <footer><button type="button" class="secondary-btn" data-close-dialog="roleDialog">取消</button><button type="submit" class="primary-btn">保存</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="adminAccountDialog" class="dialog">
+      <form id="adminAccountForm" method="dialog" class="dialog-body">
+        <header><h2>管理员账号</h2><button type="button" class="icon-btn" data-close-dialog="adminAccountDialog">×</button></header>
+        <div class="form-grid">
+          <label><span>用户名</span><input name="username" required minlength="3" maxlength="64" /></label>
+          <label><span>登录密码</span><input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" /></label>
+          <label><span>角色</span><select name="role" required></select></label>
+        </div>
+        <footer><button type="button" class="secondary-btn" data-close-dialog="adminAccountDialog">取消</button><button type="submit" class="primary-btn">保存</button></footer>
       </form>
     </dialog>
 
@@ -821,6 +864,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260715-coordinate-login"></script>
+    <script src="/admin/static/app.js?v=20260715-role-permissions"></script>
   </body>
 </html>

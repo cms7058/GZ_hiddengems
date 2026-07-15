@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
-from app.models.admin import AdminUser
+from app.models.admin import AdminRole, AdminUser
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag
@@ -21,6 +21,7 @@ from app.models.user import (
 )
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
+from app.services.permissions import ALL_PERMISSIONS
 
 
 def wait_for_database(max_attempts: int = 30, delay_seconds: int = 2) -> None:
@@ -100,6 +101,7 @@ def ensure_runtime_columns() -> None:
 
 def seed_initial_data() -> None:
     with Session(engine) as db:
+        seed_admin_roles(db)
         seed_admin(db)
         seed_tags_and_spots(db)
         seed_users(db)
@@ -109,6 +111,21 @@ def seed_initial_data() -> None:
         seed_content(db)
         seed_integration_settings(db)
         db.commit()
+
+
+def seed_admin_roles(db: Session) -> None:
+    if db.scalar(select(AdminRole).where(AdminRole.code == "operator")) is not None:
+        return
+    import json
+
+    db.add(
+        AdminRole(
+            code="operator",
+            name="运营管理员",
+            permissions_json=json.dumps(list(ALL_PERMISSIONS)),
+            is_active=True,
+        )
+    )
 
 
 def seed_admin(db: Session) -> None:

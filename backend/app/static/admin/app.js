@@ -15,6 +15,8 @@ const state = {
   comments: [],
   recommendations: [],
   integrations: [],
+  roles: [],
+  adminAccounts: [],
   currentSpotImages: [],
   currentSpotCheckins: [],
   currentSpotComments: [],
@@ -29,6 +31,7 @@ const state = {
   editingTravelNoteId: null,
   editingCommentId: null,
   editingRecommendationId: null,
+  editingRoleId: null,
   checkinFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
@@ -55,7 +58,18 @@ const SECTION_IDS = new Set([
   "communitySection",
   "recommendationsSection",
   "integrationsSection",
+  "rolesSection",
 ]);
+
+const PERMISSION_MODULES = [
+  ["users", "用户管理"],
+  ["tags", "标签管理"],
+  ["pass_settings", "通关设置"],
+  ["memberships", "会员管理"],
+  ["checkins", "打卡审核"],
+  ["recommendations", "衣食住行"],
+  ["integrations", "接口管理"],
+];
 
 const I18N = {
   "贵州秘境管理后台": "Guizhou Hidden Gems Admin",
@@ -411,8 +425,45 @@ function renderAll() {
   renderCommunity();
   renderRecommendations();
   renderIntegrations();
+  renderRoles();
   renderChildPoints();
+  applyAdminPermissions();
   applyLanguage();
+}
+
+function can(resource, action = "read") {
+  return state.admin?.role === "super_admin" || Boolean(state.admin?.permissions?.includes(`${resource}:${action}`));
+}
+
+function applyAdminPermissions() {
+  const sectionResources = {
+    tagsSection: "tags",
+    usersSection: "users",
+    passSettingsSection: "pass_settings",
+    membershipsSection: "memberships",
+    checkinsSection: "checkins",
+    communitySection: "checkins",
+    recommendationsSection: "recommendations",
+    integrationsSection: "integrations",
+  };
+  Object.entries(sectionResources).forEach(([section, resource]) => {
+    const button = $(`.nav-btn[data-section="${section}"]`);
+    if (button) button.classList.toggle("hidden", !can(resource));
+  });
+  $("#rolesNavBtn")?.classList.toggle("hidden", state.admin?.role !== "super_admin");
+  const createButtons = {
+    "#newTagBtn": "tags",
+    "#newUserBtn": "users",
+    "#newPassSettingBtn": "pass_settings",
+    "#newMembershipPlanBtn": "memberships",
+    "#newTravelNoteBtn": "checkins",
+    "#newCommentBtn": "checkins",
+    "#newRecommendationBtn": "recommendations",
+  };
+  Object.entries(createButtons).forEach(([selector, resource]) => {
+    $(selector)?.classList.toggle("hidden", !can(resource, "create"));
+  });
+  if ($(".nav-btn.active")?.classList.contains("hidden")) setActiveSection("spotsSection");
 }
 
 function showToast(message) {
@@ -1049,6 +1100,40 @@ function renderIntegrations() {
     .join("");
 }
 
+function renderRolePermissionChecks(selected = []) {
+  const chosen = new Set(selected);
+  $("#rolePermissionChecks").innerHTML = `
+    <div class="permission-matrix-head"><span>模块</span><span>查看</span><span>新增</span><span>修改</span><span>删除</span></div>
+    ${PERMISSION_MODULES.map(([resource, label]) => `
+      <div class="permission-matrix-row"><strong>${t(label)}</strong>
+      ${["read", "create", "update", "delete"].map((action) => `<label><input type="checkbox" name="permission" value="${resource}:${action}" ${chosen.has(`${resource}:${action}`) ? "checked" : ""} /><span>${action}</span></label>`).join("")}
+      </div>`).join("")}
+  `;
+}
+
+function renderRoles() {
+  const rolesTable = $("#rolesTable");
+  const accountsTable = $("#adminAccountsTable");
+  if (!rolesTable || !accountsTable) return;
+  rolesTable.innerHTML = state.roles.length
+    ? state.roles.map((role) => `<tr><td>${escapeHtml(role.code)}</td><td>${escapeHtml(role.name)}</td><td>${role.permissions.length}</td><td>${role.is_active ? "启用" : "停用"}</td><td><div class="row-actions"><button class="small-btn" data-edit-role="${role.id}">编辑</button><button class="small-btn danger" data-delete-role="${role.id}">删除</button></div></td></tr>`).join("")
+    : '<tr><td colspan="5" class="muted">仅超级管理员可管理角色。</td></tr>';
+  accountsTable.innerHTML = state.adminAccounts.length
+    ? state.adminAccounts.map((admin) => `<tr><td>${escapeHtml(admin.username)}</td><td><select data-admin-role="${admin.id}"><option value="super_admin" ${admin.role === "super_admin" ? "selected" : ""}>super_admin</option>${state.roles.filter((role) => role.is_active).map((role) => `<option value="${role.code}" ${admin.role === role.code ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}</select></td><td>${admin.is_active ? "启用" : "停用"}</td><td><button class="small-btn ${admin.is_active ? "danger" : ""}" data-toggle-admin="${admin.id}" data-next-active="${admin.is_active ? "false" : "true"}">${admin.is_active ? "停用" : "启用"}</button></td></tr>`).join("")
+    : '<tr><td colspan="4" class="muted">暂无管理员账号。</td></tr>';
+}
+
+function fillRoleForm(role = null) {
+  const form = $("#roleForm");
+  state.editingRoleId = role?.id || null;
+  $("#roleDialogTitle").textContent = role ? "编辑角色" : "新增角色";
+  form.elements.code.value = role?.code || "";
+  form.elements.code.readOnly = Boolean(role);
+  form.elements.name.value = role?.name || "";
+  form.elements.is_active.checked = role?.is_active !== false;
+  renderRolePermissionChecks(role?.permissions || []);
+}
+
 function renderIntegrationField(setting) {
   const value = escapeHtml(setting.value || "");
   const label = escapeHtml(state.lang === "en-US" ? setting.label_en : setting.label_zh);
@@ -1386,19 +1471,23 @@ async function loadData() {
     recommendations,
     integrations,
     assistantPending,
+    roles,
+    adminAccounts,
   ] = await Promise.all([
-    requestPage("tags", "/admin/tags"),
+    can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
     requestPage("spots", "/admin/spots"),
-    requestPage("users", "/admin/users?include_inactive=false"),
-    requestPage("passSettings", "/admin/pass-settings"),
-    requestPage("membershipPlans", "/admin/memberships/plans"),
-    requestPage("membershipRecords", "/admin/memberships/records"),
-    requestPage("checkins", `/admin/checkins${new URLSearchParams(state.checkinFilters).toString() ? `?${new URLSearchParams(state.checkinFilters).toString()}` : ""}`),
-    requestPage("travelNotes", "/admin/content/travel-notes"),
-    requestPage("comments", "/admin/content/comments"),
-    requestPage("recommendations", "/admin/content/recommendations"),
-    request("/admin/integrations"),
+    can("users") ? requestPage("users", "/admin/users?include_inactive=false") : Promise.resolve([]),
+    can("pass_settings") ? requestPage("passSettings", "/admin/pass-settings") : Promise.resolve([]),
+    can("memberships") ? requestPage("membershipPlans", "/admin/memberships/plans") : Promise.resolve([]),
+    can("memberships") ? requestPage("membershipRecords", "/admin/memberships/records") : Promise.resolve([]),
+    can("checkins") ? requestPage("checkins", `/admin/checkins${new URLSearchParams(state.checkinFilters).toString() ? `?${new URLSearchParams(state.checkinFilters).toString()}` : ""}`) : Promise.resolve([]),
+    can("checkins") ? requestPage("travelNotes", "/admin/content/travel-notes") : Promise.resolve([]),
+    can("checkins") ? requestPage("comments", "/admin/content/comments") : Promise.resolve([]),
+    can("recommendations") ? requestPage("recommendations", "/admin/content/recommendations") : Promise.resolve([]),
+    can("integrations") ? request("/admin/integrations") : Promise.resolve([]),
     request("/admin/assistant/pending-summary"),
+    state.admin?.role === "super_admin" ? request("/admin/roles") : Promise.resolve([]),
+    state.admin?.role === "super_admin" ? request("/admin/roles/admins") : Promise.resolve([]),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -1412,6 +1501,8 @@ async function loadData() {
   state.recommendations = recommendations;
   state.integrations = integrations;
   state.assistantPending = assistantPending;
+  state.roles = roles;
+  state.adminAccounts = adminAccounts;
   renderAll();
 }
 
@@ -1953,6 +2044,48 @@ $("#newPassSettingBtn").addEventListener("click", () => {
 $("#newMembershipPlanBtn").addEventListener("click", () => {
   fillMembershipPlanForm();
   $("#membershipPlanDialog").showModal();
+});
+
+$("#newRoleBtn").addEventListener("click", () => {
+  fillRoleForm();
+  $("#roleDialog").showModal();
+});
+
+$("#newAdminAccountBtn").addEventListener("click", () => {
+  const form = $("#adminAccountForm");
+  form.reset();
+  form.elements.role.innerHTML = `<option value="super_admin">super_admin</option>${state.roles.filter((role) => role.is_active).map((role) => `<option value="${role.code}">${escapeHtml(role.name)}</option>`).join("")}`;
+  $("#adminAccountDialog").showModal();
+});
+
+$("#rolesTable").addEventListener("click", async (event) => {
+  const editId = event.target.dataset.editRole;
+  const deleteId = event.target.dataset.deleteRole;
+  if (editId) {
+    fillRoleForm(state.roles.find((role) => role.id === Number(editId)));
+    $("#roleDialog").showModal();
+  }
+  if (deleteId && confirmDeletion()) {
+    await request(`/admin/roles/${deleteId}`, { method: "DELETE" });
+    await loadData();
+    showToast("角色已删除");
+  }
+});
+
+$("#adminAccountsTable").addEventListener("change", async (event) => {
+  const adminId = event.target.dataset.adminRole;
+  if (!adminId) return;
+  await request(`/admin/roles/admins/${adminId}`, { method: "PATCH", body: JSON.stringify({ role: event.target.value }) });
+  await loadData();
+  showToast("管理员角色已更新");
+});
+
+$("#adminAccountsTable").addEventListener("click", async (event) => {
+  const adminId = event.target.dataset.toggleAdmin;
+  if (!adminId) return;
+  await request(`/admin/roles/admins/${adminId}`, { method: "PATCH", body: JSON.stringify({ is_active: event.target.dataset.nextActive === "true" }) });
+  await loadData();
+  showToast("管理员状态已更新");
 });
 
 $("#passSettingForm").elements.marker_color.addEventListener("input", (event) => {
@@ -2531,6 +2664,32 @@ $("#spotForm").addEventListener("submit", async (event) => {
   $("#spotDialog").close();
   await loadData();
   showToast("秘境已保存");
+});
+
+$("#roleForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = formToObject(form);
+  const permissions = $$('input[name="permission"]:checked').map((input) => input.value);
+  const payload = { name: data.name.trim(), permissions, is_active: form.elements.is_active.checked };
+  if (!state.editingRoleId) payload.code = data.code.trim();
+  const path = state.editingRoleId ? `/admin/roles/${state.editingRoleId}` : "/admin/roles";
+  await request(path, { method: state.editingRoleId ? "PATCH" : "POST", body: JSON.stringify(payload) });
+  $("#roleDialog").close();
+  await loadData();
+  showToast("角色已保存");
+});
+
+$("#adminAccountForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = formToObject(event.currentTarget);
+  await request("/admin/roles/admins", {
+    method: "POST",
+    body: JSON.stringify({ username: data.username.trim(), password: data.password, role: data.role }),
+  });
+  $("#adminAccountDialog").close();
+  await loadData();
+  showToast("管理员已新增");
 });
 
 $("#uploadSpotImageBtn").addEventListener("click", async () => {

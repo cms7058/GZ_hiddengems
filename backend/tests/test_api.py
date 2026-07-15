@@ -618,6 +618,40 @@ class ApiTest(unittest.TestCase):
         after_review = self.client.get("/api/v1/spots/map?tag_ids=1&explore_points=120")
         self.assertEqual(len(after_review.json()), 2)
 
+    def test_roles_enforce_module_crud_permissions(self):
+        super_headers = self.login_headers()
+        role_response = self.client.post(
+            "/api/v1/admin/roles",
+            headers=super_headers,
+            json={"code": "tag_viewer", "name": "标签查看员", "permissions": ["tags:read"]},
+        )
+        self.assertEqual(role_response.status_code, 201)
+        self.assertEqual(role_response.json()["permissions"], ["tags:read"])
+
+        admin_response = self.client.post(
+            "/api/v1/admin/roles/admins",
+            headers=super_headers,
+            json={"username": "tagviewer", "password": "viewer-pass-123", "role": "tag_viewer"},
+        )
+        self.assertEqual(admin_response.status_code, 201)
+
+        login_response = self.client.post(
+            "/api/v1/admin/login",
+            json={"username": "tagviewer", "password": "viewer-pass-123"},
+        )
+        self.assertEqual(login_response.status_code, 200)
+        self.assertEqual(login_response.json()["admin"]["permissions"], ["tags:read"])
+        headers = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
+        self.assertEqual(self.client.get("/api/v1/admin/tags", headers=headers).status_code, 200)
+        self.assertEqual(
+            self.client.post(
+                "/api/v1/admin/tags",
+                headers=headers,
+                json={"name_zh": "测试", "name_en": "Test", "sort_order": 99},
+            ).status_code,
+            403,
+        )
+
     def test_admin_spot_requires_existing_pass_level(self):
         response = self.client.patch(
             "/api/v1/admin/spots/1",
