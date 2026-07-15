@@ -820,7 +820,6 @@ function renderSpots() {
 
 function renderUsers() {
   $("#usersTable").innerHTML = state.users
-    .filter((user) => user.is_active !== false)
     .map(
       (user) => `
         <tr>
@@ -853,7 +852,7 @@ function renderUsers() {
           <td>
             <div class="row-actions">
               <button class="small-btn" data-edit-user="${user.id}">${t("编辑")}</button>
-              <button class="small-btn danger" data-toggle-user="${user.id}">${user.is_active ? t("停用") : t("启用")}</button>
+              <button class="small-btn" data-toggle-user="${user.id}">${user.is_active ? t("停用") : t("启用")}</button>
               <button class="small-btn danger" data-delete-user="${user.id}">${t("删除")}</button>
             </div>
           </td>
@@ -1476,7 +1475,7 @@ async function loadData() {
   ] = await Promise.all([
     can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
     requestPage("spots", "/admin/spots"),
-    can("users") ? requestPage("users", "/admin/users?include_inactive=false") : Promise.resolve([]),
+    can("users") ? requestPage("users", "/admin/users?include_inactive=true") : Promise.resolve([]),
     can("pass_settings") ? requestPage("passSettings", "/admin/pass-settings") : Promise.resolve([]),
     can("memberships") ? requestPage("membershipPlans", "/admin/memberships/plans") : Promise.resolve([]),
     can("memberships") ? requestPage("membershipRecords", "/admin/memberships/records") : Promise.resolve([]),
