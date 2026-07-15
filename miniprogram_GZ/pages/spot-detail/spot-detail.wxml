@@ -111,8 +111,8 @@
               <text class="explore-action-title">{{copy.leaveComment}}</text>
               <text class="explore-action-arrow">›</text>
             </view>
-            <text wx:if="{{user.can_comment && !spot.has_successful_checkin}}" class="action-hint">{{copy.checkinRequired}}</text>
           </view>
+          <text wx:if="{{user.can_comment && !spot.has_successful_checkin}}" class="explore-action-hint">{{copy.checkinRequired}}</text>
         </view>
 
         <view class="section safety-section">

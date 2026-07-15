@@ -786,6 +786,10 @@ Page({
       wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
       return
     }
+    if (!this.data.spot.has_successful_checkin) {
+      wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
+      return
+    }
     this.setData({ submitting: true })
     try {
       await request("/mini/travel-notes", {
@@ -813,6 +817,10 @@ Page({
     if (this.data.submitting || !content || !this.data.spot) return
     if (this.data.user.can_comment === false) {
       wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    if (!this.data.spot.has_successful_checkin) {
+      wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
       return
     }
     this.setData({ submitting: true })

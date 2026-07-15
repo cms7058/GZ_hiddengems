@@ -86,11 +86,13 @@ page {
 
 .note-media-scroll {
   width: 100%;
+  height: 280rpx;
   margin-bottom: 14rpx;
 }
 
 .note-media-row {
   display: inline-flex;
+  min-height: 280rpx;
   gap: 12rpx;
   align-items: center;
 }
@@ -366,6 +368,14 @@ page {
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
+}
+
+.explore-action-hint {
+  display: block;
+  margin-top: 12rpx;
+  color: #7a8179;
+  font-size: 22rpx;
+  line-height: 1.5;
 }
 
 .explore-action:active {
