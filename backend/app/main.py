@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
@@ -74,8 +74,11 @@ def create_app() -> FastAPI:
     app.mount("/media", StaticFiles(directory=media_dir), name="media")
 
     @app.get("/", include_in_schema=False)
-    def root() -> RedirectResponse:
-        return RedirectResponse(url="/admin")
+    def root() -> FileResponse:
+        return FileResponse(
+            static_dir / "index.html",
+            media_type="text/html; charset=utf-8",
+        )
 
     @app.get("/admin", include_in_schema=False)
     def admin_page() -> FileResponse:

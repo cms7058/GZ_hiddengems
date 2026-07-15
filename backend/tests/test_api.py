@@ -186,6 +186,13 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["name"], "Photography")
 
+    def test_root_serves_admin_login_page_without_redirect(self):
+        response = self.client.get("/", follow_redirects=False)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("贵州秘境管理后台", response.text)
+        self.assertNotIn('value="admin"', response.text)
+
     def test_map_spots_mask_protected_location_for_regular_user(self):
         response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN&explore_points=120")
 

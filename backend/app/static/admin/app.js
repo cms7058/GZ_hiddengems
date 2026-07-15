@@ -482,6 +482,14 @@ function setAuthenticated(isAuthenticated) {
   $("#loginView").classList.toggle("hidden", isAuthenticated);
   $("#appView").classList.toggle("hidden", !isAuthenticated);
   $("#adminAssistantToggle")?.classList.toggle("hidden", !isAuthenticated);
+  if (!isAuthenticated) {
+    const clearCredentials = () => {
+      $("#loginUsername").value = "";
+      $("#loginPassword").value = "";
+    };
+    clearCredentials();
+    window.setTimeout(clearCredentials, 0);
+  }
 }
 
 function statusPill(status) {
