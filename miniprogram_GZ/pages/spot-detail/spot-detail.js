@@ -74,6 +74,7 @@ const COPY = {
     locationFailed: "定位失败，请检查定位权限",
     uploadFailed: "上传失败，请稍后重试",
     permissionDenied: "当前账号暂无此操作权限",
+    checkinRequired: "完成本景点打卡后才能发表游记和留言",
     goThere: "到这去",
     locationRequired: "请先允许位置权限",
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
@@ -145,6 +146,7 @@ const COPY = {
     locationFailed: "Location failed. Check permission",
     uploadFailed: "Upload failed. Try again later",
     permissionDenied: "This account does not have permission",
+    checkinRequired: "Complete a successful check-in here before publishing notes or comments",
     goThere: "Go",
     locationRequired: "Allow location first",
     serviceClosed: "Data is available daily from 08:00 to 24:00 Beijing time.",
@@ -183,11 +185,14 @@ Page({
     commentForm: {
       content: "",
     },
+    watermarkCanvasWidth: 1,
+    watermarkCanvasHeight: 1,
     submitting: false,
   },
 
   onLoad(options) {
     this.markerCanvasReady = false
+    this.watermarkedImageCache = new Map()
     this.hideShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location)
     const id = Number(options.id || 0)
@@ -341,6 +346,7 @@ Page({
   },
 
   normalizeSpot(spot) {
+    const myCheckins = spot.my_checkins || []
     return {
       ...spot,
       required_explore_points: spot.required_explore_points || 0,
@@ -349,7 +355,8 @@ Page({
       tags: spot.tags || [],
       travel_notes: (spot.travel_notes || []).map((item) => this.decorateSubmission(item)),
       comments: (spot.comments || []).map((item) => this.decorateSubmission(item)),
-      my_checkins: (spot.my_checkins || []).map((item) => this.decorateSubmission(item)),
+      my_checkins: myCheckins.map((item) => this.decorateSubmission(item)),
+      has_successful_checkin: myCheckins.some((item) => item.status === "approved"),
       lifestyle_recommendations: spot.lifestyle_recommendations || [],
       images: spot.images || [],
     }
@@ -376,12 +383,7 @@ Page({
   },
 
   buildPhotoSlides(spot) {
-    const photos = this.getSpotPhotos(spot)
-    const slides = []
-    for (let index = 0; index < photos.length; index += 3) {
-      slides.push(photos.slice(index, index + 3))
-    }
-    return slides
+    return this.getSpotPhotos(spot)
   },
 
   onPreviewSpotPhoto(event) {
@@ -392,6 +394,88 @@ Page({
       .map((item) => item.display_url || item.image_url)
       .filter(Boolean)
     if (current && urls.length) wx.previewImage({ current, urls })
+  },
+
+  async onPreviewTravelNoteImage(event) {
+    const noteId = Number(event.currentTarget.dataset.noteId)
+    const current = event.currentTarget.dataset.url
+    const note = (this.data.spot?.travel_notes || []).find((item) => Number(item.id) === noteId)
+    if (!note || !current) return
+    const urls = (note.media || [])
+      .filter((item) => (item.media_type || "image") === "image")
+      .map((item) => item.display_url || item.media_url)
+      .filter(Boolean)
+    if (!urls.length && (note.display_url || note.image_url)) {
+      urls.push(note.display_url || note.image_url)
+    }
+    if (!urls.length) return
+    try {
+      wx.showLoading({ title: this.data.lang === "en-US" ? "Preparing preview" : "正在生成预览" })
+      const watermarkedUrls = []
+      for (const url of urls) {
+        watermarkedUrls.push(await this.getWatermarkedImage(url))
+      }
+      const currentIndex = urls.indexOf(current)
+      wx.previewImage({
+        current: watermarkedUrls[currentIndex >= 0 ? currentIndex : 0],
+        urls: watermarkedUrls,
+      })
+    } catch (error) {
+      console.warn("travel note watermark preview failed", error)
+      wx.showModal({
+        title: this.data.lang === "en-US" ? "Preview unavailable" : "暂无法预览",
+        content: this.data.lang === "en-US" ? "The protected preview could not be generated. Please try again." : "版权保护预览生成失败，请稍后重试。",
+        showCancel: false,
+      })
+    } finally {
+      wx.hideLoading()
+    }
+  },
+
+  getImageInfo(source) {
+    return new Promise((resolve, reject) => {
+      wx.getImageInfo({ source, success: resolve, fail: reject })
+    })
+  },
+
+  getWatermarkedImage(source) {
+    if (this.watermarkedImageCache?.has(source)) return Promise.resolve(this.watermarkedImageCache.get(source))
+    return this.getImageInfo(source).then((image) => new Promise((resolve, reject) => {
+      const maxEdge = 1440
+      const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      this.setData({ watermarkCanvasWidth: width, watermarkCanvasHeight: height }, () => {
+        const context = wx.createCanvasContext("travelNoteWatermarkCanvas", this)
+        context.drawImage(image.path, 0, 0, width, height)
+        context.save()
+        context.setGlobalAlpha(0.48)
+        context.setFillStyle("#ffffff")
+        context.setFontSize(Math.max(28, Math.round(Math.min(width, height) * 0.08)))
+        context.setTextAlign("center")
+        context.setTextBaseline("middle")
+        context.translate(width / 2, height / 2)
+        context.rotate(-Math.PI / 10)
+        context.fillText("夜郎秘境", 0, 0)
+        context.restore()
+        context.draw(false, () => {
+          wx.canvasToTempFilePath({
+            canvasId: "travelNoteWatermarkCanvas",
+            width,
+            height,
+            destWidth: width,
+            destHeight: height,
+            fileType: "jpg",
+            quality: 0.92,
+            success: ({ tempFilePath }) => {
+              this.watermarkedImageCache?.set(source, tempFilePath)
+              resolve(tempFilePath)
+            },
+            fail: reject,
+          }, this)
+        })
+      })
+    }))
   },
 
   async refreshMarkerIcon(spot) {
@@ -480,6 +564,10 @@ Page({
 
   openAction(action) {
     if (!this.data.spot || !action) return
+    if (["note", "comment"].includes(action) && !this.data.spot.has_successful_checkin) {
+      wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
+      return
+    }
     wx.navigateTo({
       url: `/pages/spot-submit/spot-submit?id=${this.data.spot.id}&mode=${action}`,
     })

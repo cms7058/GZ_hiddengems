@@ -35,6 +35,7 @@ const COPY = {
     submitFailed: "提交失败，请稍后重试",
     uploadFailed: "上传失败，请稍后重试",
     permissionDenied: "当前账号暂无此操作权限",
+    checkinRequired: "请先完成本景点打卡，打卡成功后才能发表游记和留言",
     reviewPending: "审核中",
     reviewRejected: "未通过",
     reviewHidden: "已隐藏",
@@ -69,6 +70,7 @@ const COPY = {
     submitFailed: "Submit failed. Try again later",
     uploadFailed: "Upload failed. Try again later",
     permissionDenied: "This account does not have permission",
+    checkinRequired: "Complete a successful check-in here before publishing notes or comments",
     reviewPending: "Pending Review",
     reviewRejected: "Not Approved",
     reviewHidden: "Hidden",
@@ -84,6 +86,7 @@ Page({
     user: app.globalData.user,
     spot: null,
     myCheckins: [],
+    hasSuccessfulCheckin: false,
     loading: true,
     refreshing: false,
     error: "",
@@ -137,6 +140,7 @@ Page({
       this.setData({
         spot,
         myCheckins: (spot.my_checkins || []).map((item) => this.decorateSubmission(item)),
+        hasSuccessfulCheckin: (spot.my_checkins || []).some((item) => item.status === "approved"),
         loading: false,
       })
     } catch (error) {
@@ -224,6 +228,10 @@ Page({
       wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
       return
     }
+    if (!this.data.hasSuccessfulCheckin) {
+      wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
+      return
+    }
     if (!title.trim() || !content.trim()) {
       wx.showToast({ title: this.data.copy.noteRequired, icon: "none" })
       return
@@ -245,6 +253,10 @@ Page({
     }
     if (this.data.user.can_comment === false) {
       wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    if (!this.data.hasSuccessfulCheckin) {
+      wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
       return
     }
     if (!content) {
@@ -273,6 +285,11 @@ Page({
 
   getLocation() {
     return new Promise((resolve, reject) => wx.getLocation({ type: "gcj02", success: resolve, fail: reject }))
+  },
+
+  onGoCheckin() {
+    this.setData({ mode: "checkin" })
+    this.tryShowUserLocation()
   },
 
   onBackTap() {

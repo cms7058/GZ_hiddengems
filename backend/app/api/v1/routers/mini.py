@@ -7,6 +7,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -59,6 +60,18 @@ def ensure_active_user(db: Session, user_id: int) -> MiniProgramUser:
 def ensure_user_permission(user: MiniProgramUser, permission: str) -> None:
     if not getattr(user, permission, False):
         raise HTTPException(status_code=403, detail="User permission denied")
+
+
+def ensure_successful_checkin(db: Session, user_id: int, spot_id: int) -> None:
+    has_successful_checkin = db.scalar(
+        select(CheckinRecord.id).where(
+            CheckinRecord.user_id == user_id,
+            CheckinRecord.spot_id == spot_id,
+            CheckinRecord.status == "approved",
+        )
+    )
+    if has_successful_checkin is None:
+        raise HTTPException(status_code=403, detail="Successful check-in is required before publishing notes or comments")
 
 
 def resolve_wechat_openid(code: str) -> str:
@@ -245,6 +258,7 @@ def create_travel_note(payload: TravelNoteCreate, db: Session = Depends(get_db))
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_comment")
     ensure_active_spot(db, payload.spot_id)
+    ensure_successful_checkin(db, payload.user_id, payload.spot_id)
     note = TravelNote(**payload.model_dump(exclude={"status", "is_featured", "media"}), status="pending", is_featured=False)
     db.add(note)
     db.flush()
@@ -260,6 +274,7 @@ def create_comment(payload: UserCommentCreate, db: Session = Depends(get_db)) ->
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_comment")
     ensure_active_spot(db, payload.spot_id)
+    ensure_successful_checkin(db, payload.user_id, payload.spot_id)
     comment = UserComment(**payload.model_dump(exclude={"status", "media"}), status="pending")
     db.add(comment)
     db.flush()

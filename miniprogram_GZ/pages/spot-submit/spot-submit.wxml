@@ -18,23 +18,29 @@
 
       <view wx:elif="{{mode === 'note'}}" class="section">
         <view class="section-head"><text>{{copy.writeNote}}</text></view>
-        <input class="form-input" value="{{noteForm.title}}" maxlength="128" placeholder="{{copy.noteTitlePlaceholder}}" bindinput="onNoteTitleInput" />
-        <textarea class="form-textarea" value="{{noteForm.content}}" placeholder="{{copy.noteContentPlaceholder}}" bindinput="onNoteContentInput"></textarea>
-        <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseNoteMedia">{{copy.chooseMedia}}</button>
-        <view wx:if="{{noteMedia.length}}" class="media-grid">
-          <view wx:for="{{noteMedia}}" wx:key="media_url" class="media-state">
-            <image wx:if="{{item.media_type === 'image'}}" class="media-preview" src="{{item.tempFilePath}}" mode="aspectFill"></image>
-            <video wx:else class="media-preview" src="{{item.tempFilePath}}" controls></video>
-            <text class="remove-media" data-index="{{index}}" catchtap="onRemoveNoteMedia">{{copy.removeMedia}}</text>
+        <block wx:if="{{hasSuccessfulCheckin}}">
+          <input class="form-input" value="{{noteForm.title}}" maxlength="128" placeholder="{{copy.noteTitlePlaceholder}}" bindinput="onNoteTitleInput" />
+          <textarea class="form-textarea" value="{{noteForm.content}}" placeholder="{{copy.noteContentPlaceholder}}" bindinput="onNoteContentInput"></textarea>
+          <button wx:if="{{user.can_upload_image || user.can_upload_video}}" class="media-button" loading="{{submitting}}" bindtap="onChooseNoteMedia">{{copy.chooseMedia}}</button>
+          <view wx:if="{{noteMedia.length}}" class="media-grid">
+            <view wx:for="{{noteMedia}}" wx:key="media_url" class="media-state">
+              <image wx:if="{{item.media_type === 'image'}}" class="media-preview" src="{{item.tempFilePath}}" mode="aspectFill"></image>
+              <video wx:else class="media-preview" src="{{item.tempFilePath}}" controls></video>
+              <text class="remove-media" data-index="{{index}}" catchtap="onRemoveNoteMedia">{{copy.removeMedia}}</text>
+            </view>
           </view>
-        </view>
-        <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
+          <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitNote">{{copy.submitNote}}</button>
+        </block>
+        <block wx:else><text class="notice">{{copy.checkinRequired}}</text><button class="submit-button" bindtap="onGoCheckin">{{copy.checkin}}</button></block>
       </view>
 
       <view wx:else class="section">
         <view class="section-head"><text>{{copy.leaveComment}}</text></view>
-        <textarea class="form-textarea" value="{{commentForm.content}}" maxlength="512" placeholder="{{copy.commentPlaceholder}}" bindinput="onCommentInput"></textarea>
-        <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitComment">{{copy.submitComment}}</button>
+        <block wx:if="{{hasSuccessfulCheckin}}">
+          <textarea class="form-textarea" value="{{commentForm.content}}" maxlength="512" placeholder="{{copy.commentPlaceholder}}" bindinput="onCommentInput"></textarea>
+          <button wx:if="{{user.can_comment}}" class="submit-button" loading="{{submitting}}" bindtap="onSubmitComment">{{copy.submitComment}}</button>
+        </block>
+        <block wx:else><text class="notice">{{copy.checkinRequired}}</text><button class="submit-button" bindtap="onGoCheckin">{{copy.checkin}}</button></block>
       </view>
 
       <view wx:if="{{mode === 'checkin' && myCheckins.length}}" class="section">

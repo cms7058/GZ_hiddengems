@@ -314,6 +314,21 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(comment.status_code, 201)
         self.assertEqual(comment.json()["status"], "pending")
 
+    def test_mini_content_requires_successful_checkin_for_same_spot(self):
+        note = self.client.post(
+            "/api/v1/mini/travel-notes",
+            json={"user_id": 1, "spot_id": 1, "title": "未打卡游记", "content": "不应提交成功。"},
+        )
+        self.assertEqual(note.status_code, 403)
+        self.assertIn("Successful check-in", note.json()["detail"])
+
+        comment = self.client.post(
+            "/api/v1/mini/comments",
+            json={"user_id": 1, "spot_id": 1, "content": "不应提交成功。"},
+        )
+        self.assertEqual(comment.status_code, 403)
+        self.assertIn("Successful check-in", comment.json()["detail"])
+
     def test_spot_safety_returns_unconfigured_placeholder(self):
         response = self.client.get("/api/v1/spots/1/safety?lang=zh-CN")
 
