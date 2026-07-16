@@ -347,12 +347,10 @@ Page({
     const filteredSpots = selectedLevelIds.length
       ? eligibleSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
       : eligibleSpots
-    const markers = this.buildMarkers(filteredSpots)
     const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
     this.setData({
       filteredSpots,
-      markers,
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
@@ -526,10 +524,18 @@ Page({
     if (!this.markerCanvasReady) return
     const requestId = (this.markerIconRequestId || 0) + 1
     this.markerIconRequestId = requestId
+    // The native map view on some clients can retain markers when two marker
+    // lists are assigned in quick succession. Remove the previous list first.
+    this.setData({ markers: [] })
     try {
       const markers = await Promise.all((spots || []).map(async (spot) => {
-        const iconPath = await getMarkerIcon(this, "homeMarkerCanvas", spot.marker_color)
-        return this.spotToMarker(spot, iconPath)
+        try {
+          const iconPath = await getMarkerIcon(this, "homeMarkerCanvas", spot.marker_color)
+          return this.spotToMarker(spot, iconPath)
+        } catch (error) {
+          console.warn("custom marker icon failed for spot", spot.id, error)
+          return this.spotToMarker(spot)
+        }
       }))
       if (requestId === this.markerIconRequestId) this.setData({ markers })
     } catch (error) {
