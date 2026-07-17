@@ -180,6 +180,7 @@
                   <th>OpenID</th>
                   <th>语言</th>
                   <th>数据</th>
+                  <th>增长数据</th>
                   <th>权限</th>
                   <th>会员</th>
                   <th>状态</th>
@@ -606,6 +607,13 @@
           <label><span>打卡数</span><input name="checkin_count" type="number" min="0" /></label>
           <label><span>贡献数</span><input name="contribution_count" type="number" min="0" readonly /></label>
           <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" readonly /></label>
+          <label><span>会员安全等级</span><select name="safety_level"><option value="general">一般</option><option value="risk">风险</option><option value="quality">优质</option></select></label>
+          <label><span>手机号认证时间</span><input name="phone_verified_at" readonly /></label>
+          <label><span>分享次数</span><input name="share_count" type="number" readonly /></label>
+          <label><span>分享注册人数</span><input name="referral_registered_count" type="number" readonly /></label>
+          <label><span>推荐通过次数</span><input name="approved_recommendation_count" type="number" readonly /></label>
+          <label><span>获得点赞数</span><input name="like_received_count" type="number" readonly /></label>
+          <label><span>点赞次数</span><input name="like_given_count" type="number" readonly /></label>
           <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
           <div class="full checks permission-checks">
@@ -613,6 +621,9 @@
             <label><input name="can_upload_video" type="checkbox" checked /> <span>允许上传视频</span></label>
             <label><input name="can_comment" type="checkbox" checked /> <span>允许留言游记</span></label>
             <label><input name="can_checkin" type="checkbox" checked /> <span>允许打卡通关</span></label>
+            <label><input name="can_recommend_spot" type="checkbox" checked /> <span>允许推荐秘境</span></label>
+            <label><input name="can_like_comment" type="checkbox" checked /> <span>允许留言点赞</span></label>
+            <label><input name="can_share" type="checkbox" checked /> <span>允许小程序分享</span></label>
           </div>
         </div>
         <footer>

@@ -863,10 +863,20 @@ function renderUsers() {
           </td>
           <td>
             <div class="cell-title">
+              <span>分享 ${user.share_count || 0} / 拉新 ${user.referral_registered_count || 0}</span>
+              <span class="muted">推荐通过 ${user.approved_recommendation_count || 0}</span>
+              <span class="muted">获赞 ${user.like_received_count || 0} / 点赞 ${user.like_given_count || 0}</span>
+              <span class="muted">安全等级：${escapeHtml(user.safety_level || "general")}</span>
+            </div>
+          </td>
+          <td>
+            <div class="cell-title">
               <span>${t("图片权限")}：${user.can_upload_image ? t("允许") : t("不允许")}</span>
               <span>${t("视频权限")}：${user.can_upload_video ? t("允许") : t("不允许")}</span>
               <span>${t("留言权限")}：${user.can_comment ? t("允许") : t("不允许")}</span>
               <span>${t("打卡权限")}：${user.can_checkin ? t("允许") : t("不允许")}</span>
+              <span>推荐：${user.can_recommend_spot ? t("允许") : t("不允许")} / 点赞：${user.can_like_comment ? t("允许") : t("不允许")}</span>
+              <span>分享：${user.can_share ? t("允许") : t("不允许")}</span>
             </div>
           </td>
           <td>${memberPill(user.is_member)}</td>
@@ -1745,6 +1755,13 @@ function fillUserForm(user) {
     "checkin_count",
     "contribution_count",
     "eco_credit",
+    "safety_level",
+    "phone_verified_at",
+    "share_count",
+    "referral_registered_count",
+    "approved_recommendation_count",
+    "like_received_count",
+    "like_given_count",
   ].forEach((field) => {
     form.elements[field].value = user[field] ?? "";
   });
@@ -1755,6 +1772,9 @@ function fillUserForm(user) {
   form.elements.can_upload_video.checked = user.can_upload_video !== false;
   form.elements.can_comment.checked = user.can_comment !== false;
   form.elements.can_checkin.checked = user.can_checkin !== false;
+  form.elements.can_recommend_spot.checked = user.can_recommend_spot !== false;
+  form.elements.can_like_comment.checked = user.can_like_comment !== false;
+  form.elements.can_share.checked = user.can_share !== false;
 }
 
 function fillTravelNoteForm(note = null) {
@@ -2994,6 +3014,10 @@ $("#userForm").addEventListener("submit", async (event) => {
     can_upload_video: form.elements.can_upload_video.checked,
     can_comment: form.elements.can_comment.checked,
     can_checkin: form.elements.can_checkin.checked,
+    safety_level: data.safety_level,
+    can_recommend_spot: form.elements.can_recommend_spot.checked,
+    can_like_comment: form.elements.can_like_comment.checked,
+    can_share: form.elements.can_share.checked,
   };
   const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
   const method = state.editingUserId ? "PATCH" : "POST";
