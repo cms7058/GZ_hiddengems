@@ -2,7 +2,7 @@
   <navigation-bar title="{{copy.navTitle}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
 
   <view class="search-context">
-    <text class="context-title">{{copy.radius}} {{radiusKm}} km</text>
+    <text class="context-title">{{catalogMode ? copy.navTitle : copy.radius + ' ' + radiusKm + ' km'}}</text>
     <text class="context-note">{{copy.protected}}</text>
   </view>
 
@@ -26,7 +26,8 @@
       </view>
       <text class="spot-summary">{{spot.summary}}</text>
       <view class="spot-meta">
-        <text>{{copy.distance}} {{spot.distance_km}} km</text>
+        <text wx:if="{{!catalogMode}}">{{copy.distance}} {{spot.distance_km}} km</text>
+        <text wx:else>{{copy.protected}}</text>
         <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
       </view>
       <view class="tag-row">

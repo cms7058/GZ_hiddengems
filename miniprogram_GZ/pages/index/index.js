@@ -12,6 +12,7 @@ const CENTER = {
 const DEFAULT_SCALE = 7
 const MIN_SCALE = 5
 const MAX_SCALE = 18
+const PROFILE_AUTH_DESC = "用于完善用户资料和互动服务"
 
 const COPY = {
   "zh-CN": {
@@ -278,11 +279,23 @@ Page({
     this.mapAutoFit = true
     this.setData({ loading: true })
     try {
-      const tags = await request(`/tags?lang=${this.data.lang}`)
-      const [spots, homeCatalog] = await Promise.all([
+      const [tags, spots] = await Promise.all([
+        request(`/tags?lang=${this.data.lang}`),
         request(this.buildMapPath()),
-        request(this.buildHomeCatalogPath()),
       ])
+      let homeCatalog
+      try {
+        homeCatalog = await request(this.buildHomeCatalogPath())
+      } catch (catalogError) {
+        // Let an older deployed backend continue to serve the unlocked map while
+        // it is being updated with the protected home catalog endpoint.
+        if ([404, 422].includes(Number(catalogError.statusCode))) {
+          console.warn("home catalog endpoint is not deployed yet", catalogError)
+          homeCatalog = spots
+        } else {
+          throw catalogError
+        }
+      }
       this.setData({
         tags,
         spots: this.normalizeSpots(spots),
@@ -296,7 +309,8 @@ Page({
       if (isServiceClosedError(error)) {
         this.setData({
           tags: [],
-          spots: [],
+          unlockedSpots: [],
+          lockedSpots: [],
           homeCatalog: [],
           filteredSpots: [],
           levelOptions: [],
@@ -416,7 +430,10 @@ Page({
       }
       result[level].count += 1
       if (eligibleSpotIds.has(Number(spot.id))) result[level].availableCount += 1
-      if ((filteredCatalog || []).some((item) => Number(item.id) === Number(spot.id))) result[level].spots.push(spot)
+      if ((filteredCatalog || []).some((item) => Number(item.id) === Number(spot.id))) {
+        if (spot.is_unlocked) result[level].unlockedSpots.push(spot)
+        else result[level].lockedSpots.push(spot)
+      }
       return result
     }, {})
     return Object.keys(byLevel)
@@ -425,6 +442,8 @@ Page({
       .map((level) => ({
         ...byLevel[level],
         label: `L${level}`,
+        unlockedCount: byLevel[level].unlockedSpots.length,
+        lockedCount: byLevel[level].lockedSpots.length,
         active: selectedLevelIds.includes(level),
       }))
   },
@@ -729,19 +748,21 @@ Page({
     this.openSpotDetail(spot)
   },
 
-  onCatalogSpotTap(event) {
-    const spotId = Number(event.currentTarget.dataset.id)
-    const spot = (this.data.homeCatalog || []).find((item) => Number(item.id) === spotId)
-    if (!spot) return
-    if (spot.is_unlocked) {
-      this.openSpotDetail(spot)
-      return
-    }
-    app.globalData.lockedSpotDetailCache = {
-      ...(app.globalData.lockedSpotDetailCache || {}),
-      [spot.id]: spot,
-    }
-    wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spot.id}` })
+  onOpenUnlockedList(event) {
+    const level = Number(event.currentTarget.dataset.level)
+    if (!Number.isFinite(level)) return
+    app.globalData.spotFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: [level] }
+    app.globalData.spotListCache = this.data.filteredSpots.filter((spot) => Number(spot.recommendation_level) === level)
+    wx.navigateTo({ url: "/pages/spot-list/spot-list" })
+  },
+
+  onOpenLockedList(event) {
+    const level = Number(event.currentTarget.dataset.level)
+    const option = (this.data.levelOptions || []).find((item) => Number(item.level) === level)
+    if (!option) return
+    app.globalData.lockedSpotListCache = option.lockedSpots.slice()
+    app.globalData.lockedSpotListFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: [level] }
+    wx.navigateTo({ url: "/pages/locked-spot-list/locked-spot-list?mode=catalog" })
   },
 
   onRecommendSpot() {
@@ -831,7 +852,7 @@ Page({
         return
       }
       wx.getUserProfile({
-        desc: this.data.copy.profileBody,
+        desc: PROFILE_AUTH_DESC,
         success: (profile) => {
           const info = profile.userInfo || {}
           resolve({

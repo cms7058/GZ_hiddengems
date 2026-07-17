@@ -57,16 +57,17 @@
         >
           <view class="level-color" style="background: {{item.markerColor}};"></view>
           <text>{{item.label}}</text>
-          <text class="level-count">{{item.availableCount}}/{{item.count}}</text>
         </view>
       </view>
       <view class="catalog-levels">
         <view wx:for="{{levelOptions}}" wx:key="level" class="catalog-level">
           <text class="catalog-level-title" style="color: {{item.markerColor}};">{{item.label}}</text>
           <view class="catalog-chips">
-            <view wx:for="{{item.spots}}" wx:for-item="spot" wx:key="id" class="spot-chip {{spot.is_unlocked ? 'unlocked' : 'locked'}}" data-id="{{spot.id}}" catchtap="onCatalogSpotTap">
-              <text>{{spot.name}}</text>
-              <text class="chip-state">{{spot.is_unlocked ? copy.unlocked : copy.locked}}</text>
+            <view class="spot-chip unlocked" data-level="{{item.level}}" catchtap="onOpenUnlockedList">
+              <text>{{copy.unlocked}} {{item.unlockedCount}}</text>
+            </view>
+            <view class="spot-chip locked" data-level="{{item.level}}" catchtap="onOpenLockedList">
+              <text>{{copy.locked}} {{item.lockedCount}}</text>
             </view>
           </view>
         </view>

@@ -49,6 +49,9 @@
       "desc": "用于拍摄秘境打卡图片或视频"
     }
   },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "style": "v2",
   "renderer": "skyline",
   "rendererOptions": {

@@ -155,6 +155,8 @@ App({
     spotFilters: null,
     spotListCache: [],
     lockedSpotDetailCache: {},
+    lockedSpotListCache: [],
+    lockedSpotListFilters: null,
     user: DEFAULT_USER,
     userLoginPromise: null,
     device: {},

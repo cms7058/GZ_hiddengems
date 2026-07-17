@@ -41,10 +41,12 @@ Page({
     offline: false,
     serviceClosed: false,
     refreshing: false,
+    catalogMode: false,
   },
 
-  onLoad() {
+  onLoad(options = {}) {
     this.hideShareMenu()
+    this.catalogMode = options.mode === "catalog"
     this.refreshCopy()
     this.loadSpots()
   },
@@ -75,6 +77,16 @@ Page({
   },
 
   async loadSpots() {
+    if (this.catalogMode) {
+      const spots = (app.globalData.lockedSpotListCache || []).map((spot) => ({
+        ...spot,
+        images: spot.images || [],
+        image_urls: [],
+        need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
+      }))
+      this.setData({ spots, loading: false, offline: false, serviceClosed: false, radiusKm: 0, catalogMode: true })
+      return
+    }
     const search = this.getSearch()
     if (!search) {
       this.setData({ spots: [], loading: false, offline: true })
