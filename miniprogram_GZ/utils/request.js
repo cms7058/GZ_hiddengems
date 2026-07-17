@@ -172,8 +172,9 @@ function miniLogin(payload) {
           resolve(res.data)
           return
         }
-        const detail = res.data && (res.data.detail || res.data.message)
-        reject(new Error(detail || `login failed: ${res.statusCode}`))
+          const detail = res.data && (res.data.detail || res.data.message)
+          const text = typeof detail === "string" ? detail : (detail ? JSON.stringify(detail) : "")
+          reject(new Error(text || `login failed: ${res.statusCode}`))
       },
       fail(error) {
         reject(new Error(`login request failed: ${url} ${error.errMsg || ""}`))

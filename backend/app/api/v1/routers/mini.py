@@ -93,7 +93,11 @@ def resolve_wechat_openid(code: str) -> str:
         raise HTTPException(status_code=502, detail=f"WeChat login failed: {error}") from error
 
     if data.get("errcode"):
-        raise HTTPException(status_code=400, detail=data.get("errmsg") or "WeChat login failed")
+        message = data.get("errmsg") or "WeChat login failed"
+        raise HTTPException(
+            status_code=400,
+            detail=f"WeChat login failed: {message}. Verify WECHAT_MINI_APPID and WECHAT_MINI_SECRET match the current mini program.",
+        )
     openid = data.get("openid")
     if not openid:
         raise HTTPException(status_code=400, detail="WeChat openid missing")

@@ -93,10 +93,6 @@ def ensure_runtime_columns() -> None:
             for column_name, column_type in specs.items():
                 if column_name not in existing_columns:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
-        if "lifestyle_recommendations" in table_names:
-            connection.execute(
-                text("UPDATE lifestyle_recommendations SET spot_id = 1 WHERE spot_id IS NULL")
-            )
 
 
 def seed_initial_data() -> None:
@@ -329,19 +325,24 @@ def seed_memberships(db: Session) -> None:
     db.add_all([monthly, yearly])
     db.flush()
 
-    db.add(
-        UserMembership(
-            user_id=1,
-            plan_id=1,
-            status="active",
-            started_at=datetime.utcnow() - timedelta(days=5),
-            expires_at=datetime.utcnow() + timedelta(days=25),
+    if db.get(MiniProgramUser, 1) is not None:
+        db.add(
+            UserMembership(
+                user_id=1,
+                plan_id=1,
+                status="active",
+                started_at=datetime.utcnow() - timedelta(days=5),
+                expires_at=datetime.utcnow() + timedelta(days=25),
+            )
         )
-    )
 
 
 def seed_checkins(db: Session) -> None:
     if db.scalar(select(CheckinRecord).limit(1)):
+        return
+    if any(db.get(MiniProgramUser, user_id) is None for user_id in (1, 2)):
+        return
+    if any(db.get(ScenicSpot, spot_id) is None for spot_id in (1, 2)):
         return
 
     db.add_all(
@@ -369,6 +370,13 @@ def seed_checkins(db: Session) -> None:
 
 
 def seed_content(db: Session) -> None:
+    # Production databases can have custom IDs and no demo spot. Never seed
+    # content that would create invalid foreign-key references in that case.
+    if db.get(ScenicSpot, 1) is None or db.get(ScenicSpot, 2) is None:
+        return
+    if db.get(MiniProgramUser, 1) is None or db.get(MiniProgramUser, 2) is None:
+        return
+
     if not db.scalar(select(SpotImage).limit(1)):
         db.add_all(
             [
