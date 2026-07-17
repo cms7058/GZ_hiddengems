@@ -38,6 +38,8 @@ def find_locked_spots_nearby(
     latitude: float,
     longitude: float,
     radius_km: float,
+    tag_ids: Optional[list[int]] = None,
+    level_ids: Optional[list[int]] = None,
 ) -> list[tuple[ScenicSpot, int, float]]:
     statement = (
         select(ScenicSpot)
@@ -47,6 +49,10 @@ def find_locked_spots_nearby(
             ScenicSpot.review_status == "approved",
         )
     )
+    if tag_ids:
+        statement = statement.join(ScenicSpot.tags).where(Tag.id.in_(tag_ids)).distinct()
+    if level_ids:
+        statement = statement.where(ScenicSpot.recommendation_level.in_(level_ids))
     pass_settings_by_level = get_active_pass_settings_by_level(db)
     nearby_spots = []
     for spot in db.scalars(statement).all():
@@ -114,6 +120,8 @@ def list_locked_spots_nearby(
     radius_km: float = Query(default=20, gt=0, le=4000),
     lang: str = Query(default="zh-CN"),
     user_id: int = Query(..., ge=1),
+    tag_ids: list[int] = Query(default=[]),
+    level_ids: list[int] = Query(default=[]),
     db: Session = Depends(get_db),
 ) -> list[LockedSpotPreviewOut]:
     """List locked nearby spots without exposing their coordinates to the client."""
@@ -127,6 +135,8 @@ def list_locked_spots_nearby(
         latitude=latitude,
         longitude=longitude,
         radius_km=radius_km,
+        tag_ids=tag_ids,
+        level_ids=level_ids,
     ):
         previews.append(
             spot_to_locked_preview_out(
@@ -183,6 +193,8 @@ def count_locked_spots_nearby(
     longitude: float = Query(..., ge=-180, le=180),
     radius_km: float = Query(default=20, gt=0, le=4000),
     user_id: int = Query(..., ge=1),
+    tag_ids: list[int] = Query(default=[]),
+    level_ids: list[int] = Query(default=[]),
     db: Session = Depends(get_db),
 ) -> LockedNearbySpotCountOut:
     user, user_explore_points = resolve_user_context(db, user_id)
@@ -193,6 +205,8 @@ def count_locked_spots_nearby(
         latitude=latitude,
         longitude=longitude,
         radius_km=radius_km,
+        tag_ids=tag_ids,
+        level_ids=level_ids,
     )
     return LockedNearbySpotCountOut(count=len(spots))
 

@@ -13,7 +13,7 @@
       bindregionchange="onMapRegionChange"
       show-location="{{hasUserLocation}}"
     ></map>
-    <canvas canvas-id="homeMarkerCanvas" class="marker-canvas" style="width: 40px; height: 50px;"></canvas>
+    <canvas canvas-id="homeMarkerCanvas" class="marker-canvas" width="40" height="50" style="width: 40px; height: 50px;"></canvas>
 
     <view class="map-controls">
       <view class="map-control" catchtap="onZoomIn">+</view>
@@ -34,10 +34,11 @@
       >
         {{item.name}}
       </view>
+      <view class="tag recommend-tag" catchtap="onRecommendSpot">{{copy.recommendSpot}}</view>
     </view>
 
     <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
-    <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
+    <view wx:elif="{{offline}}" class="notice">{{copy.offline}}<text wx:if="{{offlineDetail}}">（{{offlineDetail}}）</text></view>
     <view wx:elif="{{loading}}" class="notice">{{copy.loading}}</view>
     <view class="level-section">
       <view class="section-title-row">
@@ -59,19 +60,6 @@
           <text>{{item.label}}</text>
         </view>
       </view>
-      <view class="catalog-levels">
-        <view wx:for="{{levelOptions}}" wx:key="level" class="catalog-level">
-          <text class="catalog-level-title" style="color: {{item.markerColor}};">{{item.label}}</text>
-          <view class="catalog-chips">
-            <view class="spot-chip unlocked" data-level="{{item.level}}" catchtap="onOpenUnlockedList">
-              <text>{{copy.unlocked}} {{item.unlockedCount}}</text>
-            </view>
-            <view class="spot-chip locked" data-level="{{item.level}}" catchtap="onOpenLockedList">
-              <text>{{copy.locked}} {{item.lockedCount}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
     </view>
 
     <view class="filter-summary">
@@ -85,10 +73,17 @@
           <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindinput="onNearbyRadiusInput" />
           <text class="radius-unit">{{copy.radiusUnit}}</text>
         </view>
-        <text class="radius-note">{{nearbyCount !== null ? nearbyCount + copy.nearbyCountSuffix : ''}}</text>
       </view>
+      <view class="summary-chips">
+        <view class="spot-chip unlocked" catchtap="onOpenUnlockedList">
+          <text>{{copy.unlocked}} {{filterSummary.unlockedCount}}</text>
+        </view>
+        <view class="spot-chip locked" catchtap="onOpenLockedList">
+          <text>{{copy.locked}} {{filterSummary.lockedCount}}</text>
+        </view>
+      </view>
+      <text wx:if="{{nearbyCountText}}" class="radius-note">{{nearbyCountText}}</text>
     </view>
-    <view wx:if="{{user.can_recommend_spot}}" class="recommend-entry" catchtap="onRecommendSpot">{{copy.recommendSpot}} <text>›</text></view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>
 

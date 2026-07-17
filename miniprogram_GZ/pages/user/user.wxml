@@ -1,6 +1,8 @@
 <view class="page">
   <navigation-bar title="{{copy.title}}" back="{{false}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
 
+  <scroll-view class="user-scroll" scroll-y enable-back-to-top refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onUserRefresh">
+  <view class="user-content">
   <view class="profile-card">
     <image wx:if="{{user.avatar_url}}" class="avatar image-avatar" src="{{user.avatar_url}}" mode="aspectFill"></image>
     <view wx:else class="avatar">{{copy.defaultAvatar}}</view>
@@ -37,16 +39,68 @@
       <text>{{copy.member}}</text>
       <text class="value small">{{user.is_member ? copy.activeMember : copy.regular}}</text>
     </view>
+    <view class="stat">
+      <text>{{copy.checkins}}</text>
+      <text class="value">{{user.checkin_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.contributions}}</text>
+      <text class="value">{{user.contribution_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.ecoCredit}}</text>
+      <text class="value">{{user.eco_credit || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.shares}}</text>
+      <text class="value">{{user.share_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.referrals}}</text>
+      <text class="value">{{user.referral_registered_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.approvedRecommendations}}</text>
+      <text class="value">{{user.approved_recommendation_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.likesReceived}}</text>
+      <text class="value">{{user.like_received_count || 0}}</text>
+    </view>
+    <view class="stat">
+      <text>{{copy.likesGiven}}</text>
+      <text class="value">{{user.like_given_count || 0}}</text>
+    </view>
   </view>
 
   <view class="panel">
     <view class="row">
-      <text>{{copy.checkins}}</text>
-      <text>{{user.checkin_count || 0}}</text>
+      <text>{{copy.accountInfo}}</text>
+      <text></text>
     </view>
     <view class="row">
-      <text>{{copy.contributions}}</text>
-      <text>{{user.contribution_count || 0}}</text>
+      <text>{{copy.openid}}</text>
+      <text class="row-value selectable">{{user.openid || '-'}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.phone}}</text>
+      <text class="row-value">{{user.phone || '-'}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.phoneVerified}}</text>
+      <text class="row-value">{{user.phone_verified_at ? copy.verified : copy.notVerified}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.language}}</text>
+      <text class="row-value">{{user.language || '-'}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.safetyLevel}}</text>
+      <text class="row-value">{{user.safetyLevelLabel}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.accountStatus}}</text>
+      <text class="row-value">{{user.is_active === false ? copy.inactive : copy.active}}</text>
     </view>
   </view>
 
@@ -71,11 +125,25 @@
       <text>{{copy.checkin}}</text>
       <text>{{user.can_checkin ? copy.allowed : copy.denied}}</text>
     </view>
+    <view class="row">
+      <text>{{copy.recommend}}</text>
+      <text>{{user.can_recommend_spot ? copy.allowed : copy.denied}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.like}}</text>
+      <text>{{user.can_like_comment ? copy.allowed : copy.denied}}</text>
+    </view>
+    <view class="row">
+      <text>{{copy.share}}</text>
+      <text>{{user.can_share ? copy.allowed : copy.denied}}</text>
+    </view>
   </view>
 
   <view class="tip">
     <text class="tip-title">{{copy.next}}</text>
     <text>{{copy.tip}}</text>
   </view>
+  </view>
+  </scroll-view>
   <view class="floating-back" catchtap="onFloatingBackTap">←</view>
 </view>

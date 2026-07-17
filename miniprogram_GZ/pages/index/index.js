@@ -14,9 +14,23 @@ const MIN_SCALE = 5
 const MAX_SCALE = 18
 const PROFILE_AUTH_DESC = "用于完善用户资料和互动服务"
 
+function distanceKmBetween(origin, target) {
+  const latitude1 = Number(origin?.latitude)
+  const longitude1 = Number(origin?.longitude)
+  const latitude2 = Number(target?.latitude)
+  const longitude2 = Number(target?.longitude)
+  if (![latitude1, longitude1, latitude2, longitude2].every(Number.isFinite)) return Number.POSITIVE_INFINITY
+  const toRadians = (value) => (value * Math.PI) / 180
+  const latitudeDelta = toRadians(latitude2 - latitude1)
+  const longitudeDelta = toRadians(longitude2 - longitude1)
+  const value = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(toRadians(latitude1)) * Math.cos(toRadians(latitude2)) * Math.sin(longitudeDelta / 2) ** 2
+  return 6371.0088 * 2 * Math.asin(Math.sqrt(value))
+}
+
 const COPY = {
   "zh-CN": {
-    navTitle: "夜郎秘境",
+    navTitle: "西部觅境",
     langButton: "EN",
     allTags: "全部",
     allLevels: "全部等级",
@@ -27,6 +41,8 @@ const COPY = {
     radius: "搜索半径",
     radiusUnit: "公里",
     recommendSpot: "推荐秘境",
+    recommendDenied: "当前账号暂不允许推荐秘境",
+    nearbyCountSuffix: "个待解锁",
     searching: "正在搜索",
     noEligibleSpots: "当前条件下暂无已解锁秘境",
     points: "探秘积分",
@@ -64,7 +80,7 @@ const COPY = {
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
   },
   "en-US": {
-    navTitle: "Yelang Gems",
+    navTitle: "Western Gems",
     langButton: "中",
     allTags: "All",
     allLevels: "All Levels",
@@ -75,6 +91,8 @@ const COPY = {
     radius: "Search radius",
     radiusUnit: "km",
     recommendSpot: "Recommend a Gem",
+    recommendDenied: "This account cannot recommend gems right now",
+    nearbyCountSuffix: " locked",
     searching: "Searching",
     noEligibleSpots: "No unlocked gems match these filters",
     points: "Explore Points",
@@ -173,6 +191,7 @@ Page({
     spots: [],
     homeCatalog: [],
     filteredSpots: [],
+    filteredCatalog: [],
     markers: [],
     selectedSpot: null,
     selectedSpotId: 0,
@@ -182,11 +201,14 @@ Page({
     },
     showUnlockBubble: false,
     nearbyRadiusKm: "20",
+    nearbyCount: null,
+    nearbyCountText: "",
     userLocation: null,
     hasUserLocation: false,
     user: app.globalData.user,
     loading: true,
     offline: false,
+    offlineDetail: "",
     serviceClosed: false,
     profileAuthForm: {
       nickname: "",
@@ -277,25 +299,30 @@ Page({
 
   async loadHomeData() {
     this.mapAutoFit = true
-    this.setData({ loading: true })
-    try {
-      const [tags, spots] = await Promise.all([
+    this.setData({ loading: true, offlineDetail: "" })
+    const [tagsResult, spotsResult] = await Promise.allSettled([
         request(`/tags?lang=${this.data.lang}`),
         request(this.buildMapPath()),
-      ])
-      let homeCatalog
-      try {
-        homeCatalog = await request(this.buildHomeCatalogPath())
-      } catch (catalogError) {
-        // Let an older deployed backend continue to serve the unlocked map while
-        // it is being updated with the protected home catalog endpoint.
-        if ([404, 422].includes(Number(catalogError.statusCode))) {
-          console.warn("home catalog endpoint is not deployed yet", catalogError)
-          homeCatalog = spots
-        } else {
-          throw catalogError
-        }
-      }
+    ])
+    const initialErrors = [tagsResult, spotsResult]
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason)
+    if (initialErrors.some((error) => isServiceClosedError(error))) {
+      this.setData({ serviceClosed: true, loading: false, offline: false })
+      return
+    }
+    const tags = tagsResult.status === "fulfilled" ? tagsResult.value : []
+    const spots = spotsResult.status === "fulfilled" ? spotsResult.value : []
+    let homeCatalog = spots
+    let catalogError = null
+    try {
+      homeCatalog = await request(this.buildHomeCatalogPath())
+    } catch (error) {
+      catalogError = error
+      console.warn("home catalog request failed", error)
+    }
+    const successful = Boolean(spots.length || homeCatalog.length || tags.length)
+    if (successful) {
       this.setData({
         tags,
         spots: this.normalizeSpots(spots),
@@ -304,52 +331,34 @@ Page({
         serviceClosed: false,
         loading: false,
       })
+      wx.setStorageSync("gzHomeDataCache", { tags, spots, homeCatalog })
       this.applyFilters()
-    } catch (error) {
-      if (isServiceClosedError(error)) {
-        this.setData({
-          tags: [],
-          unlockedSpots: [],
-          lockedSpots: [],
-          homeCatalog: [],
-          filteredSpots: [],
-          levelOptions: [],
-          markers: [],
-          selectedSpot: null,
-          selectedSpotId: 0,
-          unlockHint: { hiddenCount: 0, nextNeed: 0 },
-          showUnlockBubble: false,
-          offline: false,
-          serviceClosed: true,
-          loading: false,
-        })
-        return
-      }
-      this.setData({
-        tags: [],
-        spots: [],
-        homeCatalog: [],
-        filteredSpots: [],
-        levelOptions: [],
-        markers: [],
-        selectedSpot: null,
-        selectedSpotId: 0,
-        unlockHint: { hiddenCount: 0, nextNeed: 0 },
-        offline: true,
-        serviceClosed: false,
-        loading: false,
-      })
+      return
     }
+    const cached = wx.getStorageSync("gzHomeDataCache") || {}
+    const detailError = initialErrors[0] || catalogError
+    this.setData({
+      tags: cached.tags || [],
+      spots: this.normalizeSpots(cached.spots || []),
+      homeCatalog: this.normalizeSpots(cached.homeCatalog || cached.spots || []),
+      offline: true,
+      offlineDetail: detailError?.message || detailError?.errMsg || "",
+      serviceClosed: false,
+      loading: false,
+    })
+    this.applyFilters()
   },
 
   buildMapPath() {
-    const { user } = this.data
+    const { user = {} } = this.data
     const params = [
       `lang=${this.data.lang}`,
-      `user_id=${user.id}`,
       `explore_points=${user.explore_points}`,
       `is_member=${user.is_member ? "true" : "false"}`,
     ]
+    // A failed wx.login leaves the local demo profile in place. Do not send its
+    // placeholder id to the API: public map data can still be viewed anonymously.
+    if (user.id && user.openid) params.push(`user_id=${user.id}`)
     return `/spots/map?${params.join("&")}`
   },
 
@@ -357,9 +366,9 @@ Page({
     const user = this.data.user || {}
     const params = [
       `lang=${this.data.lang}`,
-      `user_id=${user.id || 0}`,
       `explore_points=${user.explore_points || 0}`,
     ]
+    if (user.id && user.openid) params.push(`user_id=${user.id}`)
     return `/spots/home-catalog?${params.join("&")}`
   },
 
@@ -385,26 +394,48 @@ Page({
     const filteredCatalog = selectedLevelIds.length
       ? taggedSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
       : taggedSpots
-    const eligibleSpots = filteredCatalog.filter((spot) => this.canViewSpot(spot))
-    const filteredSpots = (this.data.spots || []).filter((spot) => {
+    const taggedMapSpots = (this.data.spots || []).filter((spot) => {
       if (!this.canViewSpot(spot)) return false
-      return filteredCatalog.some((catalogSpot) => Number(catalogSpot.id) === Number(spot.id))
+      return taggedSpots.some((catalogSpot) => Number(catalogSpot.id) === Number(spot.id))
     })
+    const radiusKm = Number(this.data.nearbyRadiusKm)
+    const hasNearbyRadiusFilter = Boolean(
+      this.data.userLocation
+      && Number.isFinite(radiusKm)
+      && radiusKm > 0
+      && radiusKm <= 4000,
+    )
+    const nearbyMapSpots = hasNearbyRadiusFilter
+      ? taggedMapSpots.filter((spot) => distanceKmBetween(this.data.userLocation, spot) <= radiusKm)
+      : taggedMapSpots
+    const filteredSpots = selectedLevelIds.length
+      ? nearbyMapSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
+      : nearbyMapSpots
     const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
     this.setData({
       filteredSpots,
+      filteredCatalog,
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
-      levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds, eligibleSpots, filteredCatalog),
+      levelOptions: this.buildLevelOptions(hasNearbyRadiusFilter ? nearbyMapSpots : taggedSpots, selectedLevelIds),
       allTagsSelected: selectedTagIds.length === 0,
       allLevelsSelected: selectedLevelIds.length === 0,
-      filterSummary: this.buildFilterSummary(filteredCatalog, selectedTagIds, selectedLevelIds),
+      filterSummary: this.buildFilterSummary(filteredCatalog, selectedTagIds, selectedLevelIds, {
+        visibleSpots: filteredSpots,
+        nearbyActive: hasNearbyRadiusFilter,
+      }),
       unlockHint: this.buildUnlockHint(taggedSpots),
     })
     this.refreshMarkerIcons(filteredSpots)
     this.fitMapToVisiblePoints(filteredSpots)
+    if (!options.skipNearbyRefresh) {
+      this.refreshNearbyCount({
+        requestLocation: false,
+        applyRadiusFilter: hasNearbyRadiusFilter,
+      })
+    }
   },
 
   decorateTags(tags, selectedTagIds) {
@@ -414,8 +445,7 @@ Page({
     }))
   },
 
-  buildLevelOptions(spots, selectedLevelIds, eligibleSpots = [], filteredCatalog = []) {
-    const eligibleSpotIds = new Set((eligibleSpots || []).map((spot) => Number(spot.id)))
+  buildLevelOptions(spots, selectedLevelIds) {
     const byLevel = (spots || []).reduce((result, spot) => {
       const level = Number(spot.recommendation_level)
       if (!Number.isFinite(level) || level < 0) return result
@@ -424,16 +454,9 @@ Page({
           level,
           markerColor: this.normalizeMarkerColor(spot.marker_color),
           count: 0,
-          availableCount: 0,
-          spots: [],
         }
       }
       result[level].count += 1
-      if (eligibleSpotIds.has(Number(spot.id))) result[level].availableCount += 1
-      if ((filteredCatalog || []).some((item) => Number(item.id) === Number(spot.id))) {
-        if (spot.is_unlocked) result[level].unlockedSpots.push(spot)
-        else result[level].lockedSpots.push(spot)
-      }
       return result
     }, {})
     return Object.keys(byLevel)
@@ -442,13 +465,11 @@ Page({
       .map((level) => ({
         ...byLevel[level],
         label: `L${level}`,
-        unlockedCount: byLevel[level].unlockedSpots.length,
-        lockedCount: byLevel[level].lockedSpots.length,
         active: selectedLevelIds.includes(level),
       }))
   },
 
-  buildFilterSummary(spots, selectedTagIds, selectedLevelIds) {
+  buildFilterSummary(spots, selectedTagIds, selectedLevelIds, options = {}) {
     const tagNames = (this.data.tags || [])
       .filter((tag) => selectedTagIds.includes(Number(tag.id)))
       .map((tag) => tag.name)
@@ -456,10 +477,19 @@ Page({
       .slice()
       .sort((left, right) => left - right)
       .map((level) => `L${level}`)
+    const visibleSpots = options.visibleSpots || []
+    const unlockedCount = options.nearbyActive
+      ? visibleSpots.length
+      : (spots || []).filter((spot) => spot.is_unlocked !== false).length
+    const lockedCount = options.nearbyActive
+      ? Math.max(0, Number.isFinite(Number(this.data.nearbyCount)) ? Number(this.data.nearbyCount) : 0)
+      : Math.max((spots || []).length - unlockedCount, 0)
     return {
       tags: tagNames.length ? tagNames.join(this.data.lang === "en-US" ? ", " : "、") : this.data.copy.allTags,
       levels: levelNames.length ? levelNames.join("-") : this.data.copy.allLevels,
-      count: (spots || []).length,
+      count: unlockedCount + lockedCount,
+      unlockedCount,
+      lockedCount,
     }
   },
 
@@ -654,7 +684,7 @@ Page({
   onNearbyRadiusInput(event) {
     this.setData({ nearbyRadiusKm: event.detail.value })
     clearTimeout(this.nearbyCountTimer)
-    this.nearbyCountTimer = setTimeout(() => this.refreshNearbyCount(), 350)
+    this.nearbyCountTimer = setTimeout(() => this.refreshNearbyCount({ applyRadiusFilter: true }), 350)
   },
 
   buildLockedNearbyPath(path, location, radiusKm) {
@@ -665,24 +695,40 @@ Page({
       `longitude=${location.longitude}`,
       `radius_km=${radiusKm}`,
     ]
+    ;(this.data.selectedTagIds || []).forEach((id) => params.push(`tag_ids=${Number(id)}`))
+    ;(this.data.selectedLevelIds || []).forEach((level) => params.push(`level_ids=${Number(level)}`))
     return `${path}?${params.join("&")}`
   },
 
-  async refreshNearbyCount() {
+  async refreshNearbyCount({ requestLocation = true, applyRadiusFilter = false } = {}) {
     const radiusKm = Number(this.data.nearbyRadiusKm)
     if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
-      this.setData({ nearbyCount: null })
+      this.setData({ nearbyCount: null, nearbyCountText: "" })
+      if (applyRadiusFilter) this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
       return
     }
     const requestId = (this.nearbyCountRequestId || 0) + 1
     this.nearbyCountRequestId = requestId
     try {
-      const location = this.data.userLocation || (await this.getLocation())
-      this.updateUserLocation(location, false)
+      const location = this.data.userLocation || (requestLocation ? await this.getLocation() : null)
+      if (!location) {
+        if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: null, nearbyCountText: "" })
+        return
+      }
+      this.updateUserLocation(location, false, false)
       const result = await request(this.buildLockedNearbyPath("/spots/locked-nearby/count", location, radiusKm))
-      if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: Number(result.count || 0) })
+      const count = Number(result && result.count)
+      const nearbyCount = Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0
+      if (requestId === this.nearbyCountRequestId) {
+        this.setData({
+          nearbyCount,
+          nearbyCountText: `${nearbyCount}${this.data.copy.nearbyCountSuffix}`,
+        })
+        if (applyRadiusFilter) this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
+      }
     } catch (error) {
-      if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: null })
+      if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: null, nearbyCountText: "" })
+      if (applyRadiusFilter) this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
     }
   },
 
@@ -701,6 +747,8 @@ Page({
         latitude: Number(location.latitude),
         longitude: Number(location.longitude),
         radiusKm,
+        tagIds: this.data.selectedTagIds.slice(),
+        levelIds: this.data.selectedLevelIds.slice(),
       }
       wx.navigateTo({ url: "/pages/locked-spot-list/locked-spot-list" })
     } catch (error) {
@@ -748,24 +796,23 @@ Page({
     this.openSpotDetail(spot)
   },
 
-  onOpenUnlockedList(event) {
-    const level = Number(event.currentTarget.dataset.level)
-    if (!Number.isFinite(level)) return
-    app.globalData.spotFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: [level] }
-    app.globalData.spotListCache = this.data.filteredSpots.filter((spot) => Number(spot.recommendation_level) === level)
+  onOpenUnlockedList() {
+    app.globalData.spotFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: this.data.selectedLevelIds.slice() }
+    app.globalData.spotListCache = this.data.filteredSpots.slice()
     wx.navigateTo({ url: "/pages/spot-list/spot-list" })
   },
 
-  onOpenLockedList(event) {
-    const level = Number(event.currentTarget.dataset.level)
-    const option = (this.data.levelOptions || []).find((item) => Number(item.level) === level)
-    if (!option) return
-    app.globalData.lockedSpotListCache = option.lockedSpots.slice()
-    app.globalData.lockedSpotListFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: [level] }
+  onOpenLockedList() {
+    app.globalData.lockedSpotListCache = (this.data.filteredCatalog || []).filter((spot) => spot.is_unlocked === false)
+    app.globalData.lockedSpotListFilters = { tagIds: this.data.selectedTagIds.slice(), levelIds: this.data.selectedLevelIds.slice() }
     wx.navigateTo({ url: "/pages/locked-spot-list/locked-spot-list?mode=catalog" })
   },
 
   onRecommendSpot() {
+    if (this.data.user.can_recommend_spot === false) {
+      wx.showToast({ title: this.data.copy.recommendDenied, icon: "none" })
+      return
+    }
     wx.navigateTo({ url: "/pages/spot-recommend/spot-recommend" })
   },
 
@@ -905,7 +952,7 @@ Page({
     }
   },
 
-  updateUserLocation(location, recenter = true) {
+  updateUserLocation(location, recenter = true, refreshFilters = true) {
     this.setData({
       userLocation: {
         latitude: location.latitude,
@@ -922,7 +969,7 @@ Page({
           }
         : {}),
     })
-    this.applyFilters({ preserveSelection: true })
+    if (refreshFilters) this.applyFilters({ preserveSelection: true })
   },
 
   startLocationWatch() {

@@ -1,11 +1,25 @@
 page {
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f1e8;
+  overflow: hidden;
 }
 
 .page {
-  min-height: 100vh;
-  padding: 28rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.user-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.user-content {
+  min-height: 100%;
+  padding: 28rpx 24rpx calc(168rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -173,6 +187,20 @@ page {
 
 .value.small {
   font-size: 28rpx;
+}
+
+.row-value {
+  max-width: 58%;
+  color: #526157;
+  font-size: 24rpx;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectable {
+  user-select: text;
 }
 
 .panel {

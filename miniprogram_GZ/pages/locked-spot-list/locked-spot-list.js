@@ -102,6 +102,8 @@ Page({
         `longitude=${search.longitude}`,
         `radius_km=${search.radiusKm}`,
       ]
+      ;(search.tagIds || []).forEach((id) => params.push(`tag_ids=${Number(id)}`))
+      ;(search.levelIds || []).forEach((level) => params.push(`level_ids=${Number(level)}`))
       const spots = (await request(`/spots/locked-nearby?${params.join("&")}`)).map((spot) => {
         const imageUrls = (spot.images || []).map((image) => image.display_url || image.image_url).filter(Boolean)
         return {

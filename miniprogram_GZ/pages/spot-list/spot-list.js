@@ -87,13 +87,13 @@ Page({
   },
 
   buildMapPath() {
-    const user = this.data.user
+    const user = this.data.user || {}
     const params = [
       `lang=${this.data.lang}`,
-      `user_id=${user.id}`,
       `explore_points=${user.explore_points}`,
       `is_member=${user.is_member ? "true" : "false"}`,
     ]
+    if (user.id && user.openid) params.push(`user_id=${user.id}`)
     return `/spots/map?${params.join("&")}`
   },
 

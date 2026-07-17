@@ -242,7 +242,7 @@
       </view>
     </block>
   </scroll-view>
-  <canvas canvas-id="detailMarkerCanvas" class="marker-canvas" style="width: 40px; height: 50px;"></canvas>
+  <canvas canvas-id="detailMarkerCanvas" class="marker-canvas" width="40" height="50" style="width: 40px; height: 50px;"></canvas>
   <canvas canvas-id="travelNoteWatermarkCanvas" class="watermark-canvas" width="{{watermarkCanvasWidth}}" height="{{watermarkCanvasHeight}}" style="width: {{watermarkCanvasWidth}}px; height: {{watermarkCanvasHeight}}px;"></canvas>
   <view wx:if="{{spot}}" class="floating-back" catchtap="onFloatingBackTap">←</view>
   <view wx:if="{{spot}}" class="floating-navigate" catchtap="onNavigateTap">{{copy.goThere}}</view>

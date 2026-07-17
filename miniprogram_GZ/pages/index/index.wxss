@@ -26,11 +26,16 @@ page {
 }
 
 .marker-canvas {
-  position: fixed;
-  left: -9999rpx;
-  top: -9999rpx;
-  opacity: 0;
+  /* Keep the drawing surface in the viewport. Some native map clients do not
+     render an off-screen canvas, which leaves map markers without iconPath. */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 50px;
+  opacity: 0.01;
   pointer-events: none;
+  z-index: 0;
 }
 
 .map-controls {
@@ -184,30 +189,15 @@ page {
   font-variant-numeric: tabular-nums;
 }
 
-.catalog-levels {
-  margin-top: 18rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
+.recommend-tag {
+  color: #1f5f45;
+  background: #e1f0e5;
+  border: 1rpx solid #b9d6bf;
+  font-weight: 700;
 }
 
-.catalog-level {
-  display: flex;
-  align-items: flex-start;
-  gap: 12rpx;
-}
-
-.catalog-level-title {
-  width: 42rpx;
-  padding-top: 7rpx;
-  font-size: 23rpx;
-  font-weight: 800;
-  flex: none;
-}
-
-.catalog-chips {
-  min-width: 0;
-  flex: 1;
+.summary-chips {
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
   gap: 10rpx;
@@ -296,25 +286,24 @@ page {
 }
 
 .nearby-search {
-  width: 100%;
-  padding-top: 12rpx;
-  border-top: 1rpx solid #dce8dc;
+  flex: none;
+  padding: 0;
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: 6rpx;
   box-sizing: border-box;
 }
 
 .nearby-label {
   color: #52705d;
-  font-size: 21rpx;
+  font-size: 19rpx;
   flex: none;
 }
 
 .radius-control {
-  width: 124rpx;
-  height: 52rpx;
-  padding: 0 10rpx;
+  width: 116rpx;
+  height: 48rpx;
+  padding: 0 8rpx;
   border: 1rpx solid #c8dccd;
   border-radius: 7rpx;
   background: #ffffff;
@@ -327,12 +316,12 @@ page {
   min-width: 0;
   flex: 1;
   color: #214735;
-  font-size: 23rpx;
+  font-size: 21rpx;
 }
 
 .radius-unit {
   color: #748178;
-  font-size: 20rpx;
+  font-size: 18rpx;
 }
 
 .nearby-button {
@@ -349,22 +338,9 @@ page {
 }
 
 .radius-note {
-  min-width: 0;
-  flex: 1;
+  width: 100%;
   color: #6d796e;
-  font-size: 21rpx;
-}
-
-.recommend-entry {
-  margin-top: 16rpx;
-  padding: 17rpx 18rpx;
-  border-radius: 8rpx;
-  background: #e4f0e7;
-  color: #1f5f45;
-  font-size: 25rpx;
-  font-weight: 700;
-  display: flex;
-  justify-content: space-between;
+  font-size: 20rpx;
 }
 
 .empty-filter {
