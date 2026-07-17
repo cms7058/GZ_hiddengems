@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -64,6 +64,51 @@ class UserComment(Base):
 
     user = relationship("MiniProgramUser")
     spot = relationship("ScenicSpot", back_populates="comments")
+    likes = relationship("CommentLike", back_populates="comment", cascade="all, delete-orphan")
+
+
+class CommentLike(Base):
+    __tablename__ = "comment_likes"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_comment_like_user"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("user_comments.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    comment = relationship("UserComment", back_populates="likes")
+    user = relationship("MiniProgramUser")
+
+
+class SpotRecommendation(Base):
+    __tablename__ = "spot_recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    name_zh = Column(String(128), nullable=False)
+    name_en = Column(String(128), nullable=False)
+    summary_zh = Column(String(512), nullable=False)
+    summary_en = Column(String(512), nullable=False)
+    description_zh = Column(Text, nullable=True)
+    description_en = Column(Text, nullable=True)
+    city = Column(String(64), nullable=False)
+    county = Column(String(64), nullable=False)
+    latitude = Column(String(32), nullable=True)
+    longitude = Column(String(32), nullable=True)
+    river_name = Column(String(128), nullable=True)
+    river_upstream_latitude = Column(String(32), nullable=True)
+    river_upstream_longitude = Column(String(32), nullable=True)
+    recommendation_level = Column(Integer, default=0, nullable=False)
+    tag_ids_json = Column(Text, default="[]", nullable=False)
+    status = Column(String(32), default="pending", nullable=False)
+    review_note = Column(String(512), nullable=True)
+    approved_spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("MiniProgramUser")
+    approved_spot = relationship("ScenicSpot")
 
 
 class LifestyleRecommendation(Base):

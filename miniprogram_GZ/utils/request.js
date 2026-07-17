@@ -144,7 +144,10 @@ function request(path, options = {}) {
             resolve(res.data)
             return
           }
-          const error = new Error(`request failed: ${res.statusCode}`)
+          const detail = res.data && (res.data.detail || res.data.message)
+          const errorText = typeof detail === "string" ? detail : (detail ? JSON.stringify(detail) : "")
+          const error = new Error(errorText || `request failed: ${res.statusCode}`)
+          error.statusCode = res.statusCode
           if (res.data && res.data.code === SERVICE_CLOSED_CODE) {
             error.code = SERVICE_CLOSED_CODE
             applyServiceHoursFromError(res.data)

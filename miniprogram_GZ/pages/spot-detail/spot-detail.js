@@ -14,6 +14,8 @@ const COPY = {
     users: "互动用户",
     interaction: "公开互动",
     interactionDescription: "通过公开留言交流路线、天气和注意事项，不公开联系方式。",
+    like: "点赞",
+    unlike: "已赞",
     emptyInteraction: "暂无互动留言",
     startInteraction: "去留言互动",
     myCheckins: "我的打卡",
@@ -86,6 +88,8 @@ const COPY = {
     users: "Users",
     interaction: "Community",
     interactionDescription: "Discuss routes, weather, and safety notes publicly. Contact details stay private.",
+    like: "Like",
+    unlike: "Liked",
     emptyInteraction: "No public comments yet",
     startInteraction: "Write a Comment",
     myCheckins: "My Check-ins",
@@ -841,6 +845,24 @@ Page({
       wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     } finally {
       this.setData({ submitting: false })
+    }
+  },
+
+  async onToggleCommentLike(event) {
+    const commentId = Number(event.currentTarget.dataset.id)
+    if (!commentId || !this.data.user || this.data.user.can_like_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    const comment = (this.data.spot.comments || []).find((item) => Number(item.id) === commentId)
+    if (!comment || comment.isMine) return
+    try {
+      await request(`/mini/comments/${commentId}/like?user_id=${this.data.user.id}`, {
+        method: comment.liked_by_me ? "DELETE" : "POST",
+      })
+      await this.loadDetail()
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
     }
   },
 

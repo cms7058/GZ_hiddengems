@@ -17,6 +17,7 @@ from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
+from app.services.points import seed_point_rules
 from app.services.qweather import QWeatherClient
 
 
@@ -48,6 +49,7 @@ class ApiTest(unittest.TestCase):
 
     def seed_data(self):
         db = self.SessionLocal()
+        seed_point_rules(db)
         photo = Tag(id=1, name_zh="摄影", name_en="Photography", icon="camera", sort_order=10)
         hiking = Tag(id=2, name_zh="徒步", name_en="Hiking", icon="footprints", sort_order=20)
         spot = ScenicSpot(
@@ -251,7 +253,14 @@ class ApiTest(unittest.TestCase):
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)
         user.explore_points = 20
+        spot = db.get(ScenicSpot, 1)
+        spot.summary_zh = "云海景观很适合远观。入口在黔东南州方向。"
+        spot.description_zh = "请尊重自然环境。坐标：25.7436, 108.5062。"
+        image = db.get(SpotImage, 1)
+        image.caption = "从江县停车入口附近。"
         db.add(user)
+        db.add(spot)
+        db.add(image)
         db.commit()
         db.close()
 
@@ -273,6 +282,29 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(count_response.status_code, 200)
         self.assertEqual(count_response.json()["count"], len(data))
 
+        detail_response = self.client.get("/api/v1/spots/locked-preview/1?user_id=1&lang=zh-CN")
+        self.assertEqual(detail_response.status_code, 200)
+        detail = detail_response.json()
+        self.assertEqual(detail["id"], 1)
+        self.assertEqual(detail["images"][0]["image_url"], "/media/spots/demo.jpg")
+        self.assertIsNone(detail["images"][0]["caption"])
+        self.assertEqual(detail["summary"], "云海景观很适合远观。")
+        self.assertEqual(detail["description"], "请尊重自然环境。")
+        self.assertNotIn("latitude", detail)
+        self.assertNotIn("longitude", detail)
+        self.assertNotIn("city", detail)
+        self.assertNotIn("county", detail)
+        self.assertNotIn("distance_km", detail)
+
+        db = self.SessionLocal()
+        user = db.get(MiniProgramUser, 1)
+        user.explore_points = 120
+        db.add(user)
+        db.commit()
+        db.close()
+        unlocked_response = self.client.get("/api/v1/spots/locked-preview/1?user_id=1&lang=zh-CN")
+        self.assertEqual(unlocked_response.status_code, 403)
+
     def test_spot_detail_includes_only_current_users_pending_submissions(self):
         response = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1&explore_points=120")
 
@@ -291,6 +323,7 @@ class ApiTest(unittest.TestCase):
                 "spot_id": 1,
                 "latitude": "25.7436",
                 "longitude": "108.5062",
+                "image_url": "/media/mini-shares/checkin-photo.jpg",
                 "note": "到达观景台。",
             },
         )
@@ -323,6 +356,7 @@ class ApiTest(unittest.TestCase):
                 "spot_id": 1,
                 "latitude": "26.7436",
                 "longitude": "109.5062",
+                "image_url": "/media/mini-shares/checkin-far.jpg",
             },
         )
         self.assertEqual(rejected_checkin.status_code, 201)
@@ -1007,7 +1041,7 @@ class ApiTest(unittest.TestCase):
         )
         self.assertEqual(approve_response.status_code, 200)
         self.assertEqual(approve_response.json()["status"], "approved")
-        self.assertEqual(approve_response.json()["awarded_explore_points"], 25)
+        self.assertEqual(approve_response.json()["awarded_explore_points"], 10)
         self.assertIsNotNone(approve_response.json()["promoted_spot_image_id"])
 
         spot_checkins_response = self.client.get("/api/v1/admin/spots/1/checkins", headers=headers)
@@ -1021,7 +1055,7 @@ class ApiTest(unittest.TestCase):
 
         user_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_response.json()["checkin_count"], 9)
-        self.assertEqual(user_response.json()["explore_points"], 145)
+        self.assertEqual(user_response.json()["explore_points"], 130)
 
         approve_again_response = self.client.patch(
             "/api/v1/admin/checkins/1/review",
@@ -1031,7 +1065,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(approve_again_response.status_code, 200)
         user_again_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_again_response.json()["checkin_count"], 9)
-        self.assertEqual(user_again_response.json()["explore_points"], 145)
+        self.assertEqual(user_again_response.json()["explore_points"], 130)
 
     def test_admin_can_manage_spot_images(self):
         headers = self.login_headers()

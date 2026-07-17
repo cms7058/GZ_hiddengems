@@ -1,0 +1,21 @@
+.page { min-height: 100vh; background: #f4f1e8; color: #193127; }
+.scroll { height: calc(100vh - 150rpx); }
+.card { margin: 24rpx; padding: 24rpx; background: #fffdf8; border-radius: 8rpx; box-sizing: border-box; }
+.hint { display: block; color: #6e766e; font-size: 24rpx; line-height: 1.55; }
+.grid { margin-top: 22rpx; display: flex; flex-wrap: wrap; gap: 18rpx; }
+.field { width: calc(50% - 9rpx); font-size: 23rpx; box-sizing: border-box; }
+.field.full { width: 100%; }
+.field text, .tag-label { display: block; margin-bottom: 8rpx; color: #466451; }
+input, textarea { width: 100%; min-height: 62rpx; padding: 12rpx; border: 1rpx solid #cfdcd1; border-radius: 6rpx; background: #fff; box-sizing: border-box; }
+textarea { min-height: 126rpx; }
+.tag-label { margin-top: 24rpx; }
+.tags { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.tag { padding: 9rpx 16rpx; border: 1rpx solid #c9d8cc; border-radius: 6rpx; font-size: 22rpx; }
+.tag.active { color: #fff; border-color: #1f5f45; background: #1f5f45; }
+.media-head { margin-top: 26rpx; display: flex; align-items: center; justify-content: space-between; }
+.media-head button, .submit { background: #1f5f45; color: #fff; }
+.media-grid { margin-top: 14rpx; display: flex; flex-wrap: wrap; gap: 12rpx; }
+.media-item { position: relative; width: 160rpx; height: 160rpx; overflow: hidden; border-radius: 6rpx; }
+.media-item image, .media-item video { width: 100%; height: 100%; }
+.remove { position: absolute; right: 4rpx; top: 4rpx; width: 34rpx; height: 34rpx; border-radius: 17rpx; background: rgba(0,0,0,.58); color: #fff; text-align: center; line-height: 31rpx; }
+.submit { margin-top: 32rpx; border-radius: 7rpx; }

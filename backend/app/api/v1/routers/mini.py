@@ -12,15 +12,17 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.content import ContentMedia, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, SpotRecommendation, TravelNote, UserComment
 from app.models.spot import ScenicSpot
-from app.models.user import CheckinRecord, MiniProgramUser
+from app.models.user import CheckinRecord, MiniProgramUser, ShareEvent
 from app.schemas.content import ContentMediaOut, TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
+from app.schemas.growth import SpotRecommendationCreate, SpotRecommendationOut
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
 from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
-from app.services.pass_levels import get_active_pass_settings_by_level, get_checkin_points_for_level
+from app.services.points import award_points
+from app.services.safety_levels import apply_safety_level_policy
 from app.services.spot_mapper import comment_to_out, travel_note_to_out
 
 
@@ -54,7 +56,7 @@ def ensure_active_user(db: Session, user_id: int) -> MiniProgramUser:
     user = db.get(MiniProgramUser, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
-    return user_to_out(db, user)
+    return user
 
 
 def ensure_user_permission(user: MiniProgramUser, permission: str) -> None:
@@ -157,10 +159,46 @@ def add_content_media(db: Session, owner_type: str, owner_id: int, media) -> Non
         )
 
 
+def recommendation_to_out(db: Session, item: SpotRecommendation) -> SpotRecommendationOut:
+    media = db.scalars(
+        select(ContentMedia).where(
+            ContentMedia.owner_type == "spot_recommendation",
+            ContentMedia.owner_id == item.id,
+        )
+    ).all()
+    return SpotRecommendationOut(
+        id=item.id,
+        user_id=item.user_id,
+        nickname=item.user.nickname,
+        name_zh=item.name_zh,
+        name_en=item.name_en,
+        summary_zh=item.summary_zh,
+        summary_en=item.summary_en,
+        description_zh=item.description_zh,
+        description_en=item.description_en,
+        city=item.city,
+        county=item.county,
+        latitude=item.latitude,
+        longitude=item.longitude,
+        river_name=item.river_name,
+        river_upstream_latitude=item.river_upstream_latitude,
+        river_upstream_longitude=item.river_upstream_longitude,
+        recommendation_level=item.recommendation_level,
+        tag_ids=json.loads(item.tag_ids_json or "[]"),
+        status=item.status,
+        review_note=item.review_note,
+        approved_spot_id=item.approved_spot_id,
+        media=[{"id": entry.id, "media_url": entry.media_url, "media_type": entry.media_type, "display_url": get_media_display_url(db, entry.media_url)} for entry in media],
+        created_at=item.created_at,
+        reviewed_at=item.reviewed_at,
+    )
+
+
 @router.post("/login", response_model=MiniProgramUserOut)
 def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> MiniProgramUserOut:
     openid = resolve_wechat_openid(payload.code)
     user = db.query(MiniProgramUser).filter(MiniProgramUser.openid == openid).first()
+    is_new_user = user is None
     if user is None:
         user = MiniProgramUser(
             openid=openid,
@@ -178,6 +216,15 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
             user.language = payload.language
     db.add(user)
     db.flush()
+    if is_new_user and payload.referrer_token:
+        share_event = db.scalar(select(ShareEvent).where(ShareEvent.share_token == payload.referrer_token))
+        if share_event is not None and share_event.user_id != user.id:
+            inviter = db.get(MiniProgramUser, share_event.user_id)
+            if inviter is not None and inviter.is_active:
+                user.invited_by_user_id = inviter.id
+                inviter.referral_registered_count += 1
+                award_points(db, user=inviter, rule_code="share_registration", reference_type="share_registration", reference_id=user.id, note="分享带来新用户注册")
+    apply_safety_level_policy(db, user)
     sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
@@ -225,32 +272,39 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     spot = ensure_active_spot(db, payload.spot_id)
     if payload.latitude is None or payload.longitude is None:
         raise HTTPException(status_code=400, detail="Location is required for check-in")
+    if not payload.image_url:
+        raise HTTPException(status_code=400, detail="At least one check-in image is required")
     try:
         distance = haversine_distance_meters(float(payload.latitude), float(payload.longitude), spot.latitude, spot.longitude)
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=400, detail="Invalid check-in location") from error
     passed = distance <= spot.checkin_radius_meters
-    awarded_points = 0
-    if passed:
-        awarded_points = get_checkin_points_for_level(
-            get_active_pass_settings_by_level(db), spot.recommendation_level
-        )
-        user.checkin_count += 1
-        user.explore_points += awarded_points
-        sync_user_membership_by_points(db, user)
     record = CheckinRecord(
         **payload.model_dump(),
         status="approved" if passed else "rejected",
         checkin_distance_meters=distance,
-        awarded_explore_points=awarded_points,
+        awarded_explore_points=0,
         reviewed_at=datetime.utcnow(),
         review_note=(
-            f"系统定位通过：距景点 {distance} 米，已获得 {awarded_points} 探秘积分。"
+            f"系统定位通过：距景点 {distance} 米，等待积分规则结算。"
             if passed
             else f"系统定位未通过：距景点 {distance} 米，打卡范围为 {spot.checkin_radius_meters} 米。"
         ),
     )
     db.add(record)
+    db.flush()
+    if passed:
+        user.checkin_count += 1
+        user.last_checkin_at = datetime.utcnow()
+        record.awarded_explore_points = award_points(
+            db,
+            user=user,
+            rule_code="checkin_success",
+            reference_type="checkin",
+            reference_id=record.id,
+            note=f"{spot.name_zh} 打卡成功",
+        )
+        sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(record)
     db.refresh(record, attribute_names=["user", "spot"])
@@ -287,3 +341,93 @@ def create_comment(payload: UserCommentCreate, db: Session = Depends(get_db)) ->
     db.refresh(comment)
     db.refresh(comment, attribute_names=["user", "spot"])
     return comment_to_out(comment, db)
+
+
+@router.post("/comments/{comment_id}/like", response_model=UserCommentOut)
+def like_comment(comment_id: int, user_id: int, db: Session = Depends(get_db)) -> UserCommentOut:
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_like_comment")
+    comment = db.scalar(select(UserComment).where(UserComment.id == comment_id, UserComment.status == "approved"))
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id == user.id:
+        raise HTTPException(status_code=400, detail="Cannot like your own comment")
+    exists = db.scalar(select(CommentLike.id).where(CommentLike.comment_id == comment_id, CommentLike.user_id == user.id))
+    if exists is None:
+        db.add(CommentLike(comment_id=comment_id, user_id=user.id))
+        author = ensure_active_user(db, comment.user_id)
+        author.like_received_count += 1
+        user.like_given_count += 1
+        award_points(
+            db,
+            user=author,
+            rule_code="comment_like_received",
+            reference_type="comment_like",
+            reference_id=comment_id * 1_000_000 + user.id,
+            note="留言获得点赞",
+        )
+        sync_user_membership_by_points(db, author)
+        db.commit()
+    db.refresh(comment)
+    db.refresh(comment, attribute_names=["user", "likes"])
+    return comment_to_out(comment, db, viewer_user_id=user.id)
+
+
+@router.delete("/comments/{comment_id}/like", response_model=UserCommentOut)
+def unlike_comment(comment_id: int, user_id: int, db: Session = Depends(get_db)) -> UserCommentOut:
+    user = ensure_active_user(db, user_id)
+    like = db.scalar(select(CommentLike).where(CommentLike.comment_id == comment_id, CommentLike.user_id == user.id))
+    comment = db.scalar(select(UserComment).where(UserComment.id == comment_id))
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if like is not None:
+        db.delete(like)
+        author = db.get(MiniProgramUser, comment.user_id)
+        if author is not None:
+            author.like_received_count = max(0, author.like_received_count - 1)
+        user.like_given_count = max(0, user.like_given_count - 1)
+        db.commit()
+    db.refresh(comment)
+    db.refresh(comment, attribute_names=["user", "likes"])
+    return comment_to_out(comment, db, viewer_user_id=user.id)
+
+
+@router.post("/spot-recommendations", response_model=SpotRecommendationOut, status_code=201)
+def create_spot_recommendation(payload: SpotRecommendationCreate, db: Session = Depends(get_db)) -> SpotRecommendationOut:
+    user = ensure_active_user(db, payload.user_id)
+    ensure_user_permission(user, "can_recommend_spot")
+    if (payload.latitude is None) != (payload.longitude is None):
+        raise HTTPException(status_code=400, detail="Both latitude and longitude must be provided together")
+    item = SpotRecommendation(
+        **payload.model_dump(exclude={"tag_ids", "media"}),
+        tag_ids_json=json.dumps(payload.tag_ids),
+        status="pending",
+    )
+    db.add(item)
+    db.flush()
+    for media in payload.media:
+        url = str(media.get("media_url") or "")
+        media_type = str(media.get("media_type") or "image")
+        if url and media_type in {"image", "video"}:
+            db.add(ContentMedia(owner_type="spot_recommendation", owner_id=item.id, media_url=url, media_type=media_type, status="pending"))
+    db.commit()
+    db.refresh(item)
+    db.refresh(item, attribute_names=["user"])
+    return recommendation_to_out(db, item)
+
+
+@router.post("/shares")
+def record_share(user_id: int, db: Session = Depends(get_db)) -> dict:
+    import secrets
+
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_share")
+    token = secrets.token_urlsafe(18)
+    event = ShareEvent(user_id=user.id, share_token=token)
+    db.add(event)
+    db.flush()
+    user.share_count += 1
+    awarded = award_points(db, user=user, rule_code="share", reference_type="share", reference_id=event.id, note="发起小程序分享")
+    sync_user_membership_by_points(db, user)
+    db.commit()
+    return {"share_token": token, "awarded_points": awarded}

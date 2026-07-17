@@ -12,6 +12,7 @@ RESOURCES = (
     "checkins",
     "recommendations",
     "integrations",
+    "growth",
 )
 ACTIONS = ("read", "create", "update", "delete")
 ALL_PERMISSIONS = tuple(f"{resource}:{action}" for resource in RESOURCES for action in ACTIONS)
@@ -47,6 +48,8 @@ def permission_for_request(path: str, method: str) -> Optional[str]:
         resource = "recommendations" if "/recommendations" in path else "checkins"
     elif "/admin/integrations" in path:
         resource = "integrations"
+    elif "/admin/growth" in path:
+        resource = "growth"
     if resource is None:
         return None
     action = {"GET": "read", "POST": "create", "PATCH": "update", "PUT": "update", "DELETE": "delete"}.get(method)

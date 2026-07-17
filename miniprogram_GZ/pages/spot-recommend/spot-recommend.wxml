@@ -1,0 +1,28 @@
+<view class="page">
+  <navigation-bar title="推荐秘境" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+  <scroll-view class="scroll" scroll-y refresher-enabled bindrefresherrefresh="onPullDownRefresh">
+    <view class="card">
+      <text class="hint">提交后由管理员审核、补充并决定是否发布。请勿提交敏感或受保护地点。</text>
+      <view class="grid">
+        <view class="field"><text>中文名称 *</text><input value="{{form.name_zh}}" data-field="name_zh" bindinput="onFieldInput" /></view>
+        <view class="field"><text>英文名称</text><input value="{{form.name_en}}" data-field="name_en" bindinput="onFieldInput" /></view>
+        <view class="field full"><text>中文简介 *</text><textarea value="{{form.summary_zh}}" data-field="summary_zh" bindinput="onFieldInput" /></view>
+        <view class="field full"><text>英文简介</text><textarea value="{{form.summary_en}}" data-field="summary_en" bindinput="onFieldInput" /></view>
+        <view class="field full"><text>中文详细介绍</text><textarea value="{{form.description_zh}}" data-field="description_zh" bindinput="onFieldInput" /></view>
+        <view class="field full"><text>英文详细介绍</text><textarea value="{{form.description_en}}" data-field="description_en" bindinput="onFieldInput" /></view>
+        <view class="field"><text>市州 *</text><input value="{{form.city}}" data-field="city" bindinput="onFieldInput" /></view>
+        <view class="field"><text>区县 *</text><input value="{{form.county}}" data-field="county" bindinput="onFieldInput" /></view>
+        <view class="field"><text>纬度 *</text><input value="{{form.latitude}}" data-field="latitude" bindinput="onFieldInput" /></view>
+        <view class="field"><text>经度 *</text><input value="{{form.longitude}}" data-field="longitude" bindinput="onFieldInput" /></view>
+        <view class="field"><text>秘境等级</text><input type="number" value="{{form.recommendation_level}}" data-field="recommendation_level" bindinput="onFieldInput" /></view>
+        <view class="field"><text>河流名称</text><input value="{{form.river_name}}" data-field="river_name" bindinput="onFieldInput" /></view>
+      </view>
+      <view class="tag-label">标签</view>
+      <view class="tags"><view wx:for="{{tags}}" wx:key="id" class="tag {{selectedTagIds.indexOf(item.id) >= 0 ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onTagTap">{{item.name}}</view></view>
+      <view class="media-head"><text>图片/视频</text><button size="mini" bindtap="onChooseMedia">选择媒体</button></view>
+      <view class="media-grid"><view wx:for="{{media}}" wx:key="media_url" class="media-item"><image wx:if="{{item.media_type === 'image'}}" src="{{item.display_url || item.media_url}}" mode="aspectFill"/><video wx:else src="{{item.display_url || item.media_url}}" object-fit="cover"/><view class="remove" data-index="{{index}}" bindtap="onRemoveMedia">×</view></view></view>
+      <button class="submit" loading="{{submitting}}" bindtap="onSubmit">提交推荐</button>
+    </view>
+  </scroll-view>
+  <bottom-tabs lang="{{lang}}"></bottom-tabs>
+</view>

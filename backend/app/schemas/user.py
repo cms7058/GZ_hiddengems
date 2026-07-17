@@ -9,6 +9,7 @@ class MiniProgramUserUpdate(BaseModel):
     nickname: Optional[str] = Field(default=None, max_length=64)
     avatar_url: Optional[str] = Field(default=None, max_length=512)
     phone: Optional[str] = Field(default=None, max_length=32)
+    safety_level: Optional[str] = Field(default=None, pattern="^(general|risk|quality)$")
     language: Optional[str] = Field(default=None, max_length=16)
     explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: Optional[int] = Field(default=None, ge=0)
@@ -18,6 +19,9 @@ class MiniProgramUserUpdate(BaseModel):
     can_upload_video: Optional[bool] = None
     can_comment: Optional[bool] = None
     can_checkin: Optional[bool] = None
+    can_recommend_spot: Optional[bool] = None
+    can_like_comment: Optional[bool] = None
+    can_share: Optional[bool] = None
 
 
 class MiniProgramUserCreate(BaseModel):
@@ -25,6 +29,7 @@ class MiniProgramUserCreate(BaseModel):
     nickname: str = Field(..., max_length=64)
     avatar_url: Optional[str] = Field(default=None, max_length=512)
     phone: Optional[str] = Field(default=None, max_length=32)
+    safety_level: str = Field(default="general", pattern="^(general|risk|quality)$")
     language: str = Field(default="zh-CN", max_length=16)
     explore_points: int = Field(default=0, ge=0)
     checkin_count: int = Field(default=0, ge=0)
@@ -36,6 +41,9 @@ class MiniProgramUserCreate(BaseModel):
     can_upload_video: bool = True
     can_comment: bool = True
     can_checkin: bool = True
+    can_recommend_spot: bool = True
+    can_like_comment: bool = True
+    can_share: bool = True
 
 
 class MiniProgramUserOut(BaseModel):
@@ -44,17 +52,27 @@ class MiniProgramUserOut(BaseModel):
     nickname: str
     avatar_url: Optional[str] = None
     phone: Optional[str] = None
+    phone_verified_at: Optional[datetime] = None
     language: str
     explore_points: int
     checkin_count: int
     contribution_count: int
     eco_credit: int
+    share_count: int = 0
+    referral_registered_count: int = 0
+    approved_recommendation_count: int = 0
+    like_received_count: int = 0
+    like_given_count: int = 0
+    safety_level: str = "general"
     is_member: bool
     is_active: bool
     can_upload_image: bool
     can_upload_video: bool
     can_comment: bool
     can_checkin: bool
+    can_recommend_spot: bool = True
+    can_like_comment: bool = True
+    can_share: bool = True
 
     class Config:
         from_attributes = True
@@ -65,6 +83,7 @@ class MiniProgramLoginIn(BaseModel):
     nickname: Optional[str] = Field(default=None, max_length=64)
     avatar_url: Optional[str] = Field(default=None, max_length=512)
     language: str = Field(default="zh-CN", max_length=16)
+    referrer_token: Optional[str] = Field(default=None, max_length=64)
 
 
 class PassLevelSettingCreate(BaseModel):
@@ -169,6 +188,7 @@ class CheckinCreate(BaseModel):
     spot_id: int
     latitude: Optional[str] = Field(default=None, max_length=32)
     longitude: Optional[str] = Field(default=None, max_length=32)
+    image_url: Optional[str] = Field(default=None, max_length=512)
     note: Optional[str] = Field(default=None, max_length=512)
 
 

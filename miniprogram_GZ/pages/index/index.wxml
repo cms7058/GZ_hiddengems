@@ -60,6 +60,17 @@
           <text class="level-count">{{item.availableCount}}/{{item.count}}</text>
         </view>
       </view>
+      <view class="catalog-levels">
+        <view wx:for="{{levelOptions}}" wx:key="level" class="catalog-level">
+          <text class="catalog-level-title" style="color: {{item.markerColor}};">{{item.label}}</text>
+          <view class="catalog-chips">
+            <view wx:for="{{item.spots}}" wx:for-item="spot" wx:key="id" class="spot-chip {{spot.is_unlocked ? 'unlocked' : 'locked'}}" data-id="{{spot.id}}" catchtap="onCatalogSpotTap">
+              <text>{{spot.name}}</text>
+              <text class="chip-state">{{spot.is_unlocked ? copy.unlocked : copy.locked}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view class="filter-summary">
@@ -67,18 +78,16 @@
         <text class="summary-main">{{copy.filterSummaryPrefix}} {{filterSummary.tags}} · {{filterSummary.levels}}</text>
         <text class="summary-count">{{copy.filterSummaryCountPrefix}}{{filterSummary.count}}{{copy.filterSummaryCountSuffix}}</text>
       </view>
-      <button class="results-button" bindtap="onViewResults">{{copy.viewResults}}</button>
       <view class="nearby-search">
         <text class="nearby-label">{{copy.radius}}</text>
         <view class="radius-control">
           <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindinput="onNearbyRadiusInput" />
           <text class="radius-unit">{{copy.radiusUnit}}</text>
         </view>
-        <button class="nearby-button" loading="{{nearbySearching}}" bindtap="onSearchLockedSpots">
-          {{copy.nearbyLocked}}<text wx:if="{{nearbyCount !== null}}">（{{nearbyCount}}{{copy.nearbyCountSuffix}}）</text>
-        </button>
+        <text class="radius-note">{{nearbyCount !== null ? nearbyCount + copy.nearbyCountSuffix : ''}}</text>
       </view>
     </view>
+    <view wx:if="{{user.can_recommend_spot}}" class="recommend-entry" catchtap="onRecommendSpot">{{copy.recommendSpot}} <text>›</text></view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>
 

@@ -184,6 +184,65 @@ page {
   font-variant-numeric: tabular-nums;
 }
 
+.catalog-levels {
+  margin-top: 18rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.catalog-level {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.catalog-level-title {
+  width: 42rpx;
+  padding-top: 7rpx;
+  font-size: 23rpx;
+  font-weight: 800;
+  flex: none;
+}
+
+.catalog-chips {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.spot-chip {
+  max-width: 100%;
+  padding: 8rpx 12rpx;
+  border-radius: 7rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 21rpx;
+  line-height: 1.25;
+}
+
+.spot-chip.unlocked {
+  color: #1f5f45;
+  background: #e5f1e7;
+  border: 1rpx solid #b9d6bf;
+}
+
+.spot-chip.locked {
+  color: #7b6651;
+  background: #f6eee4;
+  border: 1rpx solid #e1d1bd;
+}
+
+.chip-state {
+  font-size: 18rpx;
+  opacity: 0.78;
+  flex: none;
+}
+
 .filter-summary {
   margin-top: 20px;
   padding: 10rpx 12rpx;
@@ -287,6 +346,25 @@ page {
   font-size: 20rpx;
   line-height: 52rpx;
   flex: 1;
+}
+
+.radius-note {
+  min-width: 0;
+  flex: 1;
+  color: #6d796e;
+  font-size: 21rpx;
+}
+
+.recommend-entry {
+  margin-top: 16rpx;
+  padding: 17rpx 18rpx;
+  border-radius: 8rpx;
+  background: #e4f0e7;
+  color: #1f5f45;
+  font-size: 25rpx;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
 }
 
 .empty-filter {

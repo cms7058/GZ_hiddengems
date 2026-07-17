@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminRole, AdminUser
-from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag
 from app.models.user import (
@@ -17,11 +17,16 @@ from app.models.user import (
     MembershipPlan,
     MiniProgramUser,
     PassLevelSetting,
+    PointLedger,
+    PointRule,
+    ShareEvent,
+    UserSafetyLevelPolicy,
     UserMembership,
 )
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
 from app.services.permissions import ALL_PERMISSIONS
+from app.services.points import seed_point_rules
 
 
 def wait_for_database(max_attempts: int = 30, delay_seconds: int = 2) -> None:
@@ -60,6 +65,18 @@ def ensure_runtime_columns() -> None:
             "can_upload_video": "BOOLEAN NOT NULL DEFAULT TRUE",
             "can_comment": "BOOLEAN NOT NULL DEFAULT TRUE",
             "can_checkin": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "phone_verified_at": "DATETIME NULL",
+            "share_count": "INT NOT NULL DEFAULT 0",
+            "referral_registered_count": "INT NOT NULL DEFAULT 0",
+            "approved_recommendation_count": "INT NOT NULL DEFAULT 0",
+            "like_received_count": "INT NOT NULL DEFAULT 0",
+            "like_given_count": "INT NOT NULL DEFAULT 0",
+            "invited_by_user_id": "INT NULL",
+            "safety_level": "VARCHAR(16) NOT NULL DEFAULT 'general'",
+            "last_checkin_at": "DATETIME NULL",
+            "can_recommend_spot": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "can_like_comment": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "can_share": "BOOLEAN NOT NULL DEFAULT TRUE",
         },
         "checkin_records": {
             "media_url": "VARCHAR(512) NULL",
@@ -105,8 +122,35 @@ def seed_initial_data() -> None:
         seed_memberships(db)
         seed_checkins(db)
         seed_content(db)
+        seed_safety_level_policies(db)
+        seed_point_rules(db)
         seed_integration_settings(db)
         db.commit()
+
+
+def seed_safety_level_policies(db: Session) -> None:
+    defaults = (
+        ("general", "一般", "General", True, True, True, True, True, True, True),
+        ("risk", "风险", "Risk", False, False, False, False, False, False, True),
+        ("quality", "优质", "Quality", True, True, True, True, True, True, True),
+    )
+    for level, name_zh, name_en, upload_image, upload_video, comment, checkin, recommend, like, share in defaults:
+        if db.scalar(select(UserSafetyLevelPolicy.id).where(UserSafetyLevelPolicy.level == level)) is None:
+            db.add(
+                UserSafetyLevelPolicy(
+                    level=level,
+                    name_zh=name_zh,
+                    name_en=name_en,
+                    can_upload_image=upload_image,
+                    can_upload_video=upload_video,
+                    can_comment=comment,
+                    can_checkin=checkin,
+                    can_recommend_spot=recommend,
+                    can_like_comment=like,
+                    can_share=share,
+                    is_active=True,
+                )
+            )
 
 
 def seed_admin_roles(db: Session) -> None:

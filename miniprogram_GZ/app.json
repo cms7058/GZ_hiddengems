@@ -3,6 +3,8 @@
     "pages/index/index",
     "pages/spot-list/spot-list",
     "pages/locked-spot-list/locked-spot-list",
+    "pages/locked-spot-detail/locked-spot-detail",
+    "pages/spot-recommend/spot-recommend",
     "pages/spot-detail/spot-detail",
     "pages/spot-submit/spot-submit",
     "pages/user/user",

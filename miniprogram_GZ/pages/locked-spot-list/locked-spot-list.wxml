@@ -12,10 +12,10 @@
   <view wx:elif="{{spots.length === 0}}" class="notice">{{copy.empty}}</view>
 
   <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
-    <view wx:for="{{spots}}" wx:for-item="spot" wx:key="id" class="spot-card">
+    <view wx:for="{{spots}}" wx:for-item="spot" wx:key="id" class="spot-card" data-id="{{spot.id}}" bindtap="onSpotTap">
       <scroll-view wx:if="{{spot.images.length}}" class="photo-row" scroll-x>
         <view wx:for="{{spot.images}}" wx:for-item="photo" wx:key="id" class="photo-wrap">
-          <image class="spot-photo" src="{{photo.display_url || photo.image_url}}" mode="aspectFill" data-current="{{photo.display_url || photo.image_url}}" data-urls="{{spot.image_urls}}" bindtap="onPreviewImage"></image>
+          <image class="spot-photo" src="{{photo.display_url || photo.image_url}}" mode="aspectFill" data-current="{{photo.display_url || photo.image_url}}" data-urls="{{spot.image_urls}}" catchtap="onPreviewImage"></image>
         </view>
       </scroll-view>
       <view wx:else class="photo-empty">{{copy.noPhotos}}</view>

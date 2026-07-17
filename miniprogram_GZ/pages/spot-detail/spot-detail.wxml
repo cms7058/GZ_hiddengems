@@ -194,6 +194,10 @@
               <text class="author">{{item.nickname}}</text>
               <text wx:if="{{item.statusText}}" class="review-status">{{item.statusText}}</text>
               <text class="body-text">{{item.content}}</text>
+              <view wx:if="{{!item.isMine}}" class="comment-like" data-id="{{item.id}}" bindtap="onToggleCommentLike">
+                <text>{{item.liked_by_me ? copy.unlike : copy.like}}</text>
+                <text wx:if="{{item.like_count}}"> {{item.like_count}}</text>
+              </view>
             </view>
           </view>
         </view>

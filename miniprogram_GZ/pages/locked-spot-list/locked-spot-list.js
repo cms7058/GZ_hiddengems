@@ -114,6 +114,19 @@ Page({
     if (urls.length) wx.previewImage({ current, urls })
   },
 
+  onSpotTap(event) {
+    const spotId = Number(event.currentTarget.dataset.id)
+    if (!spotId) return
+    const spot = this.data.spots.find((item) => Number(item.id) === spotId)
+    if (spot) {
+      app.globalData.lockedSpotDetailCache = {
+        ...(app.globalData.lockedSpotDetailCache || {}),
+        [spotId]: spot,
+      }
+    }
+    wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spotId}` })
+  },
+
   onFloatingBackTap() {
     const goHome = () => wx.switchTab({ url: "/pages/index/index" })
     if (getCurrentPages().length > 1) {

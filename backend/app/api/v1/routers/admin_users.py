@@ -11,6 +11,7 @@ from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProg
 from app.services.media_storage import get_media_display_url
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
+from app.services.safety_levels import apply_safety_level_policy
 
 
 router = APIRouter()
@@ -79,6 +80,7 @@ def create_admin_user(
         exists.is_active = True
         db.add(exists)
         db.flush()
+        apply_safety_level_policy(db, exists)
         sync_user_membership_by_points(db, exists)
         db.commit()
         db.refresh(exists)
@@ -87,6 +89,7 @@ def create_admin_user(
     user = MiniProgramUser(**payload.model_dump())
     db.add(user)
     db.flush()
+    apply_safety_level_policy(db, user)
     sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
@@ -109,6 +112,8 @@ def update_admin_user(
 
     if "explore_points" in payload.model_dump(exclude_unset=True):
         sync_user_membership_by_points(db, user)
+    if "safety_level" in payload.model_dump(exclude_unset=True):
+        apply_safety_level_policy(db, user)
     db.add(user)
     db.commit()
     db.refresh(user)

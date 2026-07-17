@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -12,19 +12,92 @@ class MiniProgramUser(Base):
     nickname = Column(String(64), nullable=False)
     avatar_url = Column(String(512), nullable=True)
     phone = Column(String(32), nullable=True)
+    phone_verified_at = Column(DateTime(timezone=True), nullable=True)
     language = Column(String(16), default="zh-CN", nullable=False)
     explore_points = Column(Integer, default=0, nullable=False)
     checkin_count = Column(Integer, default=0, nullable=False)
     contribution_count = Column(Integer, default=0, nullable=False)
     eco_credit = Column(Integer, default=100, nullable=False)
+    share_count = Column(Integer, default=0, nullable=False)
+    referral_registered_count = Column(Integer, default=0, nullable=False)
+    approved_recommendation_count = Column(Integer, default=0, nullable=False)
+    like_received_count = Column(Integer, default=0, nullable=False)
+    like_given_count = Column(Integer, default=0, nullable=False)
+    invited_by_user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=True, index=True)
+    safety_level = Column(String(16), default="general", nullable=False)
+    last_checkin_at = Column(DateTime(timezone=True), nullable=True)
     is_member = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     can_upload_image = Column(Boolean, default=True, nullable=False)
     can_upload_video = Column(Boolean, default=True, nullable=False)
     can_comment = Column(Boolean, default=True, nullable=False)
     can_checkin = Column(Boolean, default=True, nullable=False)
+    can_recommend_spot = Column(Boolean, default=True, nullable=False)
+    can_like_comment = Column(Boolean, default=True, nullable=False)
+    can_share = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class UserSafetyLevelPolicy(Base):
+    __tablename__ = "user_safety_level_policies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    level = Column(String(16), nullable=False, unique=True, index=True)
+    name_zh = Column(String(32), nullable=False)
+    name_en = Column(String(32), nullable=False)
+    can_upload_image = Column(Boolean, default=True, nullable=False)
+    can_upload_video = Column(Boolean, default=True, nullable=False)
+    can_comment = Column(Boolean, default=True, nullable=False)
+    can_checkin = Column(Boolean, default=True, nullable=False)
+    can_recommend_spot = Column(Boolean, default=True, nullable=False)
+    can_like_comment = Column(Boolean, default=True, nullable=False)
+    can_share = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class PointRule(Base):
+    __tablename__ = "point_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(64), nullable=False, unique=True, index=True)
+    name_zh = Column(String(64), nullable=False)
+    name_en = Column(String(64), nullable=False)
+    points = Column(Integer, default=0, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    daily_limit = Column(Integer, default=0, nullable=False)
+    total_limit = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class PointLedger(Base):
+    __tablename__ = "point_ledgers"
+    __table_args__ = (
+        UniqueConstraint("user_id", "rule_code", "reference_type", "reference_id", name="uq_point_ledger_event"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    rule_code = Column(String(64), nullable=False, index=True)
+    reference_type = Column(String(64), nullable=False, index=True)
+    reference_id = Column(Integer, nullable=False, index=True)
+    points = Column(Integer, nullable=False)
+    status = Column(String(16), default="active", nullable=False)
+    note = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ShareEvent(Base):
+    __tablename__ = "share_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    share_type = Column(String(32), default="mini_program", nullable=False)
+    share_token = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class PassLevelSetting(Base):

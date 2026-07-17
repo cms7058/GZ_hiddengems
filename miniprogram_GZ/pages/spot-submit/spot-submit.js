@@ -16,6 +16,8 @@ const COPY = {
     currentLocation: "我的实时位置",
     locationFailed: "定位失败，请检查定位权限",
     chooseMedia: "添加图片/视频",
+    chooseCheckinImage: "添加打卡照片",
+    checkinImageRequired: "请先上传至少一张打卡照片",
     removeMedia: "移除",
     mediaReady: "素材已上传",
     mediaAdded: "素材已添加",
@@ -51,6 +53,8 @@ const COPY = {
     currentLocation: "My Live Location",
     locationFailed: "Location failed. Check permission",
     chooseMedia: "Add Photo/Video",
+    chooseCheckinImage: "Add Check-in Photo",
+    checkinImageRequired: "Upload at least one check-in photo first",
     removeMedia: "Remove",
     mediaReady: "Media uploaded",
     mediaAdded: "Media added",
@@ -92,6 +96,7 @@ Page({
     error: "",
     submitting: false,
     userLocation: null,
+    checkinMedia: [],
     noteMedia: [],
     noteForm: { title: "", content: "" },
     commentForm: { content: "" },
@@ -160,6 +165,10 @@ Page({
     const index = Number(event.currentTarget.dataset.index)
     this.setData({ noteMedia: this.data.noteMedia.filter((_, itemIndex) => itemIndex !== index) })
   },
+  onRemoveCheckinMedia(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    this.setData({ checkinMedia: this.data.checkinMedia.filter((_, itemIndex) => itemIndex !== index) })
+  },
 
   async tryShowUserLocation() {
     try {
@@ -200,14 +209,42 @@ Page({
     }
   },
 
+  async onChooseCheckinImage() {
+    if (this.data.submitting) return
+    if (this.data.user.can_upload_image === false) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+    try {
+      const remaining = 9 - this.data.checkinMedia.length
+      if (remaining <= 0) return wx.showToast({ title: "最多添加 9 张照片", icon: "none" })
+      const result = await new Promise((resolve, reject) => wx.chooseMedia({ count: remaining, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject }))
+      const files = (result.tempFiles || []).filter((file) => file && file.tempFilePath)
+      if (!files.length) return
+      this.setData({ submitting: true })
+      const uploadedMedia = []
+      for (const file of files) {
+        if (Number(file.size || 0) > MAX_IMAGE_UPLOAD_BYTES) throw new Error(this.data.copy.mediaImageTooLarge)
+        const uploaded = await uploadMedia(file.tempFilePath, "image")
+        uploadedMedia.push({ ...uploaded, tempFilePath: file.tempFilePath, media_type: "image" })
+      }
+      this.setData({ checkinMedia: [...this.data.checkinMedia, ...uploadedMedia] })
+      wx.showToast({ title: this.data.copy.mediaAdded, icon: "none" })
+    } catch (error) {
+      if (!isServiceClosedError(error)) wx.showModal({ title: this.data.copy.uploadFailed, content: error.message || this.data.copy.uploadFailed, showCancel: false })
+    } finally { this.setData({ submitting: false }) }
+  },
+
   async onSubmitCheckin() {
     if (this.data.submitting || this.data.user.can_checkin === false) return
+    if (!this.data.checkinMedia.length) {
+      wx.showToast({ title: this.data.copy.checkinImageRequired, icon: "none" })
+      return
+    }
     this.setData({ submitting: true })
     try {
       const location = this.data.userLocation || await this.getLocation()
       this.setData({ userLocation: { latitude: location.latitude, longitude: location.longitude } })
-      const record = await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude) } })
+      const record = await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude), image_url: this.data.checkinMedia[0].media_url } })
       await this.loadSpot()
+      this.setData({ checkinMedia: [] })
       wx.showModal({
         title: record.status === "approved" ? this.data.copy.checkinPassed : this.data.copy.checkinFailed,
         content: record.review_note || this.data.copy.submitFailed,

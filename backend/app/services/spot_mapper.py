@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -6,13 +7,40 @@ from app.core.config import settings
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
+from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url
 from app.services.pass_levels import get_spot_unlock_state
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.user import CheckinRecordOut
+
+
+_LOCATION_TEXT_PATTERN = re.compile(
+    r"(?:"
+    r"坐标|经纬度|纬度|经度|位置|地址|地图|导航|路线|路书|入口|出口|停车|公里|km|"
+    r"位于|抵达|前往|沿着|向东|向西|向南|向北|"
+    r"coordinates?|latitude|longitude|location|address|map|navigation|route|trail|"
+    r"entrance|exit|parking|directions?|north|south|east|west|"
+    r"\b\d{1,3}(?:\.\d{3,})?\s*[,，]\s*\d{1,3}(?:\.\d{3,})?\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def remove_location_text(value: Optional[str], blocked_terms: tuple[str, ...] = ()) -> Optional[str]:
+    """Remove sentences that could disclose a protected spot's location."""
+    if not value:
+        return value
+    sentences = re.split(r"(?<=[。！？!?；;\n])", value)
+    safe_sentences = [
+        sentence
+        for sentence in sentences
+        if not _LOCATION_TEXT_PATTERN.search(sentence)
+        and not any(term and term in sentence for term in blocked_terms)
+    ]
+    sanitized = "".join(safe_sentences).strip()
+    return sanitized or None
 
 
 def tag_to_localized(tag: Tag, lang: str) -> LocalizedTag:
@@ -134,7 +162,71 @@ def spot_to_locked_preview_out(
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         distance_km=round(distance_km, 1),
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
-        images=[spot_image_to_out(image, db) for image in spot.spot_images if image.is_active],
+        images=[spot_image_to_out(image, db) for image in spot.spot_images if image.is_active and image.media_type == "image"],
+    )
+
+
+def spot_to_home_out(
+    spot: ScenicSpot,
+    *,
+    lang: Optional[str],
+    user: Optional[MiniProgramUser],
+    user_explore_points: int,
+    marker_colors_by_level: Optional[dict[int, str]] = None,
+    pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
+) -> HomeSpotOut:
+    normalized_lang = normalize_language(lang, settings.default_language)
+    is_unlocked, required_explore_points = get_spot_unlock_state(
+        spot_required_explore_points=spot.required_explore_points,
+        recommendation_level=spot.recommendation_level,
+        user=user,
+        fallback_explore_points=user_explore_points,
+        settings_by_level=pass_settings_by_level,
+    )
+    return HomeSpotOut(
+        id=spot.id,
+        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
+        recommendation_level=spot.recommendation_level,
+        marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
+        is_unlocked=is_unlocked,
+        required_explore_points=required_explore_points,
+        user_explore_points=user_explore_points,
+        tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
+    )
+
+
+def spot_to_locked_detail_out(
+    spot: ScenicSpot,
+    *,
+    lang: Optional[str],
+    user_explore_points: int,
+    required_explore_points: int,
+    marker_colors_by_level: Optional[dict[int, str]] = None,
+    db: Optional[Session] = None,
+) -> LockedSpotDetailOut:
+    normalized_lang = normalize_language(lang, settings.default_language)
+    blocked_terms = tuple(
+        term
+        for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points))
+        if term
+    )
+    images = []
+    for image in spot.spot_images:
+        if not image.is_active or image.media_type != "image":
+            continue
+        image_out = spot_image_to_out(image, db)
+        images.append(image_out.model_copy(update={"caption": remove_location_text(image_out.caption, blocked_terms)}))
+    return LockedSpotDetailOut(
+        id=spot.id,
+        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
+        summary=remove_location_text(choose_text(normalized_lang, spot.summary_zh, spot.summary_en), blocked_terms) or "",
+        description=remove_location_text(choose_text(normalized_lang, spot.description_zh, spot.description_en), blocked_terms),
+        required_explore_points=required_explore_points,
+        user_explore_points=user_explore_points,
+        recommendation_level=spot.recommendation_level,
+        marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
+        tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
+        images=images,
     )
 
 
@@ -172,7 +264,12 @@ def spot_to_detail_out(
             if note.status == "approved" or (user is not None and note.user_id == user.id)
         ],
         comments=[
-            comment_to_out(comment, db, include_unapproved_media=user is not None and comment.user_id == user.id)
+            comment_to_out(
+                comment,
+                db,
+                include_unapproved_media=user is not None and comment.user_id == user.id,
+                viewer_user_id=user.id if user is not None else None,
+            )
             for comment in getattr(spot, "comments", [])
             if comment.status == "approved" or (user is not None and comment.user_id == user.id)
         ],
@@ -238,7 +335,12 @@ def travel_note_to_out(note: TravelNote, db: Optional[Session] = None, include_u
     )
 
 
-def comment_to_out(comment: UserComment, db: Optional[Session] = None, include_unapproved_media: bool = True) -> UserCommentOut:
+def comment_to_out(
+    comment: UserComment,
+    db: Optional[Session] = None,
+    include_unapproved_media: bool = True,
+    viewer_user_id: Optional[int] = None,
+) -> UserCommentOut:
     display_url = get_media_display_url(db, comment.image_url) if db else comment.image_url
     return UserCommentOut(
         id=comment.id,
@@ -252,6 +354,8 @@ def comment_to_out(comment: UserComment, db: Optional[Session] = None, include_u
         display_url=display_url,
         status=comment.status,
         media=get_content_media(db, "comment", comment.id, include_unapproved_media),
+        like_count=len(getattr(comment, "likes", []) or []),
+        liked_by_me=any(like.user_id == viewer_user_id for like in getattr(comment, "likes", []) or []) if viewer_user_id else False,
     )
 
 

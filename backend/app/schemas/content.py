@@ -107,6 +107,8 @@ class UserCommentOut(BaseModel):
     display_url: Optional[str] = None
     status: str
     media: list[ContentMediaOut] = Field(default_factory=list)
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 class RecommendationCreate(BaseModel):

@@ -1,0 +1,40 @@
+<view class="page">
+  <navigation-bar title="{{copy.navTitle}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+
+  <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
+  <view wx:elif="{{loading}}" class="notice">{{copy.loading}}</view>
+  <view wx:elif="{{offline}}" class="notice">{{copy.offline}}</view>
+
+  <scroll-view wx:if="{{spot}}" class="detail-scroll" scroll-y>
+    <view class="locked-notice">{{copy.protected}}</view>
+    <swiper wx:if="{{spot.images.length}}" class="hero-swiper" indicator-dots circular>
+      <swiper-item wx:for="{{spot.images}}" wx:for-item="photo" wx:key="id">
+        <image class="hero-image" src="{{photo.display_url || photo.image_url}}" mode="aspectFill" data-current="{{photo.display_url || photo.image_url}}" data-urls="{{spot.image_urls}}" bindtap="onPreviewImage"></image>
+      </swiper-item>
+    </swiper>
+    <view wx:else class="photo-empty">{{copy.noPhotos}}</view>
+
+    <view class="content-card">
+      <view class="title-row">
+        <view class="title-mark" style="background: {{spot.marker_color}};"></view>
+        <text class="spot-name">{{spot.name}}</text>
+      </view>
+      <text class="spot-summary">{{spot.summary}}</text>
+      <view class="locked-meta">
+        <text>{{copy.locked}} · {{copy.level}} L{{spot.recommendation_level}}</text>
+        <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
+      </view>
+      <view class="tag-row">
+        <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
+      </view>
+    </view>
+
+    <view class="content-card description-card">
+      <text class="section-title">{{copy.description}}</text>
+      <text class="description">{{spot.description || spot.summary}}</text>
+    </view>
+  </scroll-view>
+
+  <view class="floating-back" catchtap="onFloatingBackTap">←</view>
+  <bottom-tabs lang="{{lang}}"></bottom-tabs>
+</view>

@@ -5,6 +5,7 @@ from app.api.v1.routers import (
     admin_assistant,
     admin_content,
     admin_integrations,
+    admin_growth,
     admin_memberships,
     admin_pass_settings,
     admin_roles,
@@ -40,6 +41,7 @@ api_router.include_router(
     tags=["admin-memberships"],
 )
 api_router.include_router(admin_checkins.router, prefix="/admin/checkins", tags=["admin-checkins"])
+api_router.include_router(admin_growth.router, prefix="/admin/growth", tags=["admin-growth"])
 api_router.include_router(admin_assistant.router, prefix="/admin/assistant", tags=["admin-assistant"])
 api_router.include_router(admin_content.router, prefix="/admin/content", tags=["admin-content"])
 api_router.include_router(

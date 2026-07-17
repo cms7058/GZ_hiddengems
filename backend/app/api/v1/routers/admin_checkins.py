@@ -15,7 +15,7 @@ from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut, CheckinReviewUpdate
 from app.services.pagination import build_page, paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
-from app.services.pass_levels import get_active_pass_settings_by_level, get_checkin_points_for_level
+from app.services.points import award_points, revoke_points
 from app.services.media_storage import MediaStorageError, delete_media
 
 
@@ -108,13 +108,15 @@ def review_checkin(
     record.reviewed_at = datetime.utcnow()
 
     if payload.status == "approved" and not was_approved:
-        checkin_points = get_checkin_points_for_level(
-            get_active_pass_settings_by_level(db),
-            record.spot.recommendation_level,
-        )
         record.user.checkin_count += 1
-        record.awarded_explore_points = checkin_points
-        record.user.explore_points += checkin_points
+        record.awarded_explore_points = award_points(
+            db,
+            user=record.user,
+            rule_code="checkin_success",
+            reference_type="checkin",
+            reference_id=record.id,
+            note=f"{record.spot.name_zh} 打卡审核通过",
+        )
     media_url = record.media_url or record.image_url
     if media_url:
         promoted_image = db.get(SpotImage, record.promoted_spot_image_id) if record.promoted_spot_image_id else None
@@ -140,7 +142,7 @@ def review_checkin(
             db.add(promoted_image)
     if payload.status != "approved" and was_approved and record.user.checkin_count > 0:
         record.user.checkin_count -= 1
-        record.user.explore_points = max(record.user.explore_points - record.awarded_explore_points, 0)
+        revoke_points(db, user=record.user, rule_code="checkin_success", reference_type="checkin", reference_id=record.id)
         record.awarded_explore_points = 0
 
     sync_user_membership_by_points(db, record.user)
@@ -176,7 +178,7 @@ def delete_checkin(
         raise HTTPException(status_code=502, detail=f"Could not delete check-in media: {error}") from error
     if record.status == "approved":
         record.user.checkin_count = max(record.user.checkin_count - 1, 0)
-        record.user.explore_points = max(record.user.explore_points - record.awarded_explore_points, 0)
+        revoke_points(db, user=record.user, rule_code="checkin_success", reference_type="checkin", reference_id=record.id)
         sync_user_membership_by_points(db, record.user)
     db.delete(record)
     db.commit()

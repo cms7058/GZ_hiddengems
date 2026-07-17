@@ -23,13 +23,10 @@ const COPY = {
     filterSummaryPrefix: "已选择",
     filterSummaryCountPrefix: "共",
     filterSummaryCountSuffix: "个秘境",
-    viewResults: "查看详情",
-    nearbyLocked: "搜索附近待解锁秘境",
-    nearbyCountSuffix: "个待解锁",
     radius: "搜索半径",
     radiusUnit: "公里",
+    recommendSpot: "推荐秘境",
     searching: "正在搜索",
-    invalidRadius: "请输入 1-4000 公里的搜索半径",
     noEligibleSpots: "当前条件下暂无已解锁秘境",
     points: "探秘积分",
     unlocked: "已解锁",
@@ -74,13 +71,10 @@ const COPY = {
     filterSummaryPrefix: "Selected",
     filterSummaryCountPrefix: "",
     filterSummaryCountSuffix: " gems",
-    viewResults: "View Details",
-    nearbyLocked: "Search Nearby Locked Gems",
-    nearbyCountSuffix: " locked",
     radius: "Search radius",
     radiusUnit: "km",
+    recommendSpot: "Recommend a Gem",
     searching: "Searching",
-    invalidRadius: "Enter a radius from 1 to 4000 km",
     noEligibleSpots: "No unlocked gems match these filters",
     points: "Explore Points",
     unlocked: "Unlocked",
@@ -176,6 +170,7 @@ Page({
       count: 0,
     },
     spots: [],
+    homeCatalog: [],
     filteredSpots: [],
     markers: [],
     selectedSpot: null,
@@ -186,8 +181,6 @@ Page({
     },
     showUnlockBubble: false,
     nearbyRadiusKm: "20",
-    nearbySearching: false,
-    nearbyCount: null,
     userLocation: null,
     hasUserLocation: false,
     user: app.globalData.user,
@@ -220,7 +213,6 @@ Page({
 
   onUnload() {
     clearTimeout(this.unlockBubbleTimer)
-    clearTimeout(this.nearbyCountTimer)
     if (this.handleLocationChange && wx.offLocationChange) {
       wx.offLocationChange(this.handleLocationChange)
     }
@@ -287,10 +279,14 @@ Page({
     this.setData({ loading: true })
     try {
       const tags = await request(`/tags?lang=${this.data.lang}`)
-      const spots = await request(this.buildMapPath())
+      const [spots, homeCatalog] = await Promise.all([
+        request(this.buildMapPath()),
+        request(this.buildHomeCatalogPath()),
+      ])
       this.setData({
         tags,
         spots: this.normalizeSpots(spots),
+        homeCatalog: this.normalizeSpots(homeCatalog),
         offline: false,
         serviceClosed: false,
         loading: false,
@@ -301,6 +297,7 @@ Page({
         this.setData({
           tags: [],
           spots: [],
+          homeCatalog: [],
           filteredSpots: [],
           levelOptions: [],
           markers: [],
@@ -317,6 +314,7 @@ Page({
       this.setData({
         tags: [],
         spots: [],
+        homeCatalog: [],
         filteredSpots: [],
         levelOptions: [],
         markers: [],
@@ -341,6 +339,16 @@ Page({
     return `/spots/map?${params.join("&")}`
   },
 
+  buildHomeCatalogPath() {
+    const user = this.data.user || {}
+    const params = [
+      `lang=${this.data.lang}`,
+      `user_id=${user.id || 0}`,
+      `explore_points=${user.explore_points || 0}`,
+    ]
+    return `/spots/home-catalog?${params.join("&")}`
+  },
+
   normalizeSpots(spots) {
     return (spots || []).map((spot) => ({
       ...spot,
@@ -356,13 +364,18 @@ Page({
   applyFilters(options = {}) {
     const selectedTagIds = this.data.selectedTagIds.map(Number)
     const selectedLevelIds = this.data.selectedLevelIds.map(Number)
+    const catalog = this.data.homeCatalog || []
     const taggedSpots = selectedTagIds.length
-      ? this.data.spots.filter((spot) => spot.tags.some((tag) => selectedTagIds.includes(Number(tag.id))))
-      : this.data.spots
-    const eligibleSpots = taggedSpots.filter((spot) => this.canViewSpot(spot))
-    const filteredSpots = selectedLevelIds.length
-      ? eligibleSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
-      : eligibleSpots
+      ? catalog.filter((spot) => spot.tags.some((tag) => selectedTagIds.includes(Number(tag.id))))
+      : catalog
+    const filteredCatalog = selectedLevelIds.length
+      ? taggedSpots.filter((spot) => selectedLevelIds.includes(Number(spot.recommendation_level)))
+      : taggedSpots
+    const eligibleSpots = filteredCatalog.filter((spot) => this.canViewSpot(spot))
+    const filteredSpots = (this.data.spots || []).filter((spot) => {
+      if (!this.canViewSpot(spot)) return false
+      return filteredCatalog.some((catalogSpot) => Number(catalogSpot.id) === Number(spot.id))
+    })
     const selectedSpotId = options.preserveSelection ? this.data.selectedSpotId : (filteredSpots[0] && filteredSpots[0].id) || 0
     const selectedSpot = filteredSpots.find((spot) => spot.id === selectedSpotId) || filteredSpots[0] || null
     this.setData({
@@ -370,10 +383,10 @@ Page({
       selectedSpot,
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
-      levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds, eligibleSpots),
+      levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds, eligibleSpots, filteredCatalog),
       allTagsSelected: selectedTagIds.length === 0,
       allLevelsSelected: selectedLevelIds.length === 0,
-      filterSummary: this.buildFilterSummary(filteredSpots, selectedTagIds, selectedLevelIds),
+      filterSummary: this.buildFilterSummary(filteredCatalog, selectedTagIds, selectedLevelIds),
       unlockHint: this.buildUnlockHint(taggedSpots),
     })
     this.refreshMarkerIcons(filteredSpots)
@@ -387,7 +400,7 @@ Page({
     }))
   },
 
-  buildLevelOptions(spots, selectedLevelIds, eligibleSpots = []) {
+  buildLevelOptions(spots, selectedLevelIds, eligibleSpots = [], filteredCatalog = []) {
     const eligibleSpotIds = new Set((eligibleSpots || []).map((spot) => Number(spot.id)))
     const byLevel = (spots || []).reduce((result, spot) => {
       const level = Number(spot.recommendation_level)
@@ -398,10 +411,12 @@ Page({
           markerColor: this.normalizeMarkerColor(spot.marker_color),
           count: 0,
           availableCount: 0,
+          spots: [],
         }
       }
       result[level].count += 1
       if (eligibleSpotIds.has(Number(spot.id))) result[level].availableCount += 1
+      if ((filteredCatalog || []).some((item) => Number(item.id) === Number(spot.id))) result[level].spots.push(spot)
       return result
     }, {})
     return Object.keys(byLevel)
@@ -598,7 +613,7 @@ Page({
 
   onClearTags() {
     this.mapAutoFit = true
-    this.setData({ selectedTagIds: [] }, () => this.loadHomeData())
+    this.setData({ selectedTagIds: [] }, () => this.applyFilters())
   },
 
   onLevelTap(event) {
@@ -614,20 +629,7 @@ Page({
 
   onClearLevels() {
     this.mapAutoFit = true
-    this.setData({ selectedLevelIds: [] }, () => this.loadHomeData())
-  },
-
-  onViewResults() {
-    if (this.data.filteredSpots.length === 0) {
-      wx.showToast({ title: this.data.copy.noEligibleSpots, icon: "none" })
-      return
-    }
-    app.globalData.spotFilters = {
-      tagIds: this.data.selectedTagIds.slice(),
-      levelIds: this.data.selectedLevelIds.slice(),
-    }
-    app.globalData.spotListCache = this.data.filteredSpots.slice()
-    wx.navigateTo({ url: "/pages/spot-list/spot-list" })
+    this.setData({ selectedLevelIds: [] }, () => this.applyFilters())
   },
 
   onNearbyRadiusInput(event) {
@@ -725,6 +727,25 @@ Page({
     const spot = this.data.filteredSpots.find((item) => item.id === Number(event.currentTarget.dataset.id))
     if (!spot) return
     this.openSpotDetail(spot)
+  },
+
+  onCatalogSpotTap(event) {
+    const spotId = Number(event.currentTarget.dataset.id)
+    const spot = (this.data.homeCatalog || []).find((item) => Number(item.id) === spotId)
+    if (!spot) return
+    if (spot.is_unlocked) {
+      this.openSpotDetail(spot)
+      return
+    }
+    app.globalData.lockedSpotDetailCache = {
+      ...(app.globalData.lockedSpotDetailCache || {}),
+      [spot.id]: spot,
+    }
+    wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spot.id}` })
+  },
+
+  onRecommendSpot() {
+    wx.navigateTo({ url: "/pages/spot-recommend/spot-recommend" })
   },
 
   openSpotDetail(spot) {

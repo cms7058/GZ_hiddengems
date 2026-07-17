@@ -171,6 +171,34 @@ class LockedNearbySpotCountOut(BaseModel):
     count: int
 
 
+class HomeSpotOut(BaseModel):
+    """Home filter chip data. Locked spots deliberately omit location fields."""
+
+    id: int
+    name: str
+    recommendation_level: int
+    marker_color: str = "#2f6b4f"
+    is_unlocked: bool
+    required_explore_points: int
+    user_explore_points: int
+    tags: list[LocalizedTag] = Field(default_factory=list)
+
+
+class LockedSpotDetailOut(BaseModel):
+    """Locked spot detail intentionally omits all location metadata."""
+
+    id: int
+    name: str
+    summary: str
+    description: Optional[str] = None
+    required_explore_points: int
+    user_explore_points: int
+    recommendation_level: int
+    marker_color: str = "#2f6b4f"
+    tags: list[LocalizedTag] = Field(default_factory=list)
+    images: list[SpotImageOut] = Field(default_factory=list)
+
+
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int

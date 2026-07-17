@@ -8,6 +8,10 @@ const DEFAULT_USER = {
   can_upload_video: true,
   can_comment: true,
   can_checkin: true,
+  can_recommend_spot: true,
+  can_like_comment: true,
+  can_share: true,
+  safety_level: "general",
 }
 
 const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
@@ -18,7 +22,7 @@ const TAB_BAR_TEXT = {
 }
 
 App({
-  onLaunch() {
+  onLaunch(options = {}) {
     this.captureDeviceContext()
     if (wx.hideShareMenu) {
       wx.hideShareMenu({
@@ -37,7 +41,7 @@ App({
     }
     this.globalData.hasAcceptedSafetyAgreement = Boolean(wx.getStorageSync("gzSafetyAgreementAccepted"))
     this.globalData.hasAcceptedProfileAuth = Boolean(wx.getStorageSync("gzProfileAuthAccepted"))
-    this.bootstrapUser()
+    this.bootstrapUser({ referrer_token: options.query?.ref || "" })
     preloadServiceHours().then(() => notifyServiceClosedIfNeeded())
   },
 
@@ -59,6 +63,7 @@ App({
             nickname: profile.nickname || this.globalData.user.nickname,
             language: this.globalData.lang || "zh-CN",
           }
+          if (profile.referrer_token) loginPayload.referrer_token = profile.referrer_token
           if (Object.prototype.hasOwnProperty.call(profile, "avatar_url")) {
             loginPayload.avatar_url = profile.avatar_url
           }
@@ -149,6 +154,7 @@ App({
     currentSpot: null,
     spotFilters: null,
     spotListCache: [],
+    lockedSpotDetailCache: {},
     user: DEFAULT_USER,
     userLoginPromise: null,
     device: {},

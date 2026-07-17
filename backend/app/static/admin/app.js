@@ -17,6 +17,10 @@ const state = {
   integrations: [],
   roles: [],
   adminAccounts: [],
+  pointRules: [],
+  safetyPolicies: [],
+  spotRecommendations: [],
+  shareStats: null,
   currentSpotImages: [],
   currentSpotCheckins: [],
   currentSpotComments: [],
@@ -60,6 +64,7 @@ const SECTION_IDS = new Set([
   "recommendationsSection",
   "integrationsSection",
   "rolesSection",
+  "growthSection",
 ]);
 
 const PERMISSION_MODULES = [
@@ -70,6 +75,7 @@ const PERMISSION_MODULES = [
   ["checkins", "打卡审核"],
   ["recommendations", "衣食住行"],
   ["integrations", "接口管理"],
+  ["growth", "积分与推荐"],
 ];
 
 const I18N = {
@@ -439,6 +445,7 @@ function renderAll() {
   renderRecommendations();
   renderIntegrations();
   renderRoles();
+  renderGrowth();
   renderChildPoints();
   applyAdminPermissions();
   applyLanguage();
@@ -458,12 +465,14 @@ function applyAdminPermissions() {
     communitySection: "checkins",
     recommendationsSection: "recommendations",
     integrationsSection: "integrations",
+    growthSection: "growth",
   };
   Object.entries(sectionResources).forEach(([section, resource]) => {
     const button = $(`.nav-btn[data-section="${section}"]`);
     if (button) button.classList.toggle("hidden", !can(resource));
   });
   $("#rolesNavBtn")?.classList.toggle("hidden", state.admin?.role !== "super_admin");
+  $("#growthNavBtn")?.classList.toggle("hidden", !can("growth"));
   const createButtons = {
     "#newTagBtn": "tags",
     "#newUserBtn": "users",
@@ -1469,6 +1478,22 @@ function renderSpotOptions(select, selectedId = null) {
     .join("");
 }
 
+function renderGrowth() {
+  const pointRulesTable = $("#pointRulesTable");
+  if (!pointRulesTable) return;
+  pointRulesTable.innerHTML = state.pointRules.length
+    ? state.pointRules.map((rule) => `<tr><td>${escapeHtml(rule.name_zh)}<br><span class="muted">${escapeHtml(rule.code)}</span></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="points" type="number" min="0" value="${rule.points}" /></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="daily_limit" type="number" min="0" value="${rule.daily_limit}" /></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="total_limit" type="number" min="0" value="${rule.total_limit}" /></td><td><label><input class="growth-input" data-rule-id="${rule.id}" data-field="is_enabled" type="checkbox" ${rule.is_enabled ? "checked" : ""} /> 启用</label></td><td><button class="secondary-btn growth-save-rule" data-id="${rule.id}">保存</button></td></tr>`).join("")
+    : '<tr><td colspan="6" class="muted">暂无积分规则</td></tr>';
+  $("#safetyPoliciesTable").innerHTML = state.safetyPolicies.length
+    ? state.safetyPolicies.map((policy) => `<tr><td>${escapeHtml(policy.level)}</td><td>${escapeHtml(policy.name_zh)}</td><td>${policy.can_upload_image ? "图片" : "-"} / ${policy.can_upload_video ? "视频" : "-"}</td><td>${policy.can_comment ? "留言" : "-"} / ${policy.can_checkin ? "打卡" : "-"}</td><td>${policy.can_recommend_spot ? "推荐" : "-"} / ${policy.can_like_comment ? "点赞" : "-"} / ${policy.can_share ? "分享" : "-"}</td><td>${activePill(policy.is_active)}</td><td><button class="secondary-btn growth-edit-policy" data-id="${policy.id}">编辑权限</button></td></tr>`).join("")
+    : '<tr><td colspan="7" class="muted">暂无安全等级策略</td></tr>';
+  $("#spotRecommendationsTable").innerHTML = state.spotRecommendations.length
+    ? state.spotRecommendations.map((item) => `<tr><td>${escapeHtml(item.name_zh)}<br><span class="muted">${escapeHtml(item.summary_zh)}</span></td><td>${escapeHtml(item.nickname)}</td><td>${escapeHtml(item.city)} / ${escapeHtml(item.county)}</td><td>L${item.recommendation_level}</td><td>${(item.media || []).length}</td><td>${statusPill(item.status)}</td><td>${item.status === "pending" ? `<button class="primary-btn growth-review-rec" data-id="${item.id}" data-status="approved">通过</button> <button class="danger-btn growth-review-rec" data-id="${item.id}" data-status="rejected">拒绝</button>` : "-"}</td></tr>`).join("")
+    : '<tr><td colspan="7" class="muted">暂无用户推荐</td></tr>';
+  const stats = state.shareStats || { total_shares: 0, total_referral_registrations: 0, users: [] };
+  $("#shareStatsPanel").innerHTML = `<p>累计分享 <strong>${stats.total_shares || 0}</strong> 次，分享带来新注册 <strong>${stats.total_referral_registrations || 0}</strong> 人。</p>${(stats.users || []).length ? `<div class="table-wrap"><table><thead><tr><th>用户</th><th>分享次数</th><th>新注册</th></tr></thead><tbody>${stats.users.map((user) => `<tr><td>${escapeHtml(user.nickname)}</td><td>${user.share_count}</td><td>${user.referral_registered_count}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
+}
+
 async function loadData() {
   const [
     tags,
@@ -1485,6 +1510,10 @@ async function loadData() {
     assistantPending,
     roles,
     adminAccounts,
+    pointRules,
+    safetyPolicies,
+    spotRecommendations,
+    shareStats,
   ] = await Promise.all([
     can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
     requestPage("spots", "/admin/spots"),
@@ -1500,6 +1529,10 @@ async function loadData() {
     request("/admin/assistant/pending-summary"),
     state.admin?.role === "super_admin" ? request("/admin/roles") : Promise.resolve([]),
     state.admin?.role === "super_admin" ? request("/admin/roles/admins") : Promise.resolve([]),
+    can("growth") ? request("/admin/growth/point-rules") : Promise.resolve([]),
+    can("growth") ? request("/admin/growth/safety-policies") : Promise.resolve([]),
+    can("growth") ? requestPage("spotRecommendations", "/admin/growth/spot-recommendations?status=pending") : Promise.resolve([]),
+    can("growth") ? request("/admin/growth/share-stats") : Promise.resolve(null),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -1515,6 +1548,10 @@ async function loadData() {
   state.assistantPending = assistantPending;
   state.roles = roles;
   state.adminAccounts = adminAccounts;
+  state.pointRules = pointRules;
+  state.safetyPolicies = safetyPolicies;
+  state.spotRecommendations = spotRecommendations;
+  state.shareStats = shareStats;
   renderAll();
 }
 
@@ -2207,6 +2244,49 @@ $$(".nav-btn").forEach((button) => {
   button.addEventListener("click", () => {
     setActiveSection(button.dataset.section);
   });
+});
+
+document.addEventListener("click", async (event) => {
+  const ruleButton = event.target.closest(".growth-save-rule");
+  if (ruleButton) {
+    const id = Number(ruleButton.dataset.id);
+    const rule = state.pointRules.find((item) => item.id === id);
+    if (!rule) return;
+    const fields = $$(`.growth-input[data-rule-id="${id}"]`);
+    const payload = {};
+    fields.forEach((input) => {
+      payload[input.dataset.field] = input.type === "checkbox" ? input.checked : Number(input.value || 0);
+    });
+    try {
+      await request(`/admin/growth/point-rules/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      await loadData();
+      showToast("积分规则已保存");
+    } catch (error) { showToast(error.message); }
+    return;
+  }
+  const reviewButton = event.target.closest(".growth-review-rec");
+  if (reviewButton) {
+    const reviewNote = window.prompt("审核说明（可选）", "") || "";
+    try {
+      await request(`/admin/growth/spot-recommendations/${reviewButton.dataset.id}/review`, { method: "PATCH", body: JSON.stringify({ status: reviewButton.dataset.status, review_note: reviewNote }) });
+      await loadData();
+      showToast("推荐审核已完成");
+    } catch (error) { showToast(error.message); }
+    return;
+  }
+  const policyButton = event.target.closest(".growth-edit-policy");
+  if (policyButton) {
+    const policy = state.safetyPolicies.find((item) => item.id === Number(policyButton.dataset.id));
+    if (!policy) return;
+    const permissions = ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"];
+    const next = { ...policy };
+    for (const field of permissions) next[field] = window.confirm(`${policy.name_zh}：允许${field.replace("can_", "")}？`);
+    try {
+      await request(`/admin/growth/safety-policies/${policy.id}`, { method: "PATCH", body: JSON.stringify(Object.fromEntries(permissions.map((field) => [field, next[field]]))) });
+      await loadData();
+      showToast("安全等级权限已保存");
+    } catch (error) { showToast(error.message); }
+  }
 });
 
 window.addEventListener("hashchange", () => {
