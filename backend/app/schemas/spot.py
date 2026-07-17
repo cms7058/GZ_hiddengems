@@ -150,6 +150,27 @@ class MapSpotOut(BaseModel):
     tags: list[LocalizedTag]
 
 
+class LockedSpotPreviewOut(BaseModel):
+    """Nearby locked spot data without coordinates or navigation metadata."""
+
+    id: int
+    name: str
+    summary: str
+    city: str
+    county: str
+    required_explore_points: int
+    user_explore_points: int
+    recommendation_level: int
+    marker_color: str = "#2f6b4f"
+    distance_km: float
+    tags: list[LocalizedTag] = Field(default_factory=list)
+    images: list[SpotImageOut] = Field(default_factory=list)
+
+
+class LockedNearbySpotCountOut(BaseModel):
+    count: int
+
+
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int

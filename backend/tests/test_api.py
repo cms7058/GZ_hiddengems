@@ -247,6 +247,32 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"]["required_explore_points"], 100)
 
+    def test_locked_nearby_spots_hide_coordinates_and_include_preview_media(self):
+        db = self.SessionLocal()
+        user = db.get(MiniProgramUser, 1)
+        user.explore_points = 20
+        db.add(user)
+        db.commit()
+        db.close()
+
+        response = self.client.get(
+            "/api/v1/spots/locked-nearby?user_id=1&lang=zh-CN&latitude=25.7436&longitude=108.5062&radius_km=5"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["id"], 1)
+        self.assertNotIn("latitude", data[0])
+        self.assertNotIn("longitude", data[0])
+        self.assertEqual(data[0]["images"][0]["image_url"], "/media/spots/demo.jpg")
+
+        count_response = self.client.get(
+            "/api/v1/spots/locked-nearby/count?user_id=1&latitude=25.7436&longitude=108.5062&radius_km=5"
+        )
+        self.assertEqual(count_response.status_code, 200)
+        self.assertEqual(count_response.json()["count"], len(data))
+
     def test_spot_detail_includes_only_current_users_pending_submissions(self):
         response = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1&explore_points=120")
 

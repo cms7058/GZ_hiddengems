@@ -8,9 +8,10 @@ from app.db.session import get_db
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MiniProgramUser
-from app.schemas.spot import MapSpotOut, SpotDetailOut
+from app.schemas.spot import LockedNearbySpotCountOut, LockedSpotPreviewOut, MapSpotOut, SpotDetailOut
+from app.services.geo import distance_km_between
 from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
-from app.services.spot_mapper import spot_to_detail_out, spot_to_map_out
+from app.services.spot_mapper import spot_to_detail_out, spot_to_locked_preview_out, spot_to_map_out
 
 
 router = APIRouter()
@@ -27,6 +28,41 @@ def resolve_user_context(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
     return user, user.explore_points
+
+
+def find_locked_spots_nearby(
+    db: Session,
+    *,
+    user: MiniProgramUser,
+    user_explore_points: int,
+    latitude: float,
+    longitude: float,
+    radius_km: float,
+) -> list[tuple[ScenicSpot, int, float]]:
+    statement = (
+        select(ScenicSpot)
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images))
+        .where(
+            ScenicSpot.is_active.is_(True),
+            ScenicSpot.review_status == "approved",
+        )
+    )
+    pass_settings_by_level = get_active_pass_settings_by_level(db)
+    nearby_spots = []
+    for spot in db.scalars(statement).all():
+        is_unlocked, required_explore_points = get_spot_unlock_state(
+            spot_required_explore_points=spot.required_explore_points,
+            recommendation_level=spot.recommendation_level,
+            user=user,
+            fallback_explore_points=user_explore_points,
+            settings_by_level=pass_settings_by_level,
+        )
+        if is_unlocked:
+            continue
+        distance_km = distance_km_between(latitude, longitude, spot.latitude, spot.longitude)
+        if distance_km <= radius_km:
+            nearby_spots.append((spot, required_explore_points, distance_km))
+    return sorted(nearby_spots, key=lambda item: (item[2], item[1], item[0].id))
 
 
 @router.get("/map", response_model=list[MapSpotOut])
@@ -69,6 +105,61 @@ def list_map_spots(
         for spot in spots
     ]
     return [spot for spot in map_spots if spot.is_unlocked]
+
+
+@router.get("/locked-nearby", response_model=list[LockedSpotPreviewOut])
+def list_locked_spots_nearby(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(default=20, gt=0, le=4000),
+    lang: str = Query(default="zh-CN"),
+    user_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+) -> list[LockedSpotPreviewOut]:
+    """List locked nearby spots without exposing their coordinates to the client."""
+    user, user_explore_points = resolve_user_context(db, user_id)
+    marker_colors_by_level = get_marker_colors_by_level(db)
+    previews = []
+    for spot, required_explore_points, distance_km in find_locked_spots_nearby(
+        db,
+        user=user,
+        user_explore_points=user_explore_points,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+    ):
+        previews.append(
+            spot_to_locked_preview_out(
+                spot,
+                lang=lang,
+                user_explore_points=user_explore_points,
+                required_explore_points=required_explore_points,
+                distance_km=distance_km,
+                marker_colors_by_level=marker_colors_by_level,
+                db=db,
+            )
+        )
+    return previews
+
+
+@router.get("/locked-nearby/count", response_model=LockedNearbySpotCountOut)
+def count_locked_spots_nearby(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(default=20, gt=0, le=4000),
+    user_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+) -> LockedNearbySpotCountOut:
+    user, user_explore_points = resolve_user_context(db, user_id)
+    spots = find_locked_spots_nearby(
+        db,
+        user=user,
+        user_explore_points=user_explore_points,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+    )
+    return LockedNearbySpotCountOut(count=len(spots))
 
 
 @router.get("/{spot_id}", response_model=SpotDetailOut)

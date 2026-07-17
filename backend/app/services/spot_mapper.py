@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
+from app.schemas.spot import LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url
@@ -108,6 +108,33 @@ def spot_to_map_out(
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
+    )
+
+
+def spot_to_locked_preview_out(
+    spot: ScenicSpot,
+    *,
+    lang: Optional[str],
+    user_explore_points: int,
+    required_explore_points: int,
+    distance_km: float,
+    marker_colors_by_level: Optional[dict[int, str]] = None,
+    db: Optional[Session] = None,
+) -> LockedSpotPreviewOut:
+    normalized_lang = normalize_language(lang, settings.default_language)
+    return LockedSpotPreviewOut(
+        id=spot.id,
+        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
+        summary=choose_text(normalized_lang, spot.summary_zh, spot.summary_en) or "",
+        city=spot.city,
+        county=spot.county,
+        required_explore_points=required_explore_points,
+        user_explore_points=user_explore_points,
+        recommendation_level=spot.recommendation_level,
+        marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
+        distance_km=round(distance_km, 1),
+        tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
+        images=[spot_image_to_out(image, db) for image in spot.spot_images if image.is_active],
     )
 
 

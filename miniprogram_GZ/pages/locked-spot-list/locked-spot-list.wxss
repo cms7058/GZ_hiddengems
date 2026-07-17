@@ -1,0 +1,174 @@
+page {
+  height: 100vh;
+  background: #f4f1e8;
+}
+
+.page {
+  height: 100vh;
+  background: #f4f1e8;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-context {
+  margin: 18rpx 24rpx 14rpx;
+  padding: 20rpx;
+  border: 1rpx solid #dce8dc;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.context-title,
+.context-note {
+  display: block;
+}
+
+.context-title {
+  color: #203e2e;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.context-note {
+  margin-top: 8rpx;
+  color: #6d796e;
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.notice {
+  margin: 30rpx 24rpx;
+  color: #7a7468;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.spot-list {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24rpx calc(132rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.spot-card {
+  margin-bottom: 16rpx;
+  padding: 20rpx;
+  border: 1rpx solid #e0e6dc;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.photo-row {
+  width: 100%;
+  height: 190rpx;
+  white-space: nowrap;
+}
+
+.photo-wrap {
+  display: inline-block;
+  width: 260rpx;
+  height: 190rpx;
+  margin-right: 10rpx;
+  overflow: hidden;
+  border-radius: 7rpx;
+}
+
+.spot-photo {
+  width: 100%;
+  height: 100%;
+}
+
+.photo-empty {
+  height: 120rpx;
+  border-radius: 7rpx;
+  background: #edf3ea;
+  color: #718176;
+  font-size: 22rpx;
+  line-height: 120rpx;
+  text-align: center;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.marker {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  flex: none;
+}
+
+.spot-name {
+  flex: 1;
+  min-width: 0;
+  color: #193127;
+  font-size: 30rpx;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spot-level {
+  flex: none;
+  color: #47705a;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.spot-summary {
+  display: -webkit-box;
+  margin-top: 12rpx;
+  color: #536357;
+  font-size: 24rpx;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.spot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 14rpx;
+  color: #52705d;
+  font-size: 22rpx;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 14rpx;
+}
+
+.tag {
+  padding: 5rpx 10rpx;
+  border-radius: 6rpx;
+  background: #edf3ea;
+  color: #4d6857;
+  font-size: 20rpx;
+}
+
+.floating-back {
+  position: fixed;
+  left: 24rpx;
+  bottom: calc(236rpx + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(47, 107, 79, 0.18);
+  background: rgba(205, 235, 211, 0.88);
+  box-shadow: 0 8rpx 24rpx rgba(25, 49, 39, 0.16);
+  color: #2f6b4f;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 76rpx;
+  text-align: center;
+}

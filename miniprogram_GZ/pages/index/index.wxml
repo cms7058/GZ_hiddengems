@@ -68,6 +68,16 @@
         <text class="summary-count">{{copy.filterSummaryCountPrefix}}{{filterSummary.count}}{{copy.filterSummaryCountSuffix}}</text>
       </view>
       <button class="results-button" bindtap="onViewResults">{{copy.viewResults}}</button>
+      <view class="nearby-search">
+        <text class="nearby-label">{{copy.radius}}</text>
+        <view class="radius-control">
+          <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindinput="onNearbyRadiusInput" />
+          <text class="radius-unit">{{copy.radiusUnit}}</text>
+        </view>
+        <button class="nearby-button" loading="{{nearbySearching}}" bindtap="onSearchLockedSpots">
+          {{copy.nearbyLocked}}<text wx:if="{{nearbyCount !== null}}">（{{nearbyCount}}{{copy.nearbyCountSuffix}}）</text>
+        </button>
+      </view>
     </view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>

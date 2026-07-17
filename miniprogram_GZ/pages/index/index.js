@@ -24,6 +24,12 @@ const COPY = {
     filterSummaryCountPrefix: "共",
     filterSummaryCountSuffix: "个秘境",
     viewResults: "查看详情",
+    nearbyLocked: "搜索附近待解锁秘境",
+    nearbyCountSuffix: "个待解锁",
+    radius: "搜索半径",
+    radiusUnit: "公里",
+    searching: "正在搜索",
+    invalidRadius: "请输入 1-4000 公里的搜索半径",
     noEligibleSpots: "当前条件下暂无已解锁秘境",
     points: "探秘积分",
     unlocked: "已解锁",
@@ -69,6 +75,12 @@ const COPY = {
     filterSummaryCountPrefix: "",
     filterSummaryCountSuffix: " gems",
     viewResults: "View Details",
+    nearbyLocked: "Search Nearby Locked Gems",
+    nearbyCountSuffix: " locked",
+    radius: "Search radius",
+    radiusUnit: "km",
+    searching: "Searching",
+    invalidRadius: "Enter a radius from 1 to 4000 km",
     noEligibleSpots: "No unlocked gems match these filters",
     points: "Explore Points",
     unlocked: "Unlocked",
@@ -173,6 +185,9 @@ Page({
       nextNeed: 0,
     },
     showUnlockBubble: false,
+    nearbyRadiusKm: "20",
+    nearbySearching: false,
+    nearbyCount: null,
     userLocation: null,
     hasUserLocation: false,
     user: app.globalData.user,
@@ -205,6 +220,7 @@ Page({
 
   onUnload() {
     clearTimeout(this.unlockBubbleTimer)
+    clearTimeout(this.nearbyCountTimer)
     if (this.handleLocationChange && wx.offLocationChange) {
       wx.offLocationChange(this.handleLocationChange)
     }
@@ -612,6 +628,72 @@ Page({
     }
     app.globalData.spotListCache = this.data.filteredSpots.slice()
     wx.navigateTo({ url: "/pages/spot-list/spot-list" })
+  },
+
+  onNearbyRadiusInput(event) {
+    this.setData({ nearbyRadiusKm: event.detail.value })
+    clearTimeout(this.nearbyCountTimer)
+    this.nearbyCountTimer = setTimeout(() => this.refreshNearbyCount(), 350)
+  },
+
+  buildLockedNearbyPath(path, location, radiusKm) {
+    const user = this.data.user || {}
+    const params = [
+      `user_id=${user.id}`,
+      `latitude=${location.latitude}`,
+      `longitude=${location.longitude}`,
+      `radius_km=${radiusKm}`,
+    ]
+    return `${path}?${params.join("&")}`
+  },
+
+  async refreshNearbyCount() {
+    const radiusKm = Number(this.data.nearbyRadiusKm)
+    if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
+      this.setData({ nearbyCount: null })
+      return
+    }
+    const requestId = (this.nearbyCountRequestId || 0) + 1
+    this.nearbyCountRequestId = requestId
+    try {
+      const location = this.data.userLocation || (await this.getLocation())
+      this.updateUserLocation(location, false)
+      const result = await request(this.buildLockedNearbyPath("/spots/locked-nearby/count", location, radiusKm))
+      if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: Number(result.count || 0) })
+    } catch (error) {
+      if (requestId === this.nearbyCountRequestId) this.setData({ nearbyCount: null })
+    }
+  },
+
+  async onSearchLockedSpots() {
+    const radiusKm = Number(this.data.nearbyRadiusKm)
+    if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
+      wx.showToast({ title: this.data.copy.invalidRadius, icon: "none" })
+      return
+    }
+    this.setData({ nearbySearching: true })
+    try {
+      const location = this.data.userLocation || (await this.getLocation())
+      this.updateUserLocation(location, false)
+      this.startLocationWatch()
+      app.globalData.lockedSpotSearch = {
+        latitude: Number(location.latitude),
+        longitude: Number(location.longitude),
+        radiusKm,
+      }
+      wx.navigateTo({ url: "/pages/locked-spot-list/locked-spot-list" })
+    } catch (error) {
+      wx.showModal({
+        title: this.data.copy.locationRequired,
+        content: this.data.copy.locationFailed,
+        confirmText: this.data.lang === "en-US" ? "Settings" : "去设置",
+        success: (res) => {
+          if (res.confirm) wx.openSetting()
+        },
+      })
+    } finally {
+      this.setData({ nearbySearching: false })
+    }
   },
 
   showUnlockHintBubble() {

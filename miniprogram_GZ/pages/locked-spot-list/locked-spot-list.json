@@ -1,0 +1,8 @@
+{
+  "usingComponents": {
+    "navigation-bar": "/components/navigation-bar/navigation-bar",
+    "bottom-tabs": "/components/bottom-tabs/bottom-tabs"
+  },
+  "navigationBarTitleText": "待解锁秘境",
+  "enablePullDownRefresh": true
+}

@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/spot-list/spot-list",
+    "pages/locked-spot-list/locked-spot-list",
     "pages/spot-detail/spot-detail",
     "pages/spot-submit/spot-submit",
     "pages/user/user",
