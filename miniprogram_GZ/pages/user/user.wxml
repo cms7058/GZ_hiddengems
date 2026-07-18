@@ -79,18 +79,6 @@
       <text></text>
     </view>
     <view class="row">
-      <text>{{copy.openid}}</text>
-      <text class="row-value selectable">{{user.openid || '-'}}</text>
-    </view>
-    <view class="row">
-      <text>{{copy.phone}}</text>
-      <text class="row-value">{{user.phone || '-'}}</text>
-    </view>
-    <view class="row">
-      <text>{{copy.phoneVerified}}</text>
-      <text class="row-value">{{user.phone_verified_at ? copy.verified : copy.notVerified}}</text>
-    </view>
-    <view class="row">
       <text>{{copy.language}}</text>
       <text class="row-value">{{user.language || '-'}}</text>
     </view>

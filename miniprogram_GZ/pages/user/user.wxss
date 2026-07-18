@@ -162,31 +162,41 @@ page {
 
 .stats-grid {
   margin-top: 22rpx;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  row-gap: 12rpx;
 }
 
 .stat {
-  min-height: 150rpx;
-  padding: 20rpx;
+  width: calc((100% - 36rpx) / 4);
+  flex: none;
+  min-height: 132rpx;
+  padding: 16rpx 8rpx;
   border-radius: 8rpx;
   background: #edf3ea;
   color: #5c6b60;
-  font-size: 22rpx;
+  font-size: 20rpx;
+  line-height: 1.3;
+  text-align: center;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .value {
   display: block;
-  margin-top: 18rpx;
+  margin-top: 12rpx;
   color: #193127;
-  font-size: 38rpx;
+  font-size: 34rpx;
   font-weight: 800;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .value.small {
-  font-size: 28rpx;
+  font-size: 22rpx;
 }
 
 .row-value {
