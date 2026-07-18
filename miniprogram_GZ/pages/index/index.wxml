@@ -70,19 +70,18 @@
       <view class="nearby-search">
         <text class="nearby-label">{{copy.radius}}</text>
         <view class="radius-control">
-          <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindinput="onNearbyRadiusInput" />
+          <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindfocus="onNearbyInputFocus" bindblur="onNearbyInputBlur" bindinput="onNearbyRadiusInput" />
           <text class="radius-unit">{{copy.radiusUnit}}</text>
         </view>
       </view>
       <view class="summary-chips">
-        <view class="spot-chip unlocked" catchtap="onOpenUnlockedList">
-          <text>{{copy.unlocked}} {{filterSummary.unlockedCount}}</text>
-        </view>
         <view class="spot-chip locked" catchtap="onOpenLockedList">
           <text>{{copy.locked}} {{filterSummary.lockedCount}}</text>
         </view>
+        <view class="spot-chip unlocked" catchtap="onOpenUnlockedList">
+          <text>{{copy.unlocked}} {{filterSummary.unlockedCount}}</text>
+        </view>
       </view>
-      <text wx:if="{{nearbyCountText}}" class="radius-note">{{nearbyCountText}}</text>
     </view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>

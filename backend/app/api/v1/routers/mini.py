@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.db.session import get_db
@@ -17,13 +17,17 @@ from app.models.spot import ScenicSpot
 from app.models.user import CheckinRecord, MiniProgramUser, ShareEvent
 from app.schemas.content import ContentMediaOut, TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
 from app.schemas.growth import SpotRecommendationCreate, SpotRecommendationOut
+from app.schemas.mini_assistant import MiniAssistantQuery
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
+from app.services.geo import distance_km_between
 from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
 from app.services.points import award_points
+from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
 from app.services.safety_levels import apply_safety_level_policy
-from app.services.spot_mapper import comment_to_out, travel_note_to_out
+from app.services.localization import choose_text, normalize_language
+from app.services.spot_mapper import comment_to_out, remove_location_text, travel_note_to_out
 
 
 router = APIRouter()
@@ -74,6 +78,158 @@ def ensure_successful_checkin(db: Session, user_id: int, spot_id: int) -> None:
     )
     if has_successful_checkin is None:
         raise HTTPException(status_code=403, detail="Successful check-in is required before publishing notes or comments")
+
+
+def assistant_is_chinese(lang: str) -> bool:
+    return normalize_language(lang, settings.default_language) != "en-US"
+
+
+def assistant_spot_text(spot: ScenicSpot, lang: str) -> tuple[str, str, str]:
+    normalized_lang = normalize_language(lang, settings.default_language)
+    name = choose_text(normalized_lang, spot.name_zh, spot.name_en) or ""
+    summary = choose_text(normalized_lang, spot.summary_zh, spot.summary_en) or ""
+    description = choose_text(normalized_lang, spot.description_zh, spot.description_en) or ""
+    return name, summary, description
+
+
+def assistant_matches_spot(spot: ScenicSpot, query: str) -> bool:
+    normalized = query.strip().lower()
+    if len(normalized) < 2:
+        return False
+    values = (spot.name_zh, spot.name_en, spot.city, spot.county)
+    return any(
+        normalized in (value or "").lower() or (len(value or "") >= 2 and (value or "").lower() in normalized)
+        for value in values
+    )
+
+
+def assistant_spot_reply(
+    spot: ScenicSpot,
+    user: MiniProgramUser,
+    payload: MiniAssistantQuery,
+    db: Session,
+) -> dict:
+    chinese = assistant_is_chinese(payload.lang)
+    name, summary, description = assistant_spot_text(spot, payload.lang)
+    is_unlocked, required_points = get_spot_unlock_state(
+        spot_required_explore_points=spot.required_explore_points,
+        recommendation_level=spot.recommendation_level,
+        user=user,
+        fallback_explore_points=user.explore_points,
+        settings_by_level=get_active_pass_settings_by_level(db),
+    )
+    lower_query = payload.query.lower()
+    wants_route = any(token in lower_query for token in ("路线", "路径", "导航", "怎么去", "前往", "route", "path", "navigate", "directions"))
+    wants_culture = any(token in lower_query for token in ("人文", "地理", "历史", "文化", "风俗", "human", "culture", "history", "geography"))
+
+    if not is_unlocked:
+        safe_summary = remove_location_text(summary, (spot.city, spot.county, spot.river_name))
+        safe_description = remove_location_text(description, (spot.city, spot.county, spot.river_name))
+        safe_intro = safe_description or safe_summary
+        need_points = max(required_points - user.explore_points, 0)
+        answer = (
+            f"{name} 尚未解锁。{safe_intro or '解锁后可查看完整介绍。'} 还需 {need_points} 探秘积分。"
+            if chinese
+            else f"{name} is locked. {safe_intro or 'Unlock it to view the full introduction.'} You need {need_points} more explore points."
+        )
+        return {
+            "answer": answer,
+            "spot": {"id": spot.id, "name": name, "is_unlocked": False, "recommendation_level": spot.recommendation_level},
+            "actions": [],
+        }
+
+    culture_text = description or summary
+    if wants_culture:
+        culture_text = description or summary
+    answer = (
+        f"{name}：{summary}\n所在区域：{spot.city}{spot.county}。{culture_text}"
+        if chinese
+        else f"{name}: {summary}\nArea: {spot.county}, {spot.city}. {culture_text}"
+    )
+    actions = []
+    if wants_route:
+        distance_text = ""
+        if payload.latitude is not None and payload.longitude is not None:
+            distance = distance_km_between(payload.latitude, payload.longitude, spot.latitude, spot.longitude)
+            distance_text = f"当前位置直线距离约 {distance:.1f} 公里。" if chinese else f"The straight-line distance is about {distance:.1f} km."
+        answer = (
+            f"{name} 可使用系统地图导航。{distance_text}请结合实时天气、道路状况和当地管理要求安排路线。"
+            if chinese
+            else f"{name} can be opened in your system map. {distance_text}Check weather, road conditions, and local rules before departure."
+        )
+        actions.append(
+            {
+                "type": "navigate",
+                "label": "打开地图导航" if chinese else "Open navigation",
+                "spot_id": spot.id,
+                "name": name,
+                "latitude": spot.latitude,
+                "longitude": spot.longitude,
+            }
+        )
+    return {
+        "answer": answer,
+        "spot": {"id": spot.id, "name": name, "is_unlocked": True, "recommendation_level": spot.recommendation_level},
+        "actions": actions,
+    }
+
+
+@router.post("/assistant/query")
+def query_mini_assistant(payload: MiniAssistantQuery, db: Session = Depends(get_db)) -> dict:
+    """Answer mini-program questions from approved database records without an LLM."""
+    user = ensure_active_user(db, payload.user_id)
+    chinese = assistant_is_chinese(payload.lang)
+    query = payload.query.strip()
+    lower_query = query.lower()
+    asks_about_me = any(token in lower_query for token in ("我的", "我", "积分", "打卡", "会员", "权限", "分享", "资料", "账号", "my", "points", "check-in", "membership", "permissions", "profile"))
+    if asks_about_me:
+        answer = (
+            f"{user.nickname}，你当前有 {user.explore_points} 探秘积分，已打卡 {user.checkin_count} 次，"
+            f"已通过推荐 {user.approved_recommendation_count} 次，分享 {user.share_count} 次。"
+            if chinese
+            else f"{user.nickname}, you have {user.explore_points} explore points, {user.checkin_count} check-ins, "
+            f"{user.approved_recommendation_count} approved recommendations, and {user.share_count} shares."
+        )
+        return {
+            "answer": answer,
+            "user": {
+                "nickname": user.nickname,
+                "explore_points": user.explore_points,
+                "checkin_count": user.checkin_count,
+                "contribution_count": user.contribution_count,
+                "is_member": user.is_member,
+                "safety_level": user.safety_level,
+            },
+            "actions": [],
+        }
+
+    spots = db.scalars(
+        select(ScenicSpot)
+        .options(selectinload(ScenicSpot.tags))
+        .where(ScenicSpot.is_active.is_(True), ScenicSpot.review_status == "approved")
+        .order_by(ScenicSpot.recommendation_level.asc(), ScenicSpot.id.asc())
+    ).all()
+    matches = [spot for spot in spots if assistant_matches_spot(spot, query)]
+    if matches:
+        return assistant_spot_reply(matches[0], user, payload, db)
+
+    suggestions = []
+    for spot in spots[:5]:
+        name, _, _ = assistant_spot_text(spot, payload.lang)
+        is_unlocked, _ = get_spot_unlock_state(
+            spot_required_explore_points=spot.required_explore_points,
+            recommendation_level=spot.recommendation_level,
+            user=user,
+            fallback_explore_points=user.explore_points,
+            settings_by_level=get_active_pass_settings_by_level(db),
+        )
+        suggestions.append({"id": spot.id, "name": name, "is_unlocked": is_unlocked})
+    answer = (
+        "我可以查询已审核景点的介绍、人文地理和路线，也可以查看你的积分、打卡和权限。请在问题中写出景点名称。"
+        if chinese
+        else "I can look up approved spot introductions, culture, routes, and your own points, check-ins, and permissions. Include a spot name in your question."
+    )
+    return {"answer": answer, "suggestions": suggestions, "actions": []}
 
 
 def resolve_wechat_openid(code: str) -> str:
