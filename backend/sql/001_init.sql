@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS scenic_spots (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name_zh VARCHAR(128) NOT NULL,
     name_en VARCHAR(128) NOT NULL,
+    locked_name_zh VARCHAR(128) NULL,
+    locked_name_en VARCHAR(128) NULL,
     summary_zh VARCHAR(512) NOT NULL,
     summary_en VARCHAR(512) NOT NULL,
     description_zh TEXT NULL,

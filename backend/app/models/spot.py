@@ -31,6 +31,8 @@ class ScenicSpot(Base):
     id = Column(Integer, primary_key=True, index=True)
     name_zh = Column(String(128), nullable=False)
     name_en = Column(String(128), nullable=False)
+    locked_name_zh = Column(String(128), nullable=True)
+    locked_name_en = Column(String(128), nullable=True)
     summary_zh = Column(String(512), nullable=False)
     summary_en = Column(String(512), nullable=False)
     description_zh = Column(Text, nullable=True)

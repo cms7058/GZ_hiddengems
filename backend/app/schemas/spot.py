@@ -40,6 +40,8 @@ class TagAdminOut(TagCreate):
 class SpotCreate(BaseModel):
     name_zh: str = Field(..., max_length=128)
     name_en: str = Field(..., max_length=128)
+    locked_name_zh: Optional[str] = Field(default=None, max_length=128)
+    locked_name_en: Optional[str] = Field(default=None, max_length=128)
     summary_zh: str = Field(..., max_length=512)
     summary_en: str = Field(..., max_length=512)
     description_zh: Optional[str] = None
@@ -64,6 +66,8 @@ class SpotCreate(BaseModel):
 class SpotUpdate(BaseModel):
     name_zh: Optional[str] = Field(default=None, max_length=128)
     name_en: Optional[str] = Field(default=None, max_length=128)
+    locked_name_zh: Optional[str] = Field(default=None, max_length=128)
+    locked_name_en: Optional[str] = Field(default=None, max_length=128)
     summary_zh: Optional[str] = Field(default=None, max_length=512)
     summary_en: Optional[str] = Field(default=None, max_length=512)
     description_zh: Optional[str] = None

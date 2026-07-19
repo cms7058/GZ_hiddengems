@@ -67,6 +67,8 @@ def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
         id=spot.id,
         name_zh=spot.name_zh,
         name_en=spot.name_en,
+        locked_name_zh=spot.locked_name_zh,
+        locked_name_en=spot.locked_name_en,
         summary_zh=spot.summary_zh,
         summary_en=spot.summary_en,
         description_zh=spot.description_zh,
@@ -92,6 +94,24 @@ def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
             if point.is_active
         ],
     )
+
+
+def locked_spot_name(spot: ScenicSpot, lang: str) -> str:
+    """Never disclose a full spot name from a locked response."""
+    configured_name = choose_text(lang, spot.locked_name_zh, spot.locked_name_en)
+    if configured_name:
+        return configured_name
+    return "Locked Gem" if lang == "en-US" else "待解锁秘境"
+
+
+def locked_spot_intro(spot: ScenicSpot, lang: str) -> str:
+    blocked_terms = tuple(
+        term
+        for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points))
+        if term
+    )
+    raw_intro = choose_text(lang, spot.description_zh, spot.description_en)
+    return remove_location_text(raw_intro, blocked_terms) or ""
 
 
 def spot_to_map_out(
@@ -150,10 +170,11 @@ def spot_to_locked_preview_out(
     db: Optional[Session] = None,
 ) -> LockedSpotPreviewOut:
     normalized_lang = normalize_language(lang, settings.default_language)
+    intro = locked_spot_intro(spot, normalized_lang)
     return LockedSpotPreviewOut(
         id=spot.id,
-        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
-        summary=choose_text(normalized_lang, spot.summary_zh, spot.summary_en) or "",
+        name=locked_spot_name(spot, normalized_lang),
+        summary=intro,
         city=spot.city,
         county=spot.county,
         required_explore_points=required_explore_points,
@@ -185,7 +206,7 @@ def spot_to_home_out(
     )
     return HomeSpotOut(
         id=spot.id,
-        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
+        name=(choose_text(normalized_lang, spot.name_zh, spot.name_en) or "") if is_unlocked else locked_spot_name(spot, normalized_lang),
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         is_unlocked=is_unlocked,
@@ -205,11 +226,8 @@ def spot_to_locked_detail_out(
     db: Optional[Session] = None,
 ) -> LockedSpotDetailOut:
     normalized_lang = normalize_language(lang, settings.default_language)
-    blocked_terms = tuple(
-        term
-        for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points))
-        if term
-    )
+    blocked_terms = tuple(term for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points)) if term)
+    intro = locked_spot_intro(spot, normalized_lang)
     images = []
     for image in spot.spot_images:
         if not image.is_active or image.media_type != "image":
@@ -218,9 +236,9 @@ def spot_to_locked_detail_out(
         images.append(image_out.model_copy(update={"caption": remove_location_text(image_out.caption, blocked_terms)}))
     return LockedSpotDetailOut(
         id=spot.id,
-        name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
-        summary=remove_location_text(choose_text(normalized_lang, spot.summary_zh, spot.summary_en), blocked_terms) or "",
-        description=remove_location_text(choose_text(normalized_lang, spot.description_zh, spot.description_en), blocked_terms),
+        name=locked_spot_name(spot, normalized_lang),
+        summary=intro,
+        description=intro,
         required_explore_points=required_explore_points,
         user_explore_points=user_explore_points,
         recommendation_level=spot.recommendation_level,

@@ -94,6 +94,8 @@ def ensure_runtime_columns() -> None:
             "required_explore_points": "INT NOT NULL DEFAULT 0",
         },
         "scenic_spots": {
+            "locked_name_zh": "VARCHAR(128) NULL",
+            "locked_name_en": "VARCHAR(128) NULL",
             "required_explore_points": "INT NOT NULL DEFAULT 0",
             "river_name": "VARCHAR(128) NULL",
             "river_upstream_latitude": "DOUBLE NULL",

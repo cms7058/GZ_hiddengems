@@ -70,7 +70,7 @@
       <view class="nearby-search">
         <text class="nearby-label">{{copy.radius}}</text>
         <view class="radius-control">
-          <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindfocus="onNearbyInputFocus" bindblur="onNearbyInputBlur" bindinput="onNearbyRadiusInput" />
+          <input class="radius-input" type="digit" value="{{nearbyRadiusKm}}" maxlength="4" bindfocus="onNearbyInputFocus" bindblur="onNearbyInputBlur" bindconfirm="onNearbyInputConfirm" bindinput="onNearbyRadiusInput" />
           <text class="radius-unit">{{copy.radiusUnit}}</text>
         </view>
       </view>

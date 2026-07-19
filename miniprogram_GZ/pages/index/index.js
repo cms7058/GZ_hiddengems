@@ -236,6 +236,7 @@ Page({
 
   onShow() {
     app.applyTabBarLanguage()
+    this.restoreNearbyTabBar()
     app.rememberTab("pages/index/index")
     if (this.data.lang !== (app.globalData.lang || "zh-CN")) this.onLanguageChanged()
   },
@@ -592,8 +593,6 @@ Page({
   },
 
   spotToMarker(spot, iconPath = "") {
-    const locked = !spot.is_unlocked
-    const markerColor = this.normalizeMarkerColor(spot.marker_color)
     return {
       id: spot.id,
       latitude: spot.latitude,
@@ -601,15 +600,6 @@ Page({
       width: 21,
       height: 26,
       ...(iconPath ? { iconPath } : {}),
-      callout: {
-        content: `${locked ? "🔒 " : ""}${spot.name}`,
-        color: locked ? "#7b6651" : "#ffffff",
-        fontSize: 13,
-        borderRadius: 8,
-        bgColor: locked ? "#fff2d8" : markerColor,
-        padding: 8,
-        display: "BYCLICK",
-      },
     }
   },
 
@@ -663,11 +653,12 @@ Page({
   shouldProtectNearbyInput() {
     try {
       const info = wx.getSystemInfoSync ? wx.getSystemInfoSync() : {}
-      const version = String(info.version || "")
-      const system = String(info.system || "")
-      return version === "8.0.72" || (/harmony/i.test(system) && version === "8.0.72")
+      // Native TabBar can receive the touch used to dismiss a numeric keyboard
+      // on several WeChat versions. Apply the protection to every real device
+      // instead of maintaining a brittle version allowlist.
+      return String(info.platform || "").toLowerCase() !== "devtools"
     } catch (error) {
-      return false
+      return true
     }
   },
 
@@ -679,12 +670,20 @@ Page({
   },
 
   onNearbyInputBlur() {
+    this.restoreNearbyTabBar(450)
+  },
+
+  onNearbyInputConfirm() {
+    this.restoreNearbyTabBar(450)
+  },
+
+  restoreNearbyTabBar(delay = 0) {
     if (!this.nearbyInputTabBarHidden || !wx.showTabBar) return
     clearTimeout(this.nearbyTabBarTimer)
     this.nearbyTabBarTimer = setTimeout(() => {
       wx.showTabBar({ animation: false })
       this.nearbyInputTabBarHidden = false
-    }, 180)
+    }, delay)
   },
 
   buildLockedNearbyPath(path, location, radiusKm) {

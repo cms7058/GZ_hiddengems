@@ -19,7 +19,6 @@
         <view class="title-mark" style="background: {{spot.marker_color}};"></view>
         <text class="spot-name">{{spot.name}}</text>
       </view>
-      <text class="spot-summary">{{spot.summary}}</text>
       <view class="locked-meta">
         <text>{{copy.locked}} · {{copy.level}} L{{spot.recommendation_level}}</text>
         <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>

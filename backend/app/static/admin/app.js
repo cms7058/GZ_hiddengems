@@ -1666,6 +1666,8 @@ function fillSpotForm(spot = null) {
   [
     "name_zh",
     "name_en",
+    "locked_name_zh",
+    "locked_name_en",
     "summary_zh",
     "summary_en",
     "description_zh",

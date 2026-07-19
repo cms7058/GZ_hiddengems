@@ -27,7 +27,7 @@ from app.services.points import award_points
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
 from app.services.safety_levels import apply_safety_level_policy
 from app.services.localization import choose_text, normalize_language
-from app.services.spot_mapper import comment_to_out, remove_location_text, travel_note_to_out
+from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, travel_note_to_out
 
 
 router = APIRouter()
@@ -123,9 +123,8 @@ def assistant_spot_reply(
     wants_culture = any(token in lower_query for token in ("人文", "地理", "历史", "文化", "风俗", "human", "culture", "history", "geography"))
 
     if not is_unlocked:
-        safe_summary = remove_location_text(summary, (spot.city, spot.county, spot.river_name))
-        safe_description = remove_location_text(description, (spot.city, spot.county, spot.river_name))
-        safe_intro = safe_description or safe_summary
+        name = locked_spot_name(spot, normalize_language(payload.lang, settings.default_language))
+        safe_intro = locked_spot_intro(spot, normalize_language(payload.lang, settings.default_language))
         need_points = max(required_points - user.explore_points, 0)
         answer = (
             f"{name} 尚未解锁。{safe_intro or '解锁后可查看完整介绍。'} 还需 {need_points} 探秘积分。"
@@ -223,6 +222,8 @@ def query_mini_assistant(payload: MiniAssistantQuery, db: Session = Depends(get_
             fallback_explore_points=user.explore_points,
             settings_by_level=get_active_pass_settings_by_level(db),
         )
+        if not is_unlocked:
+            name = locked_spot_name(spot, normalize_language(payload.lang, settings.default_language))
         suggestions.append({"id": spot.id, "name": name, "is_unlocked": is_unlocked})
     answer = (
         "我可以查询已审核景点的介绍、人文地理和路线，也可以查看你的积分、打卡和权限。请在问题中写出景点名称。"
