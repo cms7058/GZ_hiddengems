@@ -457,7 +457,7 @@
               <input id="wechatFinderUserName" maxlength="128" placeholder="视频号用户 ID（finder_user_name）" />
               <input id="wechatFeedId" maxlength="256" placeholder="视频 ID（feed_id）" />
               <input id="wechatVideoTitle" maxlength="256" placeholder="视频标题" />
-              <input id="wechatVideoCoverUrl" maxlength="512" placeholder="视频首帧/封面 URL（cover_url）" />
+              <input id="wechatVideoCoverUrl" maxlength="4096" placeholder="视频首帧/封面 URL（cover_url）" />
               <button id="cacheWechatVideoCoverUrlBtn" type="button" class="secondary-btn">从图片 URL 上传</button>
               <input id="wechatVideoCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
               <button id="uploadWechatVideoCoverBtn" type="button" class="secondary-btn">上传封面图片</button>
@@ -936,6 +936,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260720-auto-cache-video-channel-cover"></script>
+    <script src="/admin/static/app.js?v=20260720-long-video-channel-cover-url"></script>
   </body>
 </html>

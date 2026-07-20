@@ -45,7 +45,10 @@ MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
 class RemoteCoverCacheIn(BaseModel):
-    url: str = Field(..., min_length=1, max_length=512)
+    # Tencent Video/Channels image URLs often include long temporary tokens.
+    # The source is immediately copied to OSS, so only this transient input
+    # needs a larger limit; the persisted OSS URL remains short.
+    url: str = Field(..., min_length=1, max_length=4096)
 
 
 def sync_content_contribution(user, previous_status: str, next_status: str, db: Session) -> None:
