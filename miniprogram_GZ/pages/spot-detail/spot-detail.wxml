@@ -9,12 +9,18 @@
       <view class="hero">
         <swiper wx:if="{{photoSlides.length}}" class="hero-media" indicator-dots circular autoplay interval="4500">
           <swiper-item wx:for="{{photoSlides}}" wx:for-item="photo" wx:key="id">
+            <view wx:if="{{photo.media_type === 'video_channel'}}" class="hero-image-thumb hero-video-channel" data-url="{{photo.video_channel_url}}" bindtap="onOpenVideoChannel">
+              <text class="hero-video-channel-label">{{copy.videoChannel}}</text>
+              <text class="hero-video-channel-action">{{copy.openVideoChannel}}</text>
+            </view>
             <video
-              wx:if="{{photo.media_type === 'video'}}"
+              wx:elif="{{photo.media_type === 'video'}}"
               class="hero-image-thumb hero-video-thumb"
               src="{{photo.display_url || photo.image_url}}"
               object-fit="cover"
               controls
+              direction="0"
+              enable-play-gesture
             ></video>
             <image
               wx:else

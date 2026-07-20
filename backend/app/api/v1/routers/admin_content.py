@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot
+from app.models.user import CheckinRecord
 from app.schemas.content import (
     ContentStatusUpdate,
     ContentMediaOut,

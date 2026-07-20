@@ -71,6 +71,27 @@ page {
   display: block;
 }
 
+.hero-video-channel {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: #193127;
+  color: #ffffff;
+}
+
+.hero-video-channel-label {
+  font-size: 36rpx;
+  font-weight: 800;
+}
+
+.hero-video-channel-action {
+  font-size: 26rpx;
+  color: #cfe5d4;
+}
+
 .content {
   margin-top: -24rpx;
   padding: 28rpx 24rpx calc(148rpx + env(safe-area-inset-bottom));

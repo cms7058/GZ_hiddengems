@@ -69,6 +69,7 @@ const SECTION_IDS = new Set([
 ]);
 
 const PERMISSION_MODULES = [
+  ["spots", "秘境管理"],
   ["users", "用户管理"],
   ["tags", "标签管理"],
   ["pass_settings", "通关设置"],
@@ -482,6 +483,7 @@ function can(resource, action = "read") {
 
 function applyAdminPermissions() {
   const sectionResources = {
+    spotsSection: "spots",
     tagsSection: "tags",
     usersSection: "users",
     passSettingsSection: "pass_settings",
@@ -499,6 +501,7 @@ function applyAdminPermissions() {
   $("#rolesNavBtn")?.classList.toggle("hidden", state.admin?.role !== "super_admin");
   $("#growthNavBtn")?.classList.toggle("hidden", !can("growth"));
   const createButtons = {
+    "#newSpotBtn": "spots",
     "#newTagBtn": "tags",
     "#newUserBtn": "users",
     "#newPassSettingBtn": "pass_settings",
@@ -878,10 +881,10 @@ function renderSpots() {
           <td>${activePill(spot.is_active)}</td>
           <td>
             <div class="row-actions">
-              <button class="small-btn" data-edit-spot="${spot.id}">编辑</button>
-              <button class="small-btn" data-review-spot="${spot.id}" data-review-status="approved">通过</button>
-              <button class="small-btn" data-review-spot="${spot.id}" data-review-status="rejected">拒绝</button>
-              <button class="small-btn danger" data-delete-spot="${spot.id}">${t("删除")}</button>
+              ${can("spots", "update") ? `<button class="small-btn" data-edit-spot="${spot.id}">编辑</button>` : ""}
+              ${can("spots", "update") ? `<button class="small-btn" data-review-spot="${spot.id}" data-review-status="approved">通过</button>` : ""}
+              ${can("spots", "update") ? `<button class="small-btn" data-review-spot="${spot.id}" data-review-status="rejected">拒绝</button>` : ""}
+              ${can("spots", "delete") ? `<button class="small-btn danger" data-delete-spot="${spot.id}">${t("删除")}</button>` : ""}
             </div>
           </td>
         </tr>
@@ -1297,11 +1300,11 @@ function renderSpotImages() {
               </div>
               <div class="row-actions">
                 ${
-                  image.media_type === "video"
+                  image.media_type === "video" || !can("spots", "update")
                     ? ""
                     : `<button type="button" class="small-btn" data-cover-image="${image.id}">${t("设为封面")}</button>`
                 }
-                <button type="button" class="small-btn danger" data-delete-image="${image.id}">${t("删除")}</button>
+                ${can("spots", "delete") ? `<button type="button" class="small-btn danger" data-delete-image="${image.id}">${t("删除")}</button>` : ""}
               </div>
             </article>
           `,
@@ -1705,6 +1708,7 @@ function fillSpotForm(spot = null) {
     form.elements.river_name.value = "";
     form.elements.river_upstream_latitude.value = "";
     form.elements.river_upstream_longitude.value = "";
+    form.elements.video_channel_urls.value = "";
     form.elements.coordinate_system.value = "gcj02";
     form.elements.is_active.checked = true;
     return;
@@ -1738,6 +1742,7 @@ function fillSpotForm(spot = null) {
   ].forEach((field) => {
     form.elements[field].value = spot[field] ?? "";
   });
+  form.elements.video_channel_urls.value = (spot.video_channel_urls || []).join("\n");
   form.elements.is_active.checked = Boolean(spot.is_active);
 }
 
@@ -2907,6 +2912,7 @@ $("#spotForm").addEventListener("submit", async (event) => {
     river_name: data.river_name || null,
     river_upstream_latitude: data.river_upstream_latitude ? Number(data.river_upstream_latitude) : null,
     river_upstream_longitude: data.river_upstream_longitude ? Number(data.river_upstream_longitude) : null,
+    video_channel_urls: data.video_channel_urls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
     recommendation_level: Number(data.recommendation_level),
     required_explore_points: Number(data.required_explore_points),
     checkin_radius_meters: Number(data.checkin_radius_meters),

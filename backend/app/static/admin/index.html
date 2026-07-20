@@ -451,6 +451,7 @@
           <label><span>河流名称</span><input name="river_name" maxlength="128" placeholder="如：都柳江支流" /></label>
           <label><span>上游纬度</span><input name="river_upstream_latitude" type="number" step="0.000001" /></label>
           <label><span>上游经度</span><input name="river_upstream_longitude" type="number" step="0.000001" /></label>
+          <label class="full"><span>视频号链接</span><textarea name="video_channel_urls" rows="3" placeholder="一行一个视频号 URL；小程序会优先展示这些链接对应的视频"></textarea></label>
           <label>
             <span>可见级别</span>
             <select name="visibility_level">
@@ -919,6 +920,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260720-spot-list-tools"></script>
+    <script src="/admin/static/app.js?v=20260720-video-channel-links"></script>
   </body>
 </html>

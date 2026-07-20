@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Optional
 
@@ -83,6 +84,7 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
         river_name=spot.river_name,
         river_upstream_latitude=spot.river_upstream_latitude,
         river_upstream_longitude=spot.river_upstream_longitude,
+        video_channel_urls=get_video_channel_urls(spot),
         visibility_level=spot.visibility_level,
         review_status=spot.review_status,
         recommendation_level=spot.recommendation_level,
@@ -105,6 +107,14 @@ def locked_spot_name(spot: ScenicSpot, lang: str) -> str:
     if configured_name:
         return configured_name
     return "Locked Gem" if lang == "en-US" else "待解锁秘境"
+
+
+def get_video_channel_urls(spot: ScenicSpot) -> list[str]:
+    try:
+        values = json.loads(spot.video_channel_urls_json or "[]")
+    except json.JSONDecodeError:
+        return []
+    return [value for value in values if isinstance(value, str)]
 
 
 def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Optional[str]:
@@ -293,6 +303,7 @@ def spot_to_detail_out(
         **base.model_dump(),
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
+        video_channel_urls=get_video_channel_urls(spot),
         images=[spot_image_to_out(image, db) for image in getattr(spot, "spot_images", []) if image.is_active],
         travel_notes=[
             travel_note_to_out(note, db, include_unapproved_media=user is not None and note.user_id == user.id)

@@ -10,13 +10,15 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.models.admin import AdminUser
+from app.models.admin import AdminRole, AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
+from app.services.bootstrap import seed_admin_roles
+from app.services.permissions import ALL_PERMISSIONS
 from app.services.points import seed_point_rules
 from app.services.qweather import QWeatherClient
 
@@ -726,6 +728,87 @@ class ApiTest(unittest.TestCase):
             ).status_code,
             403,
         )
+
+        spot_role_response = self.client.post(
+            "/api/v1/admin/roles",
+            headers=super_headers,
+            json={
+                "code": "spot_manager",
+                "name": "秘境管理员",
+                "permissions": ["spots:read", "spots:create", "spots:update", "spots:delete"],
+            },
+        )
+        self.assertEqual(spot_role_response.status_code, 201)
+        admin_response = self.client.post(
+            "/api/v1/admin/roles/admins",
+            headers=super_headers,
+            json={"username": "spotmanager", "password": "manager-pass-123", "role": "spot_manager"},
+        )
+        self.assertEqual(admin_response.status_code, 201)
+        login_response = self.client.post(
+            "/api/v1/admin/login",
+            json={"username": "spotmanager", "password": "manager-pass-123"},
+        )
+        spot_headers = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
+        self.assertEqual(self.client.get("/api/v1/admin/spots", headers=spot_headers).status_code, 200)
+        self.assertEqual(
+            self.client.patch(
+                "/api/v1/admin/spots/1",
+                headers=spot_headers,
+                json={"summary_zh": "管理员可编辑。"},
+            ).status_code,
+            200,
+        )
+        image_response = self.client.post(
+            "/api/v1/admin/content/spots/1/images",
+            headers=spot_headers,
+            data={"caption": "管理员上传", "sort_order": "3"},
+            files={"file": ("spot.png", b"fake-image", "image/png")},
+        )
+        self.assertEqual(image_response.status_code, 201)
+        self.assertEqual(
+            self.client.delete(
+                f"/api/v1/admin/content/spot-images/{image_response.json()['id']}",
+                headers=spot_headers,
+            ).status_code,
+            204,
+        )
+
+    def test_spot_video_channel_urls_are_returned_in_detail(self):
+        headers = self.login_headers()
+        urls = [
+            "https://channels.weixin.qq.com/platform/post/example-one",
+            "https://channels.weixin.qq.com/platform/post/example-two",
+        ]
+        update_response = self.client.patch(
+            "/api/v1/admin/spots/1",
+            headers=headers,
+            json={"video_channel_urls": urls},
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(update_response.json()["video_channel_urls"], urls)
+
+        detail_response = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1&explore_points=120")
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.json()["video_channel_urls"], urls)
+
+    def test_seed_admin_roles_adds_spot_permissions_to_existing_operator(self):
+        db = self.SessionLocal()
+        db.add(
+            AdminRole(
+                code="operator",
+                name="运营管理员",
+                permissions_json=json.dumps(["tags:read"]),
+                is_active=True,
+            )
+        )
+        db.commit()
+        seed_admin_roles(db)
+        db.commit()
+        role = db.scalar(select(AdminRole).where(AdminRole.code == "operator"))
+        db.close()
+
+        self.assertEqual(set(json.loads(role.permissions_json)), set(ALL_PERMISSIONS))
 
     def test_super_admin_can_update_admin_username_and_reset_password(self):
         super_headers = self.login_headers()

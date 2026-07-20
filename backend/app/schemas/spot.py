@@ -1,6 +1,7 @@
 from typing import Literal, Optional
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.content import SpotImageOut
 
@@ -54,6 +55,7 @@ class SpotCreate(BaseModel):
     river_name: Optional[str] = Field(default=None, max_length=128)
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
+    video_channel_urls: list[str] = Field(default_factory=list, max_length=10)
     visibility_level: str = "public"
     review_status: str = "draft"
     recommendation_level: int = Field(..., ge=0, le=99)
@@ -61,6 +63,19 @@ class SpotCreate(BaseModel):
     checkin_radius_meters: int = 300
     is_active: bool = True
     tag_ids: list[int] = Field(default_factory=list)
+
+    @field_validator("video_channel_urls")
+    @classmethod
+    def validate_video_channel_urls(cls, values: list[str]) -> list[str]:
+        normalized = []
+        for value in values:
+            url = value.strip()
+            parsed = urlparse(url)
+            if len(url) > 512 or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("Video channel URLs must be valid HTTP(S) URLs")
+            if url not in normalized:
+                normalized.append(url)
+        return normalized
 
 
 class SpotUpdate(BaseModel):
@@ -80,6 +95,7 @@ class SpotUpdate(BaseModel):
     river_name: Optional[str] = Field(default=None, max_length=128)
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
+    video_channel_urls: Optional[list[str]] = Field(default=None, max_length=10)
     visibility_level: Optional[str] = None
     review_status: Optional[str] = None
     recommendation_level: Optional[int] = Field(default=None, ge=0, le=99)
@@ -87,6 +103,13 @@ class SpotUpdate(BaseModel):
     checkin_radius_meters: Optional[int] = None
     is_active: Optional[bool] = None
     tag_ids: Optional[list[int]] = None
+
+    @field_validator("video_channel_urls")
+    @classmethod
+    def validate_video_channel_urls(cls, values: Optional[list[str]]) -> Optional[list[str]]:
+        if values is None:
+            return values
+        return SpotCreate.validate_video_channel_urls(values)
 
 
 class ReviewStatusUpdate(BaseModel):
@@ -210,6 +233,7 @@ class LockedSpotDetailOut(BaseModel):
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
+    video_channel_urls: list[str] = Field(default_factory=list)
     images: list[SpotImageOut] = Field(default_factory=list)
     travel_notes: list[TravelNoteOut] = Field(default_factory=list)
     comments: list[UserCommentOut] = Field(default_factory=list)
