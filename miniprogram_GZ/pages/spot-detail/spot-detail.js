@@ -394,17 +394,12 @@ Page({
 
   buildPhotoSlides(spot) {
     const media = this.getSpotPhotos(spot)
-    const videoChannelSlides = (spot.video_channel_urls || []).map((url, index) => ({
-      id: `video-channel-${index}`,
-      media_type: "video_channel",
-      video_channel_url: url,
-    }))
-    const storedVideos = videoChannelSlides.length
+    const hasVideoChannel = (spot.video_channel_urls || []).length > 0
+    const storedVideos = hasVideoChannel
       ? []
       : media.filter((item) => (item.media_type || "image") === "video")
     return [
       ...media.filter((item) => (item.media_type || "image") === "image"),
-      ...videoChannelSlides,
       ...storedVideos,
     ]
   },
@@ -417,6 +412,25 @@ Page({
       .map((item) => item.display_url || item.image_url)
       .filter(Boolean)
     if (current && urls.length) wx.previewImage({ current, urls })
+  },
+
+  onSpotVideoPlay(event) {
+    this.openSpotVideoFullscreen(event.currentTarget.dataset.videoId || event.currentTarget.id)
+  },
+
+  onSpotVideoTap(event) {
+    const videoId = event.currentTarget.dataset.videoId || event.currentTarget.id
+    if (!videoId) return
+    const video = wx.createVideoContext(videoId, this)
+    video.play()
+    this.openSpotVideoFullscreen(videoId)
+  },
+
+  openSpotVideoFullscreen(videoId) {
+    if (!videoId) return
+    const video = wx.createVideoContext(videoId, this)
+    // The native player ignores a fullscreen request until its play state is ready.
+    setTimeout(() => video.requestFullScreen({ direction: 0 }), 120)
   },
 
   onOpenVideoChannel(event) {

@@ -71,26 +71,24 @@ page {
   display: block;
 }
 
-.hero-video-channel {
+.video-channel-list { margin-top: 24rpx; }
+
+.video-channel-link {
   display: flex;
-  flex-direction: column;
-  gap: 18rpx;
   align-items: center;
-  justify-content: center;
-  padding: 48rpx;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-height: 88rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 8rpx;
   background: #193127;
   color: #ffffff;
 }
 
-.hero-video-channel-label {
-  font-size: 36rpx;
-  font-weight: 800;
-}
+.video-channel-link + .video-channel-link { margin-top: 12rpx; }
 
-.hero-video-channel-action {
-  font-size: 26rpx;
-  color: #cfe5d4;
-}
+.video-channel-link-title { font-size: 28rpx; font-weight: 800; }
+.video-channel-link-action { color: #cfe5d4; font-size: 24rpx; }
 
 .content {
   margin-top: -24rpx;
