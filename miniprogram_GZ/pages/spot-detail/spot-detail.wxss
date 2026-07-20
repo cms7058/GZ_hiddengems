@@ -71,6 +71,25 @@ page {
   display: block;
 }
 
+.video-channel-list { margin-top: 24rpx; }
+
+.video-channel-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-height: 88rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 8rpx;
+  background: #193127;
+  color: #ffffff;
+}
+
+.video-channel-link + .video-channel-link { margin-top: 12rpx; }
+
+.video-channel-link-title { font-size: 28rpx; font-weight: 800; }
+.video-channel-link-action { color: #cfe5d4; font-size: 24rpx; }
+
 .content {
   margin-top: -24rpx;
   padding: 28rpx 24rpx calc(148rpx + env(safe-area-inset-bottom));

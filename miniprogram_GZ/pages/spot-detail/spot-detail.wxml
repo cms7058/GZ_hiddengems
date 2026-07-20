@@ -11,10 +11,16 @@
           <swiper-item wx:for="{{photoSlides}}" wx:for-item="photo" wx:key="id">
             <video
               wx:if="{{photo.media_type === 'video'}}"
+              id="spotDetailVideo-{{photo.id}}"
+              data-video-id="spotDetailVideo-{{photo.id}}"
               class="hero-image-thumb hero-video-thumb"
               src="{{photo.display_url || photo.image_url}}"
               object-fit="cover"
               controls
+              direction="0"
+              enable-play-gesture
+              bindtap="onSpotVideoTap"
+              bindplay="onSpotVideoPlay"
             ></video>
             <image
               wx:else
@@ -61,6 +67,12 @@
 
         <view wx:if="{{!spot.is_unlocked}}" class="locked-banner">{{copy.locked}}</view>
         <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
+        <view wx:if="{{spot.video_channel_urls.length}}" class="video-channel-list">
+          <view wx:for="{{spot.video_channel_urls}}" wx:key="*this" class="video-channel-link" data-url="{{item}}" bindtap="onOpenVideoChannel">
+            <text class="video-channel-link-title">{{copy.videoChannel}}</text>
+            <text class="video-channel-link-action">{{copy.openVideoChannel}} ›</text>
+          </view>
+        </view>
 
         <view class="stats">
           <view class="stat stat-action" data-target="checkin" bindtap="onStatTap">

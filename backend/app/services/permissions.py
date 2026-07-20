@@ -5,6 +5,7 @@ from app.models.admin import AdminRole, AdminUser
 
 
 RESOURCES = (
+    "spots",
     "users",
     "tags",
     "pass_settings",
@@ -36,7 +37,9 @@ def role_permissions(role: Optional[AdminRole], admin: AdminUser) -> list[str]:
 
 def permission_for_request(path: str, method: str) -> Optional[str]:
     resource = None
-    if "/admin/users" in path:
+    if "/admin/spots" in path or "/admin/content/spots/" in path or "/admin/content/spot-images" in path:
+        resource = "spots"
+    elif "/admin/users" in path:
         resource = "users"
     elif "/admin/tags" in path:
         resource = "tags"

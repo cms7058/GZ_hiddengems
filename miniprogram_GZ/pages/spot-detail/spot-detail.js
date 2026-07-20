@@ -62,6 +62,9 @@ const COPY = {
     mediaEmpty: "可选择图片或视频后再打卡",
     mediaImageTooLarge: "图片不能超过 2MB",
     mediaVideoTooLarge: "视频不能超过 8MB",
+    videoChannel: "视频号视频",
+    openVideoChannel: "点击打开视频号",
+    videoChannelLinkCopied: "视频号链接已复制",
     noteTitle: "游记标题",
     noteContent: "游记内容",
     commentContent: "留言内容",
@@ -136,6 +139,9 @@ const COPY = {
     mediaEmpty: "Choose photo or video before check-in",
     mediaImageTooLarge: "Image must not exceed 2MB",
     mediaVideoTooLarge: "Video must not exceed 8MB",
+    videoChannel: "Video Channel",
+    openVideoChannel: "Open Video Channel",
+    videoChannelLinkCopied: "Video Channel link copied",
     noteTitle: "Note Title",
     noteContent: "Travel Note",
     commentContent: "Comment",
@@ -387,7 +393,15 @@ Page({
   },
 
   buildPhotoSlides(spot) {
-    return this.getSpotPhotos(spot)
+    const media = this.getSpotPhotos(spot)
+    const hasVideoChannel = (spot.video_channel_urls || []).length > 0
+    const storedVideos = hasVideoChannel
+      ? []
+      : media.filter((item) => (item.media_type || "image") === "video")
+    return [
+      ...media.filter((item) => (item.media_type || "image") === "image"),
+      ...storedVideos,
+    ]
   },
 
   onPreviewSpotPhoto(event) {
@@ -398,6 +412,49 @@ Page({
       .map((item) => item.display_url || item.image_url)
       .filter(Boolean)
     if (current && urls.length) wx.previewImage({ current, urls })
+  },
+
+  onSpotVideoPlay(event) {
+    this.openSpotVideoFullscreen(event.currentTarget.dataset.videoId || event.currentTarget.id)
+  },
+
+  onSpotVideoTap(event) {
+    const videoId = event.currentTarget.dataset.videoId || event.currentTarget.id
+    if (!videoId) return
+    const video = wx.createVideoContext(videoId, this)
+    video.play()
+    this.openSpotVideoFullscreen(videoId)
+  },
+
+  openSpotVideoFullscreen(videoId) {
+    if (!videoId) return
+    const video = wx.createVideoContext(videoId, this)
+    // The native player ignores a fullscreen request until its play state is ready.
+    setTimeout(() => video.requestFullScreen({ direction: 0 }), 120)
+  },
+
+  onOpenVideoChannel(event) {
+    const url = event.currentTarget.dataset.url
+    if (!url) return
+    const query = url.includes("?") ? url.slice(url.indexOf("?") + 1) : ""
+    const values = query.split("&").reduce((result, pair) => {
+      const separator = pair.indexOf("=")
+      const key = separator === -1 ? pair : pair.slice(0, separator)
+      const value = separator === -1 ? "" : pair.slice(separator + 1)
+      if (key) result[decodeURIComponent(key)] = decodeURIComponent(value)
+      return result
+    }, {})
+    const finderUserName = values.finderUserName || values.finder_username
+    const feedId = values.feedId || values.feed_id
+    if (wx.openChannelsActivity && finderUserName && feedId) {
+      wx.openChannelsActivity({ finderUserName, feedId, fail: () => this.copyVideoChannelUrl(url) })
+      return
+    }
+    this.copyVideoChannelUrl(url)
+  },
+
+  copyVideoChannelUrl(url) {
+    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: this.data.copy.videoChannelLinkCopied, icon: "none" }) })
   },
 
   async onPreviewTravelNoteImage(event) {

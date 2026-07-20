@@ -45,7 +45,7 @@
 
       .app-shell {
         display: grid;
-        grid-template-columns: 230px minmax(0, 1fr);
+        grid-template-columns: 240px minmax(0, 1fr);
         min-height: 100vh;
       }
       .sidebar {
@@ -54,69 +54,30 @@
         display: grid;
         grid-template-rows: auto 1fr auto;
         height: 100vh;
-        padding: 24px 15px 18px;
-        background: #10251a;
+        gap: 24px;
+        padding: 24px 16px;
+        background: #0f261b;
         color: #fff;
       }
-      .brand { padding: 0 10px 22px; }
-      .brand-mark {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        margin-bottom: 14px;
-        border: 1px solid rgba(255,255,255,.22);
-        border-radius: 10px;
-        place-items: center;
-        background: rgba(255,255,255,.08);
-        color: #bde5ce;
-        font-size: 13px;
-        font-weight: 900;
-        letter-spacing: .06em;
-      }
-      .brand h1 { margin: 0; font-size: 20px; }
-      .brand p { margin: 6px 0 0; color: #9db3a6; font-size: 12px; }
-      .nav-label {
-        margin: 10px 11px 8px;
-        color: #718a7b;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: .12em;
-      }
-      .side-nav { display: grid; align-content: start; gap: 5px; }
+      .brand { padding: 0; }
+      .sidebar-eyebrow { margin: 0 0 6px; color: #9bd1b2; font-size: 11px; font-weight: 850; letter-spacing: .12em; }
+      .brand h1 { margin: 0; font-size: 24px; }
+      .side-nav { display: grid; align-content: start; gap: 8px; }
       .side-link {
         display: flex;
         align-items: center;
-        gap: 10px;
         width: 100%;
-        min-height: 42px;
+        min-height: 44px;
         border: 0;
         border-radius: 8px;
-        padding: 9px 11px;
+        padding: 10px 12px;
         background: transparent;
-        color: #c5d6cc;
+        color: #d7eadc;
         text-align: left;
+        text-decoration: none;
         font-weight: 700;
       }
-      .side-link span:first-child {
-        display: grid;
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        place-items: center;
-        background: rgba(255,255,255,.07);
-        font-size: 11px;
-      }
       .side-link:hover, .side-link.active { background: rgba(255,255,255,.1); color: #fff; }
-      .side-link.active { box-shadow: inset 3px 0 #75c69b; }
-      .sidebar-note {
-        border: 1px solid rgba(255,255,255,.1);
-        border-radius: 9px;
-        padding: 11px;
-        color: #9db3a6;
-        font-size: 11px;
-        line-height: 1.55;
-      }
-      .sidebar-note strong { display: block; margin-bottom: 3px; color: #d9e7df; }
 
       .workspace { min-width: 0; padding: 25px 28px 42px; }
       .topbar {
@@ -713,22 +674,23 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">RD</div>
+          <p class="sidebar-eyebrow">Explorer Admin</p>
           <h1>贵州秘境</h1>
-          <p>后台管理 · 研发闭环</p>
         </div>
-        <nav class="side-nav">
-          <p class="nav-label">业务管理</p>
-          <button class="side-link"><span>景</span>秘境管理</button>
-          <button class="side-link"><span>用</span>用户管理</button>
-          <button class="side-link"><span>内</span>内容审核</button>
-          <p class="nav-label">项目管理</p>
-          <button class="side-link active"><span>档</span>档案管理</button>
+        <nav class="side-nav" aria-label="后台导航">
+          <a class="side-link" href="/admin#spotsSection">秘境管理</a>
+          <a class="side-link" href="/admin#tagsSection">标签管理</a>
+          <a class="side-link" href="/admin#usersSection">用户管理</a>
+          <a class="side-link" href="/admin#passSettingsSection">通关设置</a>
+          <a class="side-link" href="/admin#membershipsSection">会员管理</a>
+          <a class="side-link" href="/admin#checkinsSection">打卡审核</a>
+          <a class="side-link" href="/admin#communitySection">游记留言</a>
+          <a class="side-link" href="/admin#recommendationsSection">衣食住行</a>
+          <a class="side-link" href="/admin#integrationsSection">接口管理</a>
+          <a class="side-link" href="/admin#growthSection">积分与推荐</a>
+          <a class="side-link" href="/admin#rolesSection">角色权限</a>
+          <a class="side-link active" href="/admin/archive" aria-current="page">档案管理</a>
         </nav>
-        <div class="sidebar-note">
-          <strong>后端已连接</strong>
-          需求、开发、自测、验收、返工和站内消息均保存到项目数据库。
-        </div>
       </aside>
 
       <main class="workspace">

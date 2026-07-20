@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -154,7 +155,8 @@ def create_admin_spot(
 ) -> SpotAdminOut:
     tags = load_tags(db, payload.tag_ids)
     validate_pass_level(db, payload.recommendation_level)
-    data = payload.model_dump(exclude={"tag_ids"})
+    data = payload.model_dump(exclude={"tag_ids", "video_channel_urls"})
+    data["video_channel_urls_json"] = json.dumps(payload.video_channel_urls, ensure_ascii=False)
     normalize_spot_coordinates(data)
     spot = ScenicSpot(**data)
     spot.spot_code = assign_spot_code(db, spot.recommendation_level)
@@ -227,6 +229,9 @@ def update_admin_spot(
 
     update_data = payload.model_dump(exclude_unset=True)
     tag_ids = update_data.pop("tag_ids", None)
+    video_channel_urls = update_data.pop("video_channel_urls", None)
+    if video_channel_urls is not None:
+        update_data["video_channel_urls_json"] = json.dumps(video_channel_urls, ensure_ascii=False)
     normalize_spot_coordinates(update_data, spot.latitude, spot.longitude)
     if "recommendation_level" in update_data:
         validate_pass_level(db, update_data["recommendation_level"])

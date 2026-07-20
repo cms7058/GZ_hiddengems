@@ -104,6 +104,7 @@ def ensure_runtime_columns() -> None:
             "river_name": "VARCHAR(128) NULL",
             "river_upstream_latitude": "DOUBLE NULL",
             "river_upstream_longitude": "DOUBLE NULL",
+            "video_channel_urls_json": "TEXT NULL",
         },
     }
     inspector = inspect(engine)
@@ -162,18 +163,28 @@ def seed_safety_level_policies(db: Session) -> None:
 
 
 def seed_admin_roles(db: Session) -> None:
-    if db.scalar(select(AdminRole).where(AdminRole.code == "operator")) is not None:
-        return
     import json
 
-    db.add(
-        AdminRole(
-            code="operator",
-            name="运营管理员",
-            permissions_json=json.dumps(list(ALL_PERMISSIONS)),
-            is_active=True,
+    role = db.scalar(select(AdminRole).where(AdminRole.code == "operator"))
+    if role is None:
+        db.add(
+            AdminRole(
+                code="operator",
+                name="运营管理员",
+                permissions_json=json.dumps(list(ALL_PERMISSIONS)),
+                is_active=True,
+            )
         )
-    )
+        return
+
+    try:
+        permissions = set(json.loads(role.permissions_json or "[]"))
+    except json.JSONDecodeError:
+        permissions = set()
+    missing_permissions = set(ALL_PERMISSIONS) - permissions
+    if missing_permissions:
+        role.permissions_json = json.dumps(sorted(permissions | missing_permissions))
+        db.add(role)
 
 
 def seed_admin(db: Session) -> None:

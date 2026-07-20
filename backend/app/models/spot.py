@@ -45,6 +45,7 @@ class ScenicSpot(Base):
     river_name = Column(String(128), nullable=True)
     river_upstream_latitude = Column(Float, nullable=True)
     river_upstream_longitude = Column(Float, nullable=True)
+    video_channel_urls_json = Column(Text, nullable=False, default="[]")
     visibility_level = Column(String(32), default="public", nullable=False)
     review_status = Column(String(32), default="draft", nullable=False)
     recommendation_level = Column(Integer, default=1, nullable=False)
