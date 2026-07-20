@@ -1,0 +1,2247 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>档案管理 · 研发闭环台账</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3f6f4;
+        --panel: #ffffff;
+        --panel-soft: #f8faf8;
+        --line: #dce5df;
+        --line-strong: #c9d7ce;
+        --text: #17231c;
+        --muted: #68756d;
+        --brand: #176b47;
+        --brand-strong: #0e4f34;
+        --brand-soft: #e8f4ed;
+        --blue: #2e6c8b;
+        --blue-soft: #eaf3f7;
+        --amber: #a66213;
+        --amber-soft: #fff4df;
+        --red: #ad352b;
+        --red-soft: #fff0ee;
+        --violet: #6953a6;
+        --violet-soft: #f1eef9;
+        --shadow: 0 16px 42px rgba(30, 50, 39, 0.09);
+        --radius: 12px;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .55; }
+      .hidden { display: none !important; }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        height: 100vh;
+        padding: 24px 15px 18px;
+        background: #10251a;
+        color: #fff;
+      }
+      .brand { padding: 0 10px 22px; }
+      .brand-mark {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 10px;
+        place-items: center;
+        background: rgba(255,255,255,.08);
+        color: #bde5ce;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: .06em;
+      }
+      .brand h1 { margin: 0; font-size: 20px; }
+      .brand p { margin: 6px 0 0; color: #9db3a6; font-size: 12px; }
+      .nav-label {
+        margin: 10px 11px 8px;
+        color: #718a7b;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .12em;
+      }
+      .side-nav { display: grid; align-content: start; gap: 5px; }
+      .side-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 42px;
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 11px;
+        background: transparent;
+        color: #c5d6cc;
+        text-align: left;
+        font-weight: 700;
+      }
+      .side-link span:first-child {
+        display: grid;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        place-items: center;
+        background: rgba(255,255,255,.07);
+        font-size: 11px;
+      }
+      .side-link:hover, .side-link.active { background: rgba(255,255,255,.1); color: #fff; }
+      .side-link.active { box-shadow: inset 3px 0 #75c69b; }
+      .sidebar-note {
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 9px;
+        padding: 11px;
+        color: #9db3a6;
+        font-size: 11px;
+        line-height: 1.55;
+      }
+      .sidebar-note strong { display: block; margin-bottom: 3px; color: #d9e7df; }
+
+      .workspace { min-width: 0; padding: 25px 28px 42px; }
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 20px;
+      }
+      .eyebrow { margin: 0 0 6px; color: var(--brand); font-size: 11px; font-weight: 850; letter-spacing: .12em; }
+      h2, h3, h4, p { margin-top: 0; }
+      .topbar h2 { margin-bottom: 5px; font-size: 25px; letter-spacing: -.02em; }
+      .muted { color: var(--muted); font-size: 13px; }
+      .top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+      .btn {
+        min-height: 38px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 8px 13px;
+        background: #fff;
+        color: var(--text);
+        font-weight: 750;
+      }
+      .btn:hover { border-color: #aebfb4; background: var(--panel-soft); }
+      .btn.primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+      .btn.primary:hover { background: var(--brand-strong); }
+      .btn.soft { border-color: #cce1d4; background: var(--brand-soft); color: var(--brand-strong); }
+      .btn.danger { border-color: #efc8c3; background: var(--red-soft); color: var(--red); }
+      .btn.small { min-height: 30px; border-radius: 6px; padding: 5px 9px; font-size: 12px; }
+      .btn.icon { width: 36px; padding: 0; font-size: 18px; }
+
+      .prototype-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+        border: 1px solid #c8dfd1;
+        border-radius: 10px;
+        padding: 11px 14px;
+        background: #edf7f1;
+        color: #28513b;
+        font-size: 12px;
+      }
+      .prototype-banner strong { color: #153e29; }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(125px, 1fr));
+        gap: 11px;
+        margin-bottom: 16px;
+      }
+      .metric-card {
+        min-height: 96px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 15px;
+        background: var(--panel);
+      }
+      .metric-card .metric-head { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
+      .metric-card .metric-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+      .metric-card strong { display: block; margin-top: 10px; font-size: 26px; letter-spacing: -.03em; }
+      .metric-card small { color: var(--muted); font-size: 11px; }
+
+      .flow-strip {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0;
+        margin-bottom: 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .flow-step {
+        position: relative;
+        min-height: 72px;
+        padding: 14px 13px 12px 39px;
+        border-right: 1px solid var(--line);
+      }
+      .flow-step:last-child { border-right: 0; }
+      .flow-step::before {
+        position: absolute;
+        top: 17px;
+        left: 13px;
+        display: grid;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand);
+        content: attr(data-step);
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .flow-step strong { display: block; margin-bottom: 4px; font-size: 12px; }
+      .flow-step span { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        box-shadow: 0 1px 0 rgba(26, 48, 34, .02);
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 15px 17px;
+        border-bottom: 1px solid var(--line);
+      }
+      .panel-head h3 { margin: 0 0 3px; font-size: 16px; }
+      .panel-head p { margin: 0; }
+      .tabs { display: flex; align-items: center; gap: 4px; overflow-x: auto; }
+      .tab {
+        min-height: 36px;
+        border: 0;
+        border-radius: 7px;
+        padding: 8px 12px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .tab.active { background: var(--brand-soft); color: var(--brand-strong); }
+      .tab .count {
+        display: inline-flex;
+        min-width: 19px;
+        height: 19px;
+        margin-left: 5px;
+        border-radius: 10px;
+        align-items: center;
+        justify-content: center;
+        background: rgba(23,107,71,.1);
+        font-size: 10px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 17px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfcfb;
+      }
+      .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+      input, select, textarea {
+        width: 100%;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        padding: 9px 10px;
+        outline: none;
+        background: #fff;
+        color: var(--text);
+      }
+      input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(23,107,71,.11); }
+      .filters input { width: 210px; }
+      .filters select { width: auto; min-width: 120px; }
+
+      .table-wrap { overflow: auto; }
+      table { width: 100%; min-width: 1040px; border-collapse: collapse; }
+      th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 12px; }
+      th { position: sticky; top: 0; background: #f8faf8; color: #536158; font-size: 11px; font-weight: 850; letter-spacing: .02em; }
+      tr:last-child td { border-bottom: 0; }
+      tbody tr:hover { background: #fbfdfb; }
+      .title-cell { display: grid; gap: 4px; min-width: 220px; }
+      .title-cell strong { font-size: 13px; }
+      .code { color: var(--brand); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 800; }
+      .source-quote {
+        max-width: 300px;
+        color: #536158;
+        line-height: 1.5;
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .pill {
+        display: inline-flex;
+        min-height: 23px;
+        border-radius: 999px;
+        align-items: center;
+        padding: 3px 8px;
+        background: var(--brand-soft);
+        color: var(--brand-strong);
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .pill.blue { background: var(--blue-soft); color: var(--blue); }
+      .pill.amber { background: var(--amber-soft); color: var(--amber); }
+      .pill.red { background: var(--red-soft); color: var(--red); }
+      .pill.violet { background: var(--violet-soft); color: var(--violet); }
+      .pill.gray { background: #edf0ee; color: #59655e; }
+      .confidence {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        align-items: center;
+        gap: 7px;
+        min-width: 112px;
+      }
+      .confidence-track { height: 5px; overflow: hidden; border-radius: 4px; background: #e6ebe8; }
+      .confidence-fill { height: 100%; border-radius: inherit; background: var(--brand); }
+      .row-actions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 160px; }
+      .empty { padding: 54px 20px; text-align: center; color: var(--muted); }
+      .empty strong { display: block; margin-bottom: 6px; color: var(--text); }
+
+      .kanban {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(230px, 1fr));
+        gap: 12px;
+        overflow-x: auto;
+        padding: 15px;
+      }
+      .kanban-column {
+        min-height: 370px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8faf8;
+      }
+      .kanban-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding: 2px 3px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .kanban-head span { color: var(--muted); }
+      .task-card {
+        margin-bottom: 8px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 11px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(34, 58, 43, .04);
+      }
+      .task-card .task-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .task-card h4 { margin: 8px 0 7px; font-size: 13px; line-height: 1.45; }
+      .task-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; color: var(--muted); font-size: 10px; }
+      .progress { height: 5px; margin-top: 10px; overflow: hidden; border-radius: 4px; background: #e6ebe8; }
+      .progress > span { display: block; height: 100%; background: var(--brand); }
+      .task-card footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+      .workflow-dialog { width: min(1280px, calc(100vw - 28px)); }
+      .workflow-summary {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(110px, .55fr));
+        gap: 10px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fafcfa;
+      }
+      .workflow-summary article { border-right: 1px solid var(--line); padding-right: 10px; }
+      .workflow-summary article:last-child { border-right: 0; }
+      .workflow-summary span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; }
+      .workflow-summary strong { font-size: 12px; }
+      .round-note {
+        margin-top: 8px;
+        border-left: 3px solid var(--red);
+        padding: 7px 8px;
+        background: var(--red-soft);
+        color: #7c2d26;
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .task-result-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .project-source { max-width: 380px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .result-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .result-option {
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        padding: 13px;
+        background: #fff;
+        text-align: left;
+      }
+      .result-option:hover, .result-option.selected { border-color: var(--brand); background: var(--brand-soft); }
+      .result-option strong { display: block; margin-bottom: 4px; }
+      .result-option span { color: var(--muted); font-size: 10px; }
+
+      dialog {
+        width: min(760px, calc(100vw - 28px));
+        max-height: calc(100vh - 40px);
+        border: 0;
+        border-radius: 14px;
+        padding: 0;
+        color: var(--text);
+        box-shadow: 0 28px 80px rgba(11, 29, 19, .24);
+      }
+      dialog::backdrop { background: rgba(11, 28, 19, .55); backdrop-filter: blur(2px); }
+      .dialog-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px 21px 15px;
+        border-bottom: 1px solid var(--line);
+      }
+      .dialog-head h3 { margin: 0 0 5px; }
+      .dialog-body { max-height: calc(100vh - 190px); overflow: auto; padding: 18px 21px; }
+      .dialog-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 13px 21px;
+        border-top: 1px solid var(--line);
+        background: #fafcfa;
+      }
+      .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; }
+      label { display: grid; gap: 6px; color: #46534b; font-size: 12px; font-weight: 750; }
+      label.full { grid-column: 1 / -1; }
+      textarea { min-height: 88px; resize: vertical; line-height: 1.55; }
+      .drop-zone {
+        display: grid;
+        min-height: 120px;
+        border: 1.5px dashed #a9c5b4;
+        border-radius: 10px;
+        place-items: center;
+        padding: 18px;
+        background: #f5faf7;
+        text-align: center;
+      }
+      .drop-zone.dragover { border-color: var(--brand); background: var(--brand-soft); }
+      .drop-zone strong { display: block; margin-bottom: 5px; }
+      .file-list { display: grid; gap: 7px; margin-top: 10px; }
+      .file-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; font-size: 11px; }
+      .privacy-note { margin-top: 12px; border-left: 3px solid #c0d8c8; padding: 9px 11px; background: #f6faf7; color: var(--muted); font-size: 11px; line-height: 1.55; }
+      .split-preview { display: grid; grid-template-columns: 1fr 1.15fr; gap: 13px; }
+      .chat-preview, .ai-preview { min-height: 260px; border: 1px solid var(--line); border-radius: 9px; padding: 12px; background: #f8faf8; }
+      .chat-message { max-width: 88%; margin-bottom: 8px; border-radius: 8px; padding: 8px 9px; background: #fff; font-size: 11px; line-height: 1.5; }
+      .chat-message.me { margin-left: auto; background: #dff0e5; }
+      .chat-message strong { display: block; margin-bottom: 2px; font-size: 10px; }
+      .ai-result { margin-bottom: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: #fff; }
+      .ai-result strong { display: block; margin: 5px 0 3px; font-size: 12px; }
+      .timeline { display: grid; gap: 0; }
+      .timeline-item { position: relative; padding: 0 0 17px 27px; }
+      .timeline-item::before { position: absolute; top: 4px; left: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); content: ""; }
+      .timeline-item::after { position: absolute; top: 13px; bottom: 0; left: 10px; width: 1px; background: var(--line-strong); content: ""; }
+      .timeline-item:last-child::after { display: none; }
+      .timeline-item strong { display: block; margin-bottom: 4px; font-size: 12px; }
+      .timeline-item p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 50;
+        max-width: 380px;
+        border-radius: 9px;
+        padding: 12px 14px;
+        background: #123c29;
+        color: #fff;
+        box-shadow: var(--shadow);
+        font-size: 12px;
+      }
+      .role-switch {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 38px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 4px 8px 4px 10px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 750;
+      }
+      .role-switch select {
+        width: auto;
+        min-width: 104px;
+        border: 0;
+        padding: 3px 22px 3px 4px;
+        box-shadow: none;
+        color: var(--text);
+        font-weight: 800;
+      }
+      .message-btn { position: relative; }
+      .notification-badge {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        display: grid;
+        min-width: 19px;
+        height: 19px;
+        border: 2px solid var(--bg);
+        border-radius: 10px;
+        place-items: center;
+        padding: 0 4px;
+        background: var(--red);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 900;
+      }
+      .permission-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        background: var(--amber-soft);
+        color: #70450f;
+        font-size: 11px;
+      }
+      .message-list { display: grid; gap: 9px; }
+      .message-card {
+        display: grid;
+        grid-template-columns: 35px 1fr auto;
+        gap: 10px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 11px;
+        background: #fff;
+      }
+      .message-card.unread { border-color: #bcd8c7; background: #f5faf7; }
+      .message-icon {
+        display: grid;
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+        place-items: center;
+        background: var(--brand-soft);
+        color: var(--brand);
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .message-card h4 { margin: 0 0 4px; font-size: 12px; }
+      .message-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .assistant-fab {
+        position: fixed;
+        right: 26px;
+        bottom: 26px;
+        z-index: 45;
+        display: grid;
+        width: 62px;
+        height: 62px;
+        border: 0;
+        border-radius: 50%;
+        place-items: center;
+        background: #164f38;
+        color: #fff;
+        box-shadow: 0 15px 32px rgba(18, 61, 42, .28);
+        touch-action: none;
+        user-select: none;
+      }
+      .assistant-fab:hover { background: #0f3f2c; transform: translateY(-1px); }
+      .assistant-fab strong { font-size: 15px; line-height: 1; }
+      .assistant-fab small { margin-top: -13px; color: #bfe0cd; font-size: 8px; }
+      .assistant-fab .notification-badge { top: -2px; right: -2px; border-color: #fff; }
+      .assistant-dialog { width: min(780px, calc(100vw - 28px)); }
+      .assistant-header-actions { display: flex; align-items: center; gap: 8px; }
+      .assistant-header-actions select { width: auto; min-width: 104px; }
+      .assistant-mode-tabs {
+        display: flex;
+        gap: 5px;
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--line);
+        background: #fafcfa;
+      }
+      .assistant-mode {
+        border: 0;
+        border-radius: 7px;
+        padding: 7px 11px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .assistant-mode.active { background: var(--brand-soft); color: var(--brand-strong); }
+      .assistant-layout {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr);
+        min-height: 390px;
+      }
+      .assistant-actions {
+        padding: 14px 12px;
+        border-right: 1px solid var(--line);
+        background: #f8faf8;
+      }
+      .assistant-actions p { margin: 0 0 9px; color: var(--muted); font-size: 10px; font-weight: 800; }
+      .assistant-choice {
+        display: block;
+        width: 100%;
+        margin-bottom: 6px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 8px 9px;
+        background: #fff;
+        color: var(--text);
+        text-align: left;
+        font-size: 11px;
+        font-weight: 750;
+      }
+      .assistant-choice:hover, .assistant-choice.active { border-color: #acd0b9; background: var(--brand-soft); color: var(--brand-strong); }
+      .assistant-main { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
+      .assistant-chat {
+        max-height: 390px;
+        overflow: auto;
+        padding: 16px;
+        background: #fff;
+      }
+      .assistant-bubble {
+        width: fit-content;
+        max-width: 86%;
+        margin-bottom: 9px;
+        border-radius: 10px 10px 10px 3px;
+        padding: 9px 11px;
+        background: #eef4f0;
+        color: #31443a;
+        font-size: 11px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .assistant-bubble.user {
+        margin-left: auto;
+        border-radius: 10px 10px 3px 10px;
+        background: var(--brand);
+        color: #fff;
+      }
+      .assistant-bubble.result {
+        width: 100%;
+        max-width: 100%;
+        border: 1px solid #c9dfd2;
+        background: #f5faf7;
+      }
+      .assistant-compose {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 7px;
+        padding: 11px;
+        border-top: 1px solid var(--line);
+        background: #fafcfa;
+      }
+      .assistant-compose textarea { min-height: 44px; max-height: 100px; }
+      .assistant-search {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 7px;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .evidence-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 6px;
+        border: 1px solid #cfdad3;
+        border-radius: 6px;
+        padding: 4px 6px;
+        background: #fff;
+        color: var(--blue);
+        font-size: 9px;
+        font-weight: 800;
+      }
+      .recognizing { display: flex; align-items: center; gap: 8px; }
+      .spinner { width: 15px; height: 15px; border: 2px solid #bdd5c5; border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (max-width: 1120px) {
+        .metrics { grid-template-columns: repeat(3, 1fr); }
+        .flow-strip { grid-template-columns: repeat(3, 1fr); }
+        .flow-step:nth-child(3) { border-right: 0; }
+        .flow-step:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+      }
+      @media (max-width: 780px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { position: static; display: block; height: auto; padding: 13px; }
+        .brand, .sidebar-note, .nav-label { display: none; }
+        .side-nav { display: flex; overflow-x: auto; }
+        .side-link { width: auto; min-width: max-content; }
+        .workspace { padding: 18px 14px 32px; }
+        .topbar, .toolbar, .prototype-banner { align-items: stretch; flex-direction: column; }
+        .top-actions { justify-content: flex-start; }
+        .metrics { grid-template-columns: repeat(2, 1fr); }
+        .flow-strip { grid-template-columns: repeat(2, 1fr); }
+        .flow-step { border-bottom: 1px solid var(--line); }
+        .flow-step:nth-child(2n) { border-right: 0; }
+        .form-grid, .split-preview { grid-template-columns: 1fr; }
+        .workflow-summary { grid-template-columns: 1fr 1fr; }
+        .assistant-layout { grid-template-columns: 1fr; }
+        .assistant-actions { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+        .assistant-actions p { display: none; }
+        .assistant-choice { min-width: max-content; margin: 0 5px 0 0; }
+        label.full { grid-column: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">RD</div>
+          <h1>贵州秘境</h1>
+          <p>后台管理 · 研发闭环</p>
+        </div>
+        <nav class="side-nav">
+          <p class="nav-label">业务管理</p>
+          <button class="side-link"><span>景</span>秘境管理</button>
+          <button class="side-link"><span>用</span>用户管理</button>
+          <button class="side-link"><span>内</span>内容审核</button>
+          <p class="nav-label">项目管理</p>
+          <button class="side-link active"><span>档</span>档案管理</button>
+        </nav>
+        <div class="sidebar-note">
+          <strong>后端已连接</strong>
+          需求、开发、自测、验收、返工和站内消息均保存到项目数据库。
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">REQUIREMENT · DEVELOPMENT · VALIDATION</p>
+            <h2>研发闭环台账</h2>
+            <p class="muted">把个人微信中的碎片沟通，转成可确认、可开发、可验证、可追溯的项目记录。</p>
+          </div>
+          <div class="top-actions">
+            <label class="role-switch">当前身份
+              <select id="roleSelect">
+                <option value="super_admin">超级管理员</option>
+                <option value="admin">管理员</option>
+              </select>
+            </label>
+            <button id="messageCenterBtn" class="btn message-btn">站内消息<span id="messageBadge" class="notification-badge">2</span></button>
+            <button id="resetBtn" class="btn">刷新数据</button>
+            <button id="openImportBtn" class="btn primary">导入微信聊天</button>
+          </div>
+        </header>
+
+        <div class="prototype-banner">
+          <span><strong>档案数据已接入后端。</strong> 管理员可导入并整理，只有超级管理员可以推进开发任务。</span>
+          <span id="lastSavedText">正在连接数据库</span>
+        </div>
+
+        <section class="metrics" aria-label="研发台账概览">
+          <article class="metric-card">
+            <div class="metric-head"><span>本周导入消息</span><i class="metric-dot"></i></div>
+            <strong id="metricMessages">37</strong>
+            <small>来自 3 次导入</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-head"><span>待人工确认</span><i class="metric-dot" style="background:#a66213"></i></div>
+            <strong id="metricPending">3</strong>
+            <small>AI 仅生成草稿</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-head"><span>开发进行中</span><i class="metric-dot" style="background:#2e6c8b"></i></div>
+            <strong id="metricDeveloping">2</strong>
+            <small>1 项临近计划日期</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-head"><span>等待验证</span><i class="metric-dot" style="background:#6953a6"></i></div>
+            <strong id="metricValidating">1</strong>
+            <small>需客户确认结果</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-head"><span>本月已闭环</span><i class="metric-dot"></i></div>
+            <strong id="metricClosed">8</strong>
+            <small>平均周期 4.2 天</small>
+          </article>
+        </section>
+
+        <section class="flow-strip" aria-label="闭环流程">
+          <div class="flow-step" data-step="1"><strong>导入原始记录</strong><span>文字、截图、语音或文件</span></div>
+          <div class="flow-step" data-step="2"><strong>AI识别归类</strong><span>新需求、变更、缺陷、确认</span></div>
+          <div class="flow-step" data-step="3"><strong>人工审核确认</strong><span>补全范围与验收标准</span></div>
+          <div class="flow-step" data-step="4"><strong>开发任务跟踪</strong><span>负责人、计划、代码和自测</span></div>
+          <div class="flow-step" data-step="5"><strong>验证与发布</strong><span>步骤、证据、结论和版本</span></div>
+          <div class="flow-step" data-step="6"><strong>客户验收关闭</strong><span>保留版本与完整时间线</span></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>项目记录</h3>
+              <p class="muted">仅显示主需求编号；点击查看闭环后管理开发、自测、客户验收和返工轮次。</p>
+            </div>
+            <span id="projectResultCount" class="pill">5 条主需求</span>
+          </div>
+
+          <div class="toolbar">
+            <div class="filters">
+              <input id="searchInput" type="search" placeholder="搜索编号、标题或微信原文" />
+              <select id="categoryFilter">
+                <option value="">全部分类</option>
+                <option value="新功能">新功能</option>
+                <option value="需求变更">需求变更</option>
+                <option value="缺陷">缺陷</option>
+                <option value="确认信息">确认信息</option>
+              </select>
+              <select id="statusFilter">
+                <option value="">全部状态</option>
+                <option value="待确认">待确认</option>
+                <option value="已确认">已确认</option>
+                <option value="待开始">待开始</option>
+                <option value="开发中">开发中</option>
+                <option value="已自测">已自测</option>
+                <option value="待客户验收">待客户验收</option>
+                <option value="验收未通过">验收未通过</option>
+                <option value="已完成">已完成</option>
+              </select>
+            </div>
+            <span id="resultHint" class="muted">按 2026-07-20 更新</span>
+          </div>
+
+          <div id="projectListView">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>需求编号 / 标题</th>
+                    <th>分类</th>
+                    <th>模块</th>
+                    <th>微信原始记录</th>
+                    <th>当前阶段</th>
+                    <th>返工轮次</th>
+                    <th>负责人</th>
+                    <th>计划发布</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="projectRecordsTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="recognitionView" class="tab-view hidden">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>识别结果</th>
+                    <th>分类</th>
+                    <th>微信原文</th>
+                    <th>来源日期</th>
+                    <th>置信度</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="recognitionTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="requirementsView" class="tab-view hidden">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>需求编号 / 标题</th>
+                    <th>模块</th>
+                    <th>分类</th>
+                    <th>版本</th>
+                    <th>优先级</th>
+                    <th>当前状态</th>
+                    <th>计划发布</th>
+                    <th>负责人</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="requirementsTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="developmentView" class="tab-view hidden">
+            <div class="permission-note"><strong>超级管理员专属：</strong>管理员可导入并整理需求，但只有超级管理员可以创建、分配和推进开发任务。</div>
+            <div id="developmentBoard" class="kanban"></div>
+          </div>
+
+          <div id="validationView" class="tab-view hidden">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>关联需求</th>
+                    <th>验证类型 / 环境</th>
+                    <th>验证人员</th>
+                    <th>验证日期</th>
+                    <th>实际结果</th>
+                    <th>发布版本</th>
+                    <th>结论</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="validationTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="importDialog">
+      <form id="importForm">
+        <header class="dialog-head">
+          <div>
+            <h3>导入个人微信聊天记录</h3>
+            <p class="muted">上传文件或粘贴聊天文字，系统先生成待确认草稿。</p>
+          </div>
+          <button type="button" class="btn icon" data-close="importDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <div class="form-grid">
+            <label>
+              项目
+              <select name="project"><option>贵州秘境小程序</option><option>其他软件项目</option></select>
+            </label>
+            <label>
+              沟通对象
+              <input name="contact" value="客户项目群" maxlength="64" />
+            </label>
+            <label class="full">
+              文件导入
+              <div id="dropZone" class="drop-zone">
+                <div>
+                  <strong>将聊天文件拖到这里</strong>
+                  <span class="muted">支持 TXT、CSV、JSON、截图与语音；本样本文字文件可直接读取</span><br />
+                  <button id="chooseFileBtn" type="button" class="btn small" style="margin-top:9px">选择文件</button>
+                  <input id="chatFileInput" type="file" multiple accept=".txt,.csv,.json,.md,image/*,audio/*" hidden />
+                </div>
+              </div>
+              <div id="fileList" class="file-list"></div>
+            </label>
+            <label class="full">
+              或粘贴聊天文字
+              <textarea id="chatText" name="chatText" rows="9">2026-07-20 09:16 客户张总：地图页能不能增加一个路线收藏功能，用户下次可以直接打开？
+2026-07-20 09:18 项目经理：可以，我整理一下范围和验收标准。
+2026-07-20 10:42 客户张总：还有首页那个绿色按钮，还是改成蓝色吧，昨天说的绿色不要了。
+2026-07-20 14:06 客户李工：后台导出打卡报表时打不开，一直提示文件生成失败，麻烦尽快处理。
+2026-07-20 15:30 客户张总：路线收藏先按每个用户最多20条做，这个没问题。</textarea>
+            </label>
+          </div>
+          <div class="privacy-note">
+            正式接入时建议保留原始记录的只读副本，并对手机号、身份证、合同金额等敏感内容进行脱敏。AI识别结果必须经项目负责人确认后才能成为正式需求。
+          </div>
+        </div>
+        <footer class="dialog-foot">
+          <button id="loadSampleBtn" type="button" class="btn">恢复示例聊天</button>
+          <div class="row-actions">
+            <button type="button" class="btn" data-close="importDialog">取消</button>
+            <button id="recognizeBtn" type="submit" class="btn primary">开始识别并整理</button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="recognitionPreviewDialog">
+      <header class="dialog-head">
+        <div>
+          <h3>识别完成 · 请人工复核</h3>
+          <p id="recognitionSummary" class="muted">从 5 条聊天中识别出 3 项可跟踪信息。</p>
+        </div>
+        <button type="button" class="btn icon" data-close="recognitionPreviewDialog" aria-label="关闭">×</button>
+      </header>
+      <div class="dialog-body">
+        <div class="split-preview">
+          <section>
+            <p class="eyebrow">微信原始记录</p>
+            <div id="chatPreview" class="chat-preview"></div>
+          </section>
+          <section>
+            <p class="eyebrow">AI整理草稿</p>
+            <div id="aiPreview" class="ai-preview"></div>
+          </section>
+        </div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="muted">所有结果均标记为“待确认”</span>
+        <button id="saveRecognitionBtn" type="button" class="btn primary">保存到项目记录</button>
+      </footer>
+    </dialog>
+
+    <dialog id="detailDialog">
+      <form id="detailForm">
+        <header class="dialog-head">
+          <div>
+            <h3 id="detailTitle">审核识别结果</h3>
+            <p id="detailSubtitle" class="muted">补全信息后确认入库</p>
+          </div>
+          <button type="button" class="btn icon" data-close="detailDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <input name="id" type="hidden" />
+          <div class="form-grid">
+            <label>标题<input name="title" required maxlength="128" /></label>
+            <label>所属模块<input name="module" required maxlength="64" /></label>
+            <label>
+              分类
+              <select name="category"><option>新功能</option><option>需求变更</option><option>缺陷</option><option>确认信息</option></select>
+            </label>
+            <label>
+              优先级
+              <select name="priority"><option>紧急</option><option>高</option><option>中</option><option>低</option></select>
+            </label>
+            <label class="full">整理后的需求描述<textarea name="description" required></textarea></label>
+            <label class="full">验收标准<textarea name="acceptance" required></textarea></label>
+            <label class="full">微信原文（只读）<textarea name="sourceText" readonly></textarea></label>
+            <label>提出人<input name="requester" /></label>
+            <label>来源日期<input name="sourceDate" type="date" /></label>
+            <label>计划发布<input name="plannedRelease" type="date" /></label>
+            <label>负责人<input name="owner" /></label>
+          </div>
+        </div>
+        <footer class="dialog-foot">
+          <button id="rejectRecognitionBtn" type="button" class="btn danger">标记为非需求</button>
+          <div class="row-actions">
+            <button type="button" class="btn" data-close="detailDialog">暂存修改</button>
+            <button type="submit" class="btn primary">确认并进入需求台账</button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="timelineDialog">
+      <header class="dialog-head">
+        <div>
+          <h3 id="timelineTitle">需求闭环时间线</h3>
+          <p id="timelineSubtitle" class="muted"></p>
+        </div>
+        <button type="button" class="btn icon" data-close="timelineDialog" aria-label="关闭">×</button>
+      </header>
+      <div class="dialog-body">
+        <div id="timelineContent" class="timeline"></div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="muted">可关联微信截图、代码提交和测试证据</span>
+        <button type="button" class="btn" data-close="timelineDialog">关闭</button>
+      </footer>
+    </dialog>
+
+    <dialog id="workflowDialog" class="workflow-dialog">
+      <header class="dialog-head">
+        <div>
+          <h3 id="workflowTitle">需求闭环详情</h3>
+          <p id="workflowSubtitle" class="muted"></p>
+        </div>
+        <button type="button" class="btn icon" data-close="workflowDialog" aria-label="关闭">×</button>
+      </header>
+      <div id="workflowSummary" class="workflow-summary"></div>
+      <div class="permission-note"><strong>闭环规则：</strong>待开始 → 新建开发任务 → 开发自测 → AI通知客户验收；验收不通过时生成下一轮子编号并回到待开始。</div>
+      <div id="workflowBoard" class="kanban"></div>
+    </dialog>
+
+    <dialog id="selfTestDialog">
+      <form id="selfTestForm">
+        <header class="dialog-head">
+          <div><h3>记录自测结果</h3><p id="selfTestTaskText" class="muted"></p></div>
+          <button type="button" class="btn icon" data-close="selfTestDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <input name="taskId" type="hidden" />
+          <div class="result-options">
+            <button type="button" class="result-option" data-self-test-result="通过"><strong>自测通过</strong><span>进入已自测，等待客户验收</span></button>
+            <button type="button" class="result-option" data-self-test-result="未通过"><strong>自测未通过</strong><span>保留在开发中，填写问题后继续修改</span></button>
+          </div>
+          <label style="margin-top:13px">自测说明<textarea name="detail" placeholder="记录测试步骤、结果、失败原因或证据"></textarea></label>
+        </div>
+        <footer class="dialog-foot">
+          <span class="muted">选择结果并填写说明后保存</span>
+          <button type="submit" class="btn primary">保存自测结果</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="acceptanceDialog">
+      <form id="acceptanceForm">
+        <header class="dialog-head">
+          <div><h3>AI通知与客户验收</h3><p id="acceptanceTaskText" class="muted"></p></div>
+          <button type="button" class="btn icon" data-close="acceptanceDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <input name="taskId" type="hidden" />
+          <div id="acceptanceAiNotice" class="privacy-note">AI助手尚未向客户发送验收消息。</div>
+          <button id="sendAcceptanceMessageBtn" type="button" class="btn soft" style="margin:12px 0">通过AI助手发送客户验收消息</button>
+          <div class="result-options">
+            <button type="button" class="result-option" data-acceptance-result="通过"><strong>客户验收通过</strong><span>项目完成并归档本轮记录</span></button>
+            <button type="button" class="result-option" data-acceptance-result="未通过"><strong>客户验收未通过</strong><span>记录原因并生成下一轮子需求编号</span></button>
+          </div>
+          <label style="margin-top:13px">客户验收详情<textarea name="detail" placeholder="填写客户反馈、未通过原因或确认内容"></textarea></label>
+        </div>
+        <footer class="dialog-foot">
+          <span class="muted">验收未通过将自动回流到“待开始”</span>
+          <button type="submit" class="btn primary">保存验收结果</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="validationDialog">
+      <form id="validationForm">
+        <header class="dialog-head">
+          <div>
+            <h3>提交验证结果</h3>
+            <p id="validationRequirementText" class="muted"></p>
+          </div>
+          <button type="button" class="btn icon" data-close="validationDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <input name="id" type="hidden" />
+          <div class="form-grid">
+            <label>验证环境<select name="environment"><option>测试环境</option><option>预发布环境</option><option>生产环境</option></select></label>
+            <label>验证人员<input name="tester" value="客户张总" /></label>
+            <label class="full">实际结果<textarea name="actualResult" required></textarea></label>
+            <label>发布版本<input name="releaseVersion" placeholder="V1.6.0" /></label>
+            <label>验证结论<select name="result"><option>通过</option><option>不通过</option><option>有条件通过</option></select></label>
+          </div>
+        </div>
+        <footer class="dialog-foot">
+          <span class="muted">不通过时需求将回到开发中</span>
+          <button type="submit" class="btn primary">保存验证结论</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="messageCenterDialog">
+      <header class="dialog-head">
+        <div>
+          <h3>站内消息</h3>
+          <p class="muted">AI助手提交、开发完成和客户验证都会产生可跟踪消息。</p>
+        </div>
+        <button type="button" class="btn icon" data-close="messageCenterDialog" aria-label="关闭">×</button>
+      </header>
+      <div class="dialog-body">
+        <div id="messageList" class="message-list"></div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="muted">阅读状态仅在本页面样本中保存</span>
+        <button id="markAllReadBtn" type="button" class="btn">全部标为已读</button>
+      </footer>
+    </dialog>
+
+    <button id="assistantFab" class="assistant-fab" type="button" aria-label="打开AI研发助手">
+      <strong>AI</strong><small>研发助手</small><span id="assistantBadge" class="notification-badge">2</span>
+    </button>
+
+    <dialog id="assistantDialog" class="assistant-dialog">
+      <header class="dialog-head">
+        <div>
+          <h3>AI 研发助手</h3>
+          <p class="muted">引导提交需求与缺陷，或模糊检索完整研发台账。</p>
+        </div>
+        <div class="assistant-header-actions">
+          <select id="assistantActor" aria-label="模拟提交身份">
+            <option value="customer">客户视角</option>
+            <option value="admin">管理员视角</option>
+          </select>
+          <button type="button" class="btn icon" data-close="assistantDialog" aria-label="关闭">×</button>
+        </div>
+      </header>
+      <div class="assistant-mode-tabs">
+        <button class="assistant-mode active" data-assistant-mode="submit">提交需求 / Bug</button>
+        <button class="assistant-mode" data-assistant-mode="search">模糊检索台账</button>
+      </div>
+      <section id="assistantSubmitView" class="assistant-layout">
+        <aside class="assistant-actions">
+          <p>第一步 · 选择分类</p>
+          <button class="assistant-choice" data-assistant-category="新功能">＋ 新功能需求</button>
+          <button class="assistant-choice" data-assistant-category="缺陷">! Bug / 缺陷修复</button>
+          <button class="assistant-choice" data-assistant-category="需求变更">↻ 需求调整</button>
+          <button class="assistant-choice" data-assistant-category="验证反馈">✓ 验证与改进</button>
+          <button class="assistant-choice" data-assistant-category="状态操作"># 查询 / 记录状态</button>
+        </aside>
+        <div class="assistant-main">
+          <div id="assistantChat" class="assistant-chat"></div>
+          <div class="assistant-compose">
+            <textarea id="assistantInput" rows="2" placeholder="请先在左侧选择分类"></textarea>
+            <button id="assistantAttachBtn" type="button" class="btn" title="添加图片证据">图片</button>
+            <button id="assistantSendBtn" type="button" class="btn primary">发送</button>
+          </div>
+        </div>
+      </section>
+      <section id="assistantSearchView" class="hidden">
+        <div class="assistant-search">
+          <input id="assistantSearchInput" placeholder="例如：7月20日 报表失败、蓝色按钮、微信截图" />
+          <button id="assistantSearchBtn" class="btn primary" type="button">检索</button>
+        </div>
+        <div id="assistantSearchResults" class="assistant-chat" style="min-height:390px"></div>
+      </section>
+    </dialog>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+      const STORAGE_KEY = "gz_requirements_prototype_v3";
+      const API_BASE = "/api/v1/admin/archive";
+      const adminToken = localStorage.getItem("gz_admin_token") || "";
+      const sampleChat = `2026-07-20 09:16 客户张总：地图页能不能增加一个路线收藏功能，用户下次可以直接打开？
+2026-07-20 09:18 项目经理：可以，我整理一下范围和验收标准。
+2026-07-20 10:42 客户张总：还有首页那个绿色按钮，还是改成蓝色吧，昨天说的绿色不要了。
+2026-07-20 14:06 客户李工：后台导出打卡报表时打不开，一直提示文件生成失败，麻烦尽快处理。
+2026-07-20 15:30 客户张总：路线收藏先按每个用户最多20条做，这个没问题。`;
+
+      const defaultState = {
+        activeTab: "recognition",
+        role: "super_admin",
+        messageCount: 37,
+        imports: 3,
+        siteMessages: [
+          { id:"MSG-0720-01", type:"客户需求", title:"客户通过AI助手提交新需求", text:"张总希望地图页增加路线收藏功能，请管理员确认分类和验收标准。", relatedId:"AI-260720-01", createdAt:"2026-07-20 15:32", unread:true },
+          { id:"MSG-0720-02", type:"待验证", title:"会员到期提醒已完成开发", text:"开发人员已完成自测，请安排客户在预发布环境验证。", relatedId:"REQ-20260717-003", createdAt:"2026-07-20 14:20", unread:true },
+          { id:"MSG-0719-03", type:"验证通过", title:"打卡报表日期筛选已验收", text:"客户李工确认生产环境验证通过，需求已自动闭环。", relatedId:"REQ-20260715-006", createdAt:"2026-07-19 17:46", unread:false }
+        ],
+        recognitions: [
+          {
+            id: "AI-260720-01", title: "地图页增加路线收藏功能", category: "新功能", module: "地图与路线",
+            sourceText: "地图页能不能增加一个路线收藏功能，用户下次可以直接打开？路线收藏先按每个用户最多20条做，这个没问题。",
+            description: "登录用户可在地图路线详情中收藏路线，并在个人中心再次打开；每个用户最多收藏20条。",
+            acceptance: "1. 登录用户可以收藏和取消收藏路线；\\n2. 个人中心展示已收藏路线；\\n3. 单个用户最多收藏20条；\\n4. 重复收藏不产生重复数据。",
+            requester: "客户张总", sourceDate: "2026-07-20", plannedRelease: "2026-07-25", owner: "王工",
+            priority: "中", confidence: 94, status: "待确认"
+          },
+          {
+            id: "AI-260720-02", title: "首页主按钮由绿色调整为蓝色", category: "需求变更", module: "首页界面",
+            sourceText: "还有首页那个绿色按钮，还是改成蓝色吧，昨天说的绿色不要了。",
+            description: "将首页主操作按钮从已确认的绿色方案调整为蓝色，需要保留为原需求的V2变更。",
+            acceptance: "1. 首页主操作按钮使用确认后的蓝色色值；\\n2. 文字对比度符合可读性要求；\\n3. 其他按钮颜色保持不变。",
+            requester: "客户张总", sourceDate: "2026-07-20", plannedRelease: "2026-07-22", owner: "陈工",
+            priority: "低", confidence: 91, status: "待确认"
+          },
+          {
+            id: "AI-260720-03", title: "后台打卡报表导出失败", category: "缺陷", module: "后台报表",
+            sourceText: "后台导出打卡报表时打不开，一直提示文件生成失败，麻烦尽快处理。",
+            description: "后台打卡报表导出时文件生成失败，需要定位数据量、文件生成或下载接口异常。",
+            acceptance: "1. 可正常生成并下载打卡报表；\\n2. 文件可用Excel打开；\\n3. 导出字段与筛选条件一致；\\n4. 失败时显示明确错误原因。",
+            requester: "客户李工", sourceDate: "2026-07-20", plannedRelease: "2026-07-21", owner: "李工",
+            priority: "紧急", confidence: 97, status: "待确认"
+          }
+        ],
+        requirements: [
+          { id:"REQ-20260718-001", title:"新增秘境路线收藏", module:"地图与路线", category:"新功能", version:"V1", priority:"中", status:"开发中", plannedRelease:"2026-07-25", owner:"王工", requester:"客户张总", sourceDate:"2026-07-18", sourceText:"路线后续最好可以收藏。", description:"用户可收藏路线并在个人中心查看。", acceptance:"收藏、取消收藏、列表查看均可正常使用。", evidence:["微信截图_路线收藏_0718.png"], createdAt:"2026-07-18 11:20" },
+          { id:"REQ-20260717-003", title:"会员到期前消息提醒", module:"会员管理", category:"新功能", version:"V1", priority:"高", status:"待验证", plannedRelease:"2026-07-21", owner:"周工", requester:"客户王经理", sourceDate:"2026-07-17", sourceText:"会员快到期要提醒一下。", description:"会员到期前3天发送站内提醒。", acceptance:"到期前3天生成一次提醒，已续费用户不提醒。", evidence:["提醒文案确认图.png"], createdAt:"2026-07-17 15:10" },
+          { id:"REQ-20260716-002", title:"首页主按钮颜色调整", module:"首页界面", category:"需求变更", version:"V2", priority:"低", status:"已确认", plannedRelease:"2026-07-22", owner:"陈工", requester:"客户张总", sourceDate:"2026-07-16", sourceText:"按钮还是改成蓝色。", description:"首页主按钮由绿色方案调整为蓝色。", acceptance:"蓝色色值确认，文字对比清晰。", evidence:["首页蓝色按钮标注图.png"], createdAt:"2026-07-16 10:42" },
+          { id:"REQ-20260715-006", title:"打卡报表支持按日期筛选", module:"后台报表", category:"新功能", version:"V1", priority:"中", status:"已完成", plannedRelease:"2026-07-19", owner:"李工", requester:"客户李工", sourceDate:"2026-07-15", sourceText:"导出打卡时按日期查。", description:"报表增加开始和结束日期筛选。", acceptance:"筛选条件正确作用于列表与导出文件。", evidence:["报表导出验证截图.png"], createdAt:"2026-07-15 09:30" },
+          { id:"REQ-20260714-004", title:"修复弱网下图片重复上传", module:"内容发布", category:"缺陷", version:"V1", priority:"高", status:"已完成", plannedRelease:"2026-07-18", owner:"赵工", requester:"客户运营", sourceDate:"2026-07-14", sourceText:"网络差时图片会传两遍。", description:"避免弱网重试产生重复媒体记录。", acceptance:"弱网重试仅保留一份图片记录。", evidence:["重复图片问题录屏.mp4","弱网测试结果.png"], createdAt:"2026-07-14 16:18" }
+        ],
+        development: [
+          { id:"DEV-0718-01", requirementId:"REQ-20260718-001", subRequirementId:"REQ-20260718-001", round:0, title:"设计并实现路线收藏接口", type:"后端", owner:"王工", startDate:"2026-07-19", endDate:"2026-07-23", status:"开发中", progress:65, selfTestResult:"", selfTestDetail:"", acceptanceResult:"", acceptanceDetail:"" },
+          { id:"DEV-0718-02", requirementId:"REQ-20260718-001", subRequirementId:"REQ-20260718-001", round:0, title:"地图页收藏入口与个人收藏列表", type:"前端", owner:"陈工", startDate:"2026-07-21", endDate:"2026-07-24", status:"待开始", progress:0, selfTestResult:"", selfTestDetail:"", acceptanceResult:"", acceptanceDetail:"" },
+          { id:"DEV-0717-01", requirementId:"REQ-20260717-003", subRequirementId:"REQ-20260717-003", round:0, title:"会员到期提醒任务与消息模板", type:"后端", owner:"周工", startDate:"2026-07-18", endDate:"2026-07-20", status:"已自测", progress:100, selfTestResult:"通过", selfTestDetail:"定时任务和消息模板自测通过。", acceptanceResult:"", acceptanceDetail:"" },
+          { id:"DEV-0716-01", requirementId:"REQ-20260716-002", subRequirementId:"REQ-20260716-002", round:0, title:"更新首页主按钮色彩变量", type:"前端", owner:"陈工", startDate:"2026-07-21", endDate:"2026-07-22", status:"待开始", progress:0, selfTestResult:"", selfTestDetail:"", acceptanceResult:"", acceptanceDetail:"" }
+        ],
+        validations: [
+          { id:"VAL-0717-01", requirementId:"REQ-20260717-003", type:"客户验收", environment:"预发布环境", tester:"客户王经理", date:"2026-07-21", actualResult:"等待客户使用测试账号确认提醒内容。", releaseVersion:"V1.6.0-rc1", result:"待验证" },
+          { id:"VAL-0715-01", requirementId:"REQ-20260715-006", type:"回归测试", environment:"生产环境", tester:"李工", date:"2026-07-19", actualResult:"日期筛选及导出结果一致，文件打开正常。", releaseVersion:"V1.5.3", result:"通过" },
+          { id:"VAL-0714-01", requirementId:"REQ-20260714-004", type:"缺陷复测", environment:"测试环境", tester:"赵工", date:"2026-07-18", actualResult:"模拟弱网重试10次，均未产生重复图片。", releaseVersion:"V1.5.2", result:"通过" }
+        ]
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+      const clone = (value) => JSON.parse(JSON.stringify(value));
+      const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[ch]));
+
+      let state = clone(defaultState);
+      let pendingRecognition = [];
+      let selectedFiles = [];
+      let currentWorkflowId = "";
+      let selectedSelfTestResult = "";
+      let selectedAcceptanceResult = "";
+      let acceptanceMessageSent = false;
+      let assistantMode = "submit";
+      let assistantDraft = { category:"", step:0, answers:[], imageName:"" };
+      let assistantMessages = [
+        { role:"assistant", text:"你好，我会先引导你选择事项分类，再逐步补全发生位置、问题描述、期望结果和优先级。提交后，管理员会收到站内消息进行确认。" }
+      ];
+
+      async function apiRequest(path, options = {}) {
+        const response = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminToken}`,
+            ...(options.headers || {})
+          }
+        });
+        if (response.status === 401) {
+          window.location.href = "/admin";
+          throw new Error("登录已失效，请重新登录");
+        }
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.detail || "后端请求失败");
+        return body;
+      }
+
+      async function loadBackendState(showMessage = false) {
+        if (!adminToken) {
+          window.location.href = "/admin";
+          return;
+        }
+        try {
+          const data = await apiRequest("/workspace");
+          state = { ...clone(defaultState), ...data, activeTab:"requirements" };
+          $("#roleSelect").disabled = true;
+          renderAll();
+          $("#lastSavedText").textContent = `数据库已同步 · ${new Date().toLocaleTimeString("zh-CN", { hour:"2-digit", minute:"2-digit" })}`;
+          if (showMessage) showToast("已从数据库刷新");
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      function saveState(message = "修改已保存到数据库") {
+        $("#lastSavedText").textContent = `数据库已更新 · ${new Date().toLocaleTimeString("zh-CN", { hour:"2-digit", minute:"2-digit" })}`;
+        if (message) showToast(message);
+      }
+
+      function showToast(message) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.remove("hidden");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.add("hidden"), 2800);
+      }
+
+      function pill(text) {
+        const style = text.includes("缺陷") || text.includes("紧急") || text.includes("不通过") ? "red"
+          : text.includes("变更") || text.includes("待确认") || text.includes("高") ? "amber"
+          : text.includes("开发") || text.includes("自测") ? "blue"
+          : text.includes("验证") || text.includes("条件") ? "violet"
+          : text.includes("完成") || text.includes("通过") || text.includes("确认") ? ""
+          : "gray";
+        return `<span class="pill ${style}">${escapeHtml(text)}</span>`;
+      }
+
+      function requirementById(id) {
+        return state.requirements.find(item => item.id === id);
+      }
+
+      function tasksForRequirement(requirementId) {
+        return state.development.filter(item => item.requirementId === requirementId);
+      }
+
+      function projectStatus(requirement) {
+        const tasks = tasksForRequirement(requirement.id);
+        if (!tasks.length) return requirement.status || "待确认";
+        if (tasks.some(task => task.status === "开发中")) return "开发中";
+        if (tasks.some(task => task.status === "待开始")) return "待开始";
+        if (tasks.some(task => task.status === "验收未通过")) return "验收未通过";
+        if (tasks.some(task => task.status === "已自测")) return "待客户验收";
+        if (tasks.every(task => task.status === "已完成" || task.status === "验收未通过")) return "已完成";
+        return requirement.status || "已确认";
+      }
+
+      function maxRound(requirementId) {
+        return tasksForRequirement(requirementId).reduce((max, task) => Math.max(max, Number(task.round || 0)), 0);
+      }
+
+      function filtered(items) {
+        const query = $("#searchInput").value.trim().toLowerCase();
+        const category = $("#categoryFilter").value;
+        const status = $("#statusFilter").value;
+        return items.filter(item => {
+          const requirement = item.requirementId ? requirementById(item.requirementId) : null;
+          const haystack = [item.id, item.title, item.sourceText, item.description, requirement?.id, requirement?.title].join(" ").toLowerCase();
+          return (!query || haystack.includes(query))
+            && (!category || item.category === category || requirement?.category === category)
+            && (!status || item.status === status || item.result === status || requirement?.status === status);
+        });
+      }
+
+      function renderMetrics() {
+        $("#metricMessages").textContent = state.messageCount;
+        $("#metricPending").textContent = state.recognitions.filter(item => item.status === "待确认").length;
+        $("#metricDeveloping").textContent = state.development.filter(item => item.status === "开发中").length;
+        $("#metricValidating").textContent = state.validations.filter(item => item.result === "待验证").length;
+        $("#metricClosed").textContent = state.requirements.filter(item => item.status === "已完成").length + 6;
+      }
+
+      function applyRolePermissions() {
+        const isSuperAdmin = state.role === "super_admin";
+        $("#roleSelect").value = state.role;
+        $$("[data-super-admin-only]").forEach(element => element.classList.toggle("hidden", !isSuperAdmin));
+        if (!isSuperAdmin && state.activeTab === "development") state.activeTab = "requirements";
+        const roleText = isSuperAdmin ? "超级管理员：可使用全部台账及开发任务管理" : "管理员：可导入微信消息、审核需求和跟踪验证，不可操作开发台账";
+        $("#resultHint").textContent = roleText;
+      }
+
+      function renderMessages() {
+        const messages = state.siteMessages || [];
+        const unread = messages.filter(item => item.unread).length;
+        $("#messageBadge").textContent = unread;
+        $("#assistantBadge").textContent = unread;
+        $("#messageBadge").classList.toggle("hidden", unread === 0);
+        $("#assistantBadge").classList.toggle("hidden", unread === 0);
+        $("#messageList").innerHTML = messages.length ? messages.map(item => `
+          <article class="message-card ${item.unread ? "unread" : ""}">
+            <div class="message-icon">${item.type.includes("验证") ? "验" : item.type.includes("缺陷") ? "修" : "需"}</div>
+            <div><h4>${escapeHtml(item.title)} ${item.unread ? pill("未读") : ""}</h4><p>${escapeHtml(item.text)}<br>${escapeHtml(item.createdAt)}</p></div>
+            <button class="btn small" data-open-message="${item.id}">去处理</button>
+          </article>`).join("") : `<div class="empty"><strong>暂无站内消息</strong>AI助手和验证流程产生的消息会显示在这里。</div>`;
+      }
+
+      function renderRecognition() {
+        const items = filtered(state.recognitions.filter(item => item.status !== "非需求"));
+        $("#recognitionTable").innerHTML = items.length ? items.map(item => `
+          <tr>
+            <td><div class="title-cell"><strong>${escapeHtml(item.title)}</strong><span class="code">${escapeHtml(item.id)}</span></div></td>
+            <td>${pill(item.category)}</td>
+            <td><div class="source-quote">“${escapeHtml(item.sourceText)}”</div></td>
+            <td>${escapeHtml(item.sourceDate)}<br><span class="muted">${escapeHtml(item.requester)}</span></td>
+            <td><div class="confidence"><strong>${item.confidence}%</strong><div class="confidence-track"><div class="confidence-fill" style="width:${item.confidence}%"></div></div></div></td>
+            <td>${pill(item.status)}</td>
+            <td><div class="row-actions"><button class="btn small" data-review="${item.id}">审核编辑</button><button class="btn small soft" data-confirm="${item.id}">直接确认</button></div></td>
+          </tr>`).join("") : `<tr><td colspan="7"><div class="empty"><strong>没有符合条件的识别结果</strong>可以导入一段新的微信聊天记录。</div></td></tr>`;
+      }
+
+      function renderRequirements() {
+        const items = filtered(state.requirements);
+        $("#requirementsTable").innerHTML = items.length ? items.map(item => `
+          <tr>
+            <td><div class="title-cell"><span class="code">${escapeHtml(item.id)}</span><strong>${escapeHtml(item.title)}</strong></div></td>
+            <td>${escapeHtml(item.module)}</td><td>${pill(item.category)}</td><td>${pill(item.version)}</td>
+            <td>${pill(item.priority)}</td><td>${pill(item.status)}</td><td>${escapeHtml(item.plannedRelease || "待排期")}</td>
+            <td>${escapeHtml(item.owner || "待分配")}</td>
+            <td><div class="row-actions"><button class="btn small" data-timeline="${item.id}">查看闭环</button></div></td>
+          </tr>`).join("") : `<tr><td colspan="9"><div class="empty"><strong>暂无需求</strong>确认AI识别结果后会进入这里。</div></td></tr>`;
+      }
+
+      function renderProjectRecords() {
+        const query = normalizeSearchText($("#searchInput").value);
+        const category = $("#categoryFilter").value;
+        const status = $("#statusFilter").value;
+        const items = state.requirements.filter(item => {
+          const currentStatus = projectStatus(item);
+          const haystack = normalizeSearchText([item.id, item.title, item.module, item.sourceText, item.description].join(" "));
+          return (!query || fuzzyContains(haystack, query))
+            && (!category || item.category === category)
+            && (!status || currentStatus === status);
+        });
+        $("#projectResultCount").textContent = `${items.length} 条主需求`;
+        $("#projectRecordsTable").innerHTML = items.length ? items.map(item => {
+          const round = maxRound(item.id);
+          const status = projectStatus(item);
+          return `<tr>
+            <td><div class="title-cell"><span class="code">${escapeHtml(item.id)}</span><strong>${escapeHtml(item.title)}</strong></div></td>
+            <td>${pill(item.category)}</td>
+            <td>${escapeHtml(item.module)}</td>
+            <td><div class="project-source">“${escapeHtml(item.sourceText || item.description)}”</div></td>
+            <td>${pill(status)}</td>
+            <td>${round ? pill(`已返工 ${round} 轮`) : '<span class="muted">首次开发</span>'}</td>
+            <td>${escapeHtml(item.owner || "待分配")}</td>
+            <td>${escapeHtml(item.plannedRelease || "待排期")}</td>
+            <td><button class="btn small" data-workflow="${item.id}">查看闭环</button></td>
+          </tr>`;
+        }).join("") : `<tr><td colspan="9"><div class="empty"><strong>没有符合条件的项目记录</strong>请调整分类、状态或搜索条件。</div></td></tr>`;
+      }
+
+      function renderDevelopment() {
+        const statuses = ["待开始", "开发中", "已自测", "已完成"];
+        const items = filtered(state.development);
+        $("#developmentBoard").innerHTML = statuses.map(status => {
+          const tasks = items.filter(item => item.status === status);
+          return `<section class="kanban-column">
+            <header class="kanban-head">${status}<span>${tasks.length}</span></header>
+            ${tasks.map(task => {
+              const req = requirementById(task.requirementId) || {};
+              return `<article class="task-card">
+                <div class="task-top"><span class="code">${escapeHtml(task.id)}</span>${pill(task.type)}</div>
+                <h4>${escapeHtml(task.title)}</h4>
+                <div class="task-meta"><span>${escapeHtml(req.id || "-")}</span><span>负责人：${escapeHtml(task.owner)}</span><span>${escapeHtml(task.endDate)}</span></div>
+                <div class="progress"><span style="width:${task.progress}%"></span></div>
+                <footer><button class="btn small" data-advance-dev="${task.id}">${status === "已完成" ? "查看" : "推进状态"}</button></footer>
+              </article>`;
+            }).join("") || `<div class="empty" style="padding:34px 8px">暂无任务</div>`}
+          </section>`;
+        }).join("");
+      }
+
+      function renderValidation() {
+        const items = filtered(state.validations);
+        $("#validationTable").innerHTML = items.length ? items.map(item => {
+          const req = requirementById(item.requirementId) || {};
+          return `<tr>
+            <td><div class="title-cell"><span class="code">${escapeHtml(req.id || item.requirementId)}</span><strong>${escapeHtml(req.title || "-")}</strong></div></td>
+            <td>${pill(item.type)}<br><span class="muted">${escapeHtml(item.environment)}</span></td>
+            <td>${escapeHtml(item.tester)}</td><td>${escapeHtml(item.date)}</td>
+            <td><div class="source-quote">${escapeHtml(item.actualResult)}</div></td>
+            <td>${escapeHtml(item.releaseVersion || "-")}</td><td>${pill(item.result)}</td>
+            <td><button class="btn small" data-validate="${item.id}">${item.result === "待验证" ? "填写结果" : "查看结果"}</button></td>
+          </tr>`;
+        }).join("") : `<tr><td colspan="8"><div class="empty"><strong>暂无验证记录</strong>开发自测完成后可发起验证。</div></td></tr>`;
+      }
+
+      function renderAll() {
+        applyRolePermissions();
+        renderMetrics();
+        renderMessages();
+        renderProjectRecords();
+        if (currentWorkflowId && $("#workflowDialog").open) renderWorkflow(currentWorkflowId);
+      }
+
+      function setTab(tab) {
+        renderAll();
+      }
+
+      function parseChat(text) {
+        const lines = text.split(/\\n+/).map(line => line.trim()).filter(Boolean);
+        const result = [];
+        const candidates = lines.filter(line => /(增加|新增|能不能|希望|改成|修改|不要了|打不开|失败|报错|异常|没问题|确认)/.test(line));
+        candidates.forEach((line, index) => {
+          if (/(项目经理|我方|开发)/.test(line) && !/(客户)/.test(line)) return;
+          const date = line.match(/20\\d{2}[-/.]\\d{1,2}[-/.]\\d{1,2}/)?.[0]?.replace(/[/.]/g, "-") || "2026-07-20";
+          const requester = line.match(/\\s([^\\s：:]{2,12})[：:]/)?.[1] || "客户";
+          const content = line.split(/[：:]/).slice(1).join("：").trim() || line;
+          let item;
+          if (/(打不开|失败|报错|异常)/.test(content)) {
+            item = {
+              title: content.includes("报表") ? "后台打卡报表导出失败" : content.slice(0, 26),
+              category:"缺陷", module: content.includes("报表") ? "后台报表" : "待确认模块", priority:"紧急",
+              description:`客户反馈“${content}”，需要复现问题、定位原因并完成修复。`,
+              acceptance:"1. 可稳定复现并定位原因；\\n2. 修复后原操作可正常完成；\\n3. 相关功能回归测试通过。",
+              confidence:96
+            };
+          } else if (/(改成|修改|不要了|还是)/.test(content)) {
+            item = {
+              title: content.includes("按钮") ? "首页主按钮由绿色调整为蓝色" : content.slice(0, 26),
+              category:"需求变更", module: content.includes("首页") || content.includes("按钮") ? "首页界面" : "待确认模块", priority:"低",
+              description:`客户对已沟通方案提出调整：“${content}”。需要关联原需求并记录为新版本。`,
+              acceptance:"1. 按最新确认方案调整；\\n2. 未涉及部分保持不变；\\n3. 变更影响和发布日期已重新确认。",
+              confidence:90
+            };
+          } else if (/(没问题|确认)/.test(content)) {
+            item = {
+              title:"客户确认需求范围", category:"确认信息", module:"地图与路线", priority:"中",
+              description:`客户确认：“${content}”。建议关联到对应需求的验收范围。`,
+              acceptance:"客户确认内容已关联到正确的需求版本。", confidence:84
+            };
+          } else {
+            item = {
+              title: content.includes("收藏") ? "地图页增加路线收藏功能" : content.slice(0, 26),
+              category:"新功能", module: content.includes("路线") || content.includes("地图") ? "地图与路线" : "待确认模块", priority:"中",
+              description:`根据客户微信沟通整理：${content}`,
+              acceptance:"1. 核心操作可正常完成；\\n2. 数据保存正确；\\n3. 权限、上限和异常提示已明确。",
+              confidence:92
+            };
+          }
+          result.push({
+            ...item, id:`AI-${String(Date.now()).slice(-6)}-${String(index + 1).padStart(2,"0")}`,
+            sourceText:content, requester, sourceDate:date, plannedRelease:"2026-07-25", owner:"待分配", status:"待确认"
+          });
+        });
+        const nonConfirmation = result.filter(item => item.category !== "确认信息");
+        const confirmation = result.find(item => item.category === "确认信息");
+        if (confirmation && nonConfirmation.find(item => item.title.includes("收藏"))) {
+          const target = nonConfirmation.find(item => item.title.includes("收藏"));
+          target.sourceText += ` ${confirmation.sourceText}`;
+          target.description += " 客户已补充确认每个用户最多20条。";
+          target.acceptance = "1. 可以收藏、取消收藏并再次打开路线；\\n2. 每个用户最多收藏20条；\\n3. 重复收藏不产生重复数据。";
+          target.confidence = 95;
+          return nonConfirmation;
+        }
+        return result.slice(0, 6);
+      }
+
+      function renderImportPreview(text, results) {
+        const lines = text.split(/\\n+/).filter(Boolean);
+        $("#chatPreview").innerHTML = lines.slice(0, 8).map((line, index) => {
+          const parts = line.split(/[：:]/);
+          return `<div class="chat-message ${index % 3 === 1 ? "me" : ""}"><strong>${escapeHtml(parts[0] || "微信消息")}</strong>${escapeHtml(parts.slice(1).join("：") || line)}</div>`;
+        }).join("");
+        $("#aiPreview").innerHTML = results.map(item => `
+          <article class="ai-result">${pill(item.category)} <span class="muted">置信度 ${item.confidence}%</span>
+            <strong>${escapeHtml(item.title)}</strong><span class="muted">${escapeHtml(item.module)} · ${escapeHtml(item.priority)}优先级</span>
+          </article>`).join("");
+        $("#recognitionSummary").textContent = `从 ${lines.length} 条聊天中识别出 ${results.length} 项可跟踪信息。`;
+      }
+
+      function openDetail(id) {
+        const item = state.recognitions.find(entry => entry.id === id);
+        if (!item) return;
+        const form = $("#detailForm");
+        Object.entries(item).forEach(([key, value]) => {
+          if (form.elements[key]) form.elements[key].value = value;
+        });
+        $("#detailTitle").textContent = item.category === "需求变更" ? "审核需求变更" : "审核识别结果";
+        $("#detailSubtitle").textContent = `${item.id} · AI置信度 ${item.confidence}%`;
+        $("#detailDialog").showModal();
+      }
+
+      function confirmRecognition(id, formData = null) {
+        const index = state.recognitions.findIndex(item => item.id === id);
+        if (index < 0) return;
+        const item = { ...state.recognitions[index], ...(formData || {}) };
+        item.status = "已确认";
+        const code = `REQ-${item.sourceDate.replaceAll("-","")}-${String(state.requirements.length + 1).padStart(3,"0")}`;
+        const existingChange = item.category === "需求变更" && state.requirements.find(req => req.module === item.module && req.category === "需求变更");
+        state.requirements.unshift({
+          ...item, id:code, version: existingChange ? "V3" : item.category === "需求变更" ? "V2" : "V1",
+          status:"已确认", createdAt:"2026-07-20 16:20"
+        });
+        state.recognitions.splice(index, 1);
+        saveState("已确认并进入需求台账");
+        renderAll();
+      }
+
+      function openTimeline(id) {
+        const req = requirementById(id);
+        if (!req) return;
+        const devs = state.development.filter(item => item.requirementId === id);
+        const validations = state.validations.filter(item => item.requirementId === id);
+        $("#timelineTitle").textContent = req.title;
+        $("#timelineSubtitle").textContent = `${req.id} · ${req.version} · ${req.status}`;
+        const events = [
+          { title:`微信提出 · ${req.requester}`, text:`${req.sourceDate}　“${req.sourceText}”` },
+          { title:`AI整理并由项目负责人确认`, text:`形成${req.category}，验收标准：${req.acceptance}` },
+          ...devs.map(dev => ({ title:`开发任务 · ${dev.status}`, text:`${dev.owner} 负责「${dev.title}」，计划 ${dev.startDate} 至 ${dev.endDate}` })),
+          ...validations.map(val => ({ title:`${val.type} · ${val.result}`, text:`${val.date} ${val.tester}：${val.actualResult}　版本 ${val.releaseVersion}` }))
+        ];
+        $("#timelineContent").innerHTML = events.map(event => `<article class="timeline-item"><strong>${escapeHtml(event.title)}</strong><p>${escapeHtml(event.text)}</p></article>`).join("");
+        $("#timelineDialog").showModal();
+      }
+
+      function ensureWorkflowTask(requirement) {
+        if (tasksForRequirement(requirement.id).length) return;
+        state.development.push({
+          id:`DEV-${requirement.id.slice(-8).replaceAll("-","")}`,
+          requirementId:requirement.id,
+          subRequirementId:requirement.id,
+          round:0,
+          title:requirement.title,
+          type:"综合开发",
+          owner:requirement.owner || "待分配",
+          startDate:requirement.sourceDate,
+          endDate:requirement.plannedRelease || "待排期",
+          status:requirement.status === "已完成" ? "已完成" : "待开始",
+          progress:requirement.status === "已完成" ? 100 : 0,
+          selfTestResult:requirement.status === "已完成" ? "通过" : "",
+          selfTestDetail:"",
+          acceptanceResult:requirement.status === "已完成" ? "通过" : "",
+          acceptanceDetail:""
+        });
+      }
+
+      function renderWorkflow(requirementId) {
+        const requirement = requirementById(requirementId);
+        if (!requirement) return;
+        ensureWorkflowTask(requirement);
+        const tasks = tasksForRequirement(requirementId).sort((a,b) => Number(a.round || 0) - Number(b.round || 0));
+        const round = maxRound(requirementId);
+        $("#workflowTitle").textContent = requirement.title;
+        $("#workflowSubtitle").textContent = `${requirement.id} · 主需求仅在项目列表显示此编号`;
+        $("#workflowSummary").innerHTML = `
+          <article><span>需求描述</span><strong>${escapeHtml(requirement.description)}</strong></article>
+          <article><span>当前阶段</span><strong>${escapeHtml(projectStatus(requirement))}</strong></article>
+          <article><span>当前轮次</span><strong>${round ? `第 ${round} 轮改进` : "首次开发"}</strong></article>
+          <article><span>计划发布</span><strong>${escapeHtml(requirement.plannedRelease || "待排期")}</strong></article>`;
+        const columns = [
+          { id:"待开始", label:"待开始", matches:task => task.status === "待开始" },
+          { id:"开发中", label:"开发中", matches:task => task.status === "开发中" },
+          { id:"已自测", label:"已自测", matches:task => task.status === "已自测" || task.status === "验收未通过" },
+          { id:"已完成", label:"已完成", matches:task => task.status === "已完成" }
+        ];
+        $("#workflowBoard").innerHTML = columns.map(column => {
+          const columnTasks = tasks.filter(column.matches);
+          return `<section class="kanban-column">
+            <header class="kanban-head">${column.label}<span>${columnTasks.length}</span></header>
+            ${columnTasks.map(task => {
+              const canOperate = state.role === "super_admin";
+              let action = '<span class="muted">管理员仅查看</span>';
+              if (canOperate && task.status === "待开始") action = `<button class="btn small primary" data-start-development="${task.id}">新建开发任务</button>`;
+              if (canOperate && task.status === "开发中") action = `<button class="btn small ${task.selfTestResult === "未通过" ? "danger" : ""}" data-self-test="${task.id}">${task.selfTestResult ? `自测${task.selfTestResult}` : "自测结果"}</button>`;
+              if (canOperate && task.status === "已自测") action = `<button class="btn small primary" data-customer-acceptance="${task.id}">客户验收</button>`;
+              if (canOperate && task.status === "验收未通过") action = `<span class="pill red">客户验收未通过</span>`;
+              if (task.status === "已完成") action = `<span class="pill">客户验收通过</span>`;
+              return `<article class="task-card">
+                <div class="task-top"><span class="code">${escapeHtml(task.subRequirementId || task.requirementId)}</span>${pill(task.type)}</div>
+                <h4>${escapeHtml(task.title)}</h4>
+                <div class="task-meta"><span>${escapeHtml(task.id)}</span><span>负责人：${escapeHtml(task.owner)}</span><span>${escapeHtml(task.endDate)}</span></div>
+                <div class="progress"><span style="width:${task.progress}%"></span></div>
+                <div class="task-result-row">
+                  ${task.selfTestResult ? pill(`自测${task.selfTestResult}`) : ""}
+                  ${task.acceptanceResult ? pill(`验收${task.acceptanceResult}`) : ""}
+                </div>
+                ${task.acceptanceResult === "未通过" ? `<div class="round-note"><strong>未通过原因：</strong>${escapeHtml(task.acceptanceDetail || "未填写")}<br>已生成下一轮改进任务。</div>` : ""}
+                ${task.selfTestResult === "未通过" && task.selfTestDetail ? `<div class="round-note"><strong>自测问题：</strong>${escapeHtml(task.selfTestDetail)}</div>` : ""}
+                <footer>${action}</footer>
+              </article>`;
+            }).join("") || `<div class="empty" style="padding:34px 8px">暂无记录</div>`}
+          </section>`;
+        }).join("");
+      }
+
+      function openWorkflow(requirementId) {
+        currentWorkflowId = requirementId;
+        renderWorkflow(requirementId);
+        $("#workflowDialog").showModal();
+      }
+
+      async function startDevelopment(taskId, viaAi = false) {
+        const task = state.development.find(item => item.id === taskId);
+        if (!task || task.status !== "待开始") return false;
+        try {
+          state = { ...state, ...(await apiRequest(`/tasks/${encodeURIComponent(task.id)}/start`, { method:"POST" })) };
+          saveState(viaAi ? "" : "开发任务已创建，进入开发中");
+          renderAll();
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      }
+
+      function openSelfTest(taskId) {
+        const task = state.development.find(item => item.id === taskId);
+        if (!task) return;
+        selectedSelfTestResult = "";
+        $("#selfTestForm").reset();
+        $("#selfTestForm").elements.taskId.value = task.id;
+        $("#selfTestTaskText").textContent = `${task.subRequirementId} · ${task.title}`;
+        $$("#selfTestDialog [data-self-test-result]").forEach(button => button.classList.remove("selected"));
+        $("#selfTestDialog").showModal();
+      }
+
+      async function applySelfTest(task, result, detail, viaAi = false) {
+        if (!task) return false;
+        try {
+          state = { ...state, ...(await apiRequest(`/tasks/${encodeURIComponent(task.id)}/self-test`, {
+            method:"POST",
+            body:JSON.stringify({ result, detail })
+          })) };
+          saveState(viaAi ? "" : `已记录：自测${result}`);
+          renderAll();
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      }
+
+      function openAcceptance(taskId) {
+        const task = state.development.find(item => item.id === taskId);
+        if (!task) return;
+        selectedAcceptanceResult = "";
+        acceptanceMessageSent = Boolean(task.acceptanceNotifiedAt);
+        $("#acceptanceForm").reset();
+        $("#acceptanceForm").elements.taskId.value = task.id;
+        $("#acceptanceTaskText").textContent = `${task.subRequirementId} · ${task.title}`;
+        $("#acceptanceAiNotice").textContent = acceptanceMessageSent
+          ? "AI助手已向客户发送验收消息，可记录客户结论。"
+          : "AI助手尚未向客户发送验收消息。";
+        $$("#acceptanceDialog [data-acceptance-result]").forEach(button => button.classList.remove("selected"));
+        $("#acceptanceDialog").showModal();
+      }
+
+      async function sendAcceptanceMessage(task, viaAi = false) {
+        if (!task) return;
+        try {
+          state = { ...state, ...(await apiRequest(`/tasks/${encodeURIComponent(task.id)}/notify-acceptance`, { method:"POST" })) };
+          acceptanceMessageSent = true;
+          if (!viaAi) {
+            $("#acceptanceAiNotice").textContent = `已发送：请客户验证 ${task.subRequirementId}，并通过AI助手反馈验收结论。`;
+            showToast("AI助手已向客户发送验收消息");
+          }
+          saveState("");
+          renderMessages();
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      async function applyAcceptance(task, result, detail, viaAi = false) {
+        if (!task) return false;
+        try {
+          state = { ...state, ...(await apiRequest(`/tasks/${encodeURIComponent(task.id)}/acceptance`, {
+            method:"POST",
+            body:JSON.stringify({ result, detail })
+          })) };
+          saveState(viaAi ? "" : result === "通过" ? "客户验收通过，项目进入完成" : "验收未通过，已生成下一轮子需求并回流");
+          renderAll();
+          return true;
+        } catch (error) {
+          showToast(error.message);
+          return false;
+        }
+      }
+
+      function openValidation(id) {
+        const item = state.validations.find(entry => entry.id === id);
+        if (!item) return;
+        const form = $("#validationForm");
+        Object.entries(item).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
+        const req = requirementById(item.requirementId);
+        $("#validationRequirementText").textContent = `${req?.id || item.requirementId} · ${req?.title || ""}`;
+        $("#validationDialog").showModal();
+      }
+
+      function renderAssistantChat() {
+        $("#assistantChat").innerHTML = assistantMessages.map(item =>
+          `<div class="assistant-bubble ${item.role === "user" ? "user" : item.role === "result" ? "result" : ""}">${escapeHtml(item.text)}</div>`
+        ).join("");
+        $("#assistantChat").scrollTop = $("#assistantChat").scrollHeight;
+        $("#assistantInput").placeholder = assistantDraft.category ? "输入本步信息，按 Enter 发送" : "请先在左侧选择分类";
+        $$(".assistant-choice").forEach(button => button.classList.toggle("active", button.dataset.assistantCategory === assistantDraft.category));
+      }
+
+      function setAssistantMode(mode) {
+        assistantMode = mode;
+        $$(".assistant-mode").forEach(button => button.classList.toggle("active", button.dataset.assistantMode === mode));
+        $("#assistantSubmitView").classList.toggle("hidden", mode !== "submit");
+        $("#assistantSearchView").classList.toggle("hidden", mode !== "search");
+        if (mode === "search") $("#assistantSearchInput").focus();
+      }
+
+      function chooseAssistantCategory(category) {
+        assistantDraft = { category, step:0, answers:[], imageName:"" };
+        assistantMessages.push({ role:"user", text:`选择分类：${category}` });
+        const prompts = {
+          "新功能":"请先说明这个需求发生在哪个页面、模块或业务环节？",
+          "缺陷":"请说明问题出现在哪个页面或功能，并告诉我使用的设备或环境（如果知道）。",
+          "需求变更":"请说明要修改哪一条已有需求或哪个功能？原方案是什么？",
+          "验证反馈":"请提供要验证的需求编号或功能名称，以及本次验证环境。",
+          "状态操作":"请输入完整需求编号（返工任务必须包含末尾轮次，例如 REQ-20260718-001-1），并说明要“查询状态”“新建开发任务”“自测通过/未通过”或“客户验收通过/未通过”。"
+        };
+        assistantMessages.push({ role:"assistant", text:prompts[category] });
+        renderAssistantChat();
+        $("#assistantInput").focus();
+      }
+
+      function submitAssistantAnswer() {
+        const input = $("#assistantInput");
+        const text = input.value.trim();
+        if (!assistantDraft.category) return showToast("请先选择新功能、缺陷、需求变更或验证反馈");
+        if (!text) return;
+        input.value = "";
+        assistantDraft.answers.push(text);
+        assistantMessages.push({ role:"user", text });
+        if (assistantDraft.category === "状态操作") {
+          handleAssistantStatusOperation(text);
+          renderAssistantChat();
+          return;
+        }
+        assistantDraft.step += 1;
+        const prompts = [
+          "",
+          assistantDraft.category === "缺陷"
+            ? "请描述实际发生了什么、如何复现，以及你原本期望的结果。可以点击“图片”添加截图说明。"
+            : "请详细描述要解决的问题、使用场景和希望达到的结果。可以点击“图片”添加参考图。",
+          "最后请说明紧急程度、期望完成时间，以及由谁来配合验证。",
+        ];
+        if (assistantDraft.step < 3) {
+          assistantMessages.push({ role:"assistant", text:prompts[assistantDraft.step] });
+        } else {
+          createAssistantSubmission();
+        }
+        renderAssistantChat();
+      }
+
+      async function handleAssistantStatusOperation(text) {
+        try {
+          const result = await apiRequest("/assistant/command", {
+            method:"POST",
+            body:JSON.stringify({ message:text })
+          });
+          if (result.workspace) state = { ...state, ...result.workspace };
+          assistantMessages.push({ role:"result", text:result.answer });
+          assistantDraft = { category:"", step:0, answers:[], imageName:"" };
+          renderAll();
+          renderAssistantChat();
+        } catch (error) {
+          assistantMessages.push({ role:"assistant", text:`操作失败：${error.message}` });
+          renderAssistantChat();
+        }
+      }
+
+      async function createAssistantSubmission() {
+        const actor = $("#assistantActor").value;
+        const requester = actor === "customer" ? "客户（AI助手）" : state.role === "super_admin" ? "超级管理员" : "管理员";
+        const category = assistantDraft.category;
+        const categoryForLedger = category === "验证反馈" ? "确认信息" : category;
+        const combined = assistantDraft.answers.join("；");
+        const moduleName = assistantDraft.answers[0].slice(0, 24) || "待确认模块";
+        const titlePrefix = category === "缺陷" ? "修复" : category === "需求变更" ? "调整" : category === "验证反馈" ? "验证" : "新增";
+        const payload = {
+          category:categoryForLedger,
+          module:moduleName,
+          title:`${titlePrefix}：${assistantDraft.answers[0].slice(0, 28)}`,
+          description:assistantDraft.answers[1] || combined,
+          acceptance_criteria:category === "缺陷"
+            ? "1. 问题可稳定复现并定位；\\n2. 修复后实际结果符合预期；\\n3. 相关功能完成回归测试。"
+            : "由管理员根据提交内容补充可验证的验收标准。",
+          requester,
+          priority:/紧急|今天|马上/.test(combined) ? "紧急" : /尽快|高/.test(combined) ? "高" : "中",
+          evidence:assistantDraft.imageName ? [assistantDraft.imageName] : []
+        };
+        try {
+          const result = await apiRequest("/assistant/submit", {
+            method:"POST",
+            body:JSON.stringify(payload)
+          });
+          if (result.workspace) state = { ...state, ...result.workspace };
+          assistantMessages.push({ role:"result", text:`${result.answer}\\n分类：${category}　优先级：${payload.priority}\\n管理员已收到站内消息。` });
+          assistantDraft = { category:"", step:0, answers:[], imageName:"" };
+          saveState("");
+          renderAll();
+          renderAssistantChat();
+        } catch (error) {
+          assistantMessages.push({ role:"assistant", text:`提交失败：${error.message}` });
+          renderAssistantChat();
+        }
+      }
+
+      function normalizeSearchText(value) {
+        return String(value || "").toLowerCase().replace(/\\s+/g, "");
+      }
+
+      function fuzzyContains(haystack, needle) {
+        if (haystack.includes(needle)) return true;
+        let position = 0;
+        for (const character of needle) {
+          position = haystack.indexOf(character, position);
+          if (position < 0) return false;
+          position += 1;
+        }
+        return true;
+      }
+
+      function searchLedger() {
+        const query = $("#assistantSearchInput").value.trim();
+        if (!query) return showToast("请输入日期、文字片段、编号或图片名称");
+        const dateMatch = query.match(/(\\d{1,2})月(\\d{1,2})日?/);
+        const expandedQuery = dateMatch
+          ? `${query} 2026-${String(dateMatch[1]).padStart(2,"0")}-${String(dateMatch[2]).padStart(2,"0")}`
+          : query;
+        const tokens = expandedQuery.split(/[\\s,，、]+/).map(normalizeSearchText).filter(Boolean);
+        const records = [
+          ...state.requirements.map(item => ({ ...item, recordType:"需求台账" })),
+          ...state.validations.map(item => {
+            const req = requirementById(item.requirementId) || {};
+            return { ...item, title:req.title || item.requirementId, module:req.module || "验证", status:item.result, sourceDate:item.date, sourceText:item.actualResult, evidence:req.evidence || [], recordType:"验证台账" };
+          }),
+          ...(state.role === "super_admin" ? state.development.map(item => {
+            const req = requirementById(item.requirementId) || {};
+            return { ...item, module:req.module || "开发", sourceDate:item.startDate, sourceText:`${item.owner} ${item.type} ${item.startDate} 至 ${item.endDate}`, evidence:req.evidence || [], recordType:"开发台账" };
+          }) : [])
+        ];
+        const scored = records.map(item => {
+          const evidence = item.evidence || [];
+          const haystack = normalizeSearchText([
+            item.id, item.title, item.module, item.category, item.status, item.sourceDate,
+            item.sourceText, item.description, item.acceptance, ...evidence
+          ].join(" "));
+          const score = tokens.reduce((total, token) => total + (fuzzyContains(haystack, token) ? 1 : 0), 0);
+          return { item, score, evidence };
+        }).filter(entry => entry.score > 0).sort((a,b) => b.score - a.score).slice(0, 8);
+        $("#assistantSearchResults").innerHTML = scored.length ? `
+          <div class="assistant-bubble">找到 ${scored.length} 条相关记录，已同时检索日期、微信原文、需求描述和图片文件名。</div>
+          ${scored.map(({item,evidence}) => `<div class="assistant-bubble result">
+            <span class="code">${escapeHtml(item.id)}</span>　${pill(item.recordType)}
+            <strong style="display:block;margin:6px 0 3px">${escapeHtml(item.title)}</strong>
+            <span class="muted">${escapeHtml(item.sourceDate)} · ${escapeHtml(item.module)} · ${escapeHtml(item.status)}</span>
+            <div style="margin-top:5px">${escapeHtml(item.sourceText || item.description || "")}</div>
+            ${evidence.map(name => `<span class="evidence-chip">图片证据 · ${escapeHtml(name)}</span>`).join("")}
+          </div>`).join("")}` : `<div class="empty"><strong>没有找到匹配记录</strong>可以换用需求编号、日期、微信原文片段或图片文件名。</div>`;
+      }
+
+      $$(".tab").forEach(button => button.addEventListener("click", () => setTab(button.dataset.tab)));
+      ["searchInput","categoryFilter","statusFilter"].forEach(id => $(`#${id}`).addEventListener("input", renderAll));
+      $("#openImportBtn").addEventListener("click", () => $("#importDialog").showModal());
+      $("#roleSelect").addEventListener("change", () => showToast("身份由当前登录账号权限决定"));
+      $("#messageCenterBtn").addEventListener("click", () => {
+        renderMessages();
+        $("#messageCenterDialog").showModal();
+      });
+      $("#markAllReadBtn").addEventListener("click", async () => {
+        try {
+          await apiRequest("/messages/read-all", { method:"POST" });
+          await loadBackendState();
+          showToast("站内消息已全部标为已读");
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+      $("#resetBtn").addEventListener("click", () => loadBackendState(true));
+      $$("[data-close]").forEach(button => button.addEventListener("click", () => $(`#${button.dataset.close}`).close()));
+
+      $$(".assistant-mode").forEach(button => button.addEventListener("click", () => setAssistantMode(button.dataset.assistantMode)));
+      $$(".assistant-choice").forEach(button => button.addEventListener("click", () => chooseAssistantCategory(button.dataset.assistantCategory)));
+      $("#assistantSendBtn").addEventListener("click", submitAssistantAnswer);
+      $("#assistantInput").addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          submitAssistantAnswer();
+        }
+      });
+      $("#assistantAttachBtn").addEventListener("click", () => {
+        assistantDraft.imageName = `AI助手上传图片_${String(Date.now()).slice(-5)}.png`;
+        assistantMessages.push({ role:"assistant", text:`已添加图片证据：${assistantDraft.imageName}。正式版会对图片做OCR识别并参与台账检索。` });
+        renderAssistantChat();
+      });
+      $("#assistantSearchBtn").addEventListener("click", searchLedger);
+      $("#assistantSearchInput").addEventListener("keydown", event => {
+        if (event.key === "Enter") searchLedger();
+      });
+
+      const assistantFab = $("#assistantFab");
+      let fabDrag = null;
+      const savedFabPosition = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_fab`) || "null");
+      if (savedFabPosition) {
+        assistantFab.style.left = `${savedFabPosition.x}px`;
+        assistantFab.style.top = `${savedFabPosition.y}px`;
+        assistantFab.style.right = "auto";
+        assistantFab.style.bottom = "auto";
+      }
+      assistantFab.addEventListener("pointerdown", event => {
+        const rect = assistantFab.getBoundingClientRect();
+        fabDrag = { startX:event.clientX, startY:event.clientY, offsetX:event.clientX - rect.left, offsetY:event.clientY - rect.top, moved:false };
+        assistantFab.setPointerCapture(event.pointerId);
+      });
+      assistantFab.addEventListener("pointermove", event => {
+        if (!fabDrag) return;
+        if (Math.hypot(event.clientX - fabDrag.startX, event.clientY - fabDrag.startY) > 4) fabDrag.moved = true;
+        if (!fabDrag.moved) return;
+        const x = Math.max(8, Math.min(window.innerWidth - assistantFab.offsetWidth - 8, event.clientX - fabDrag.offsetX));
+        const y = Math.max(8, Math.min(window.innerHeight - assistantFab.offsetHeight - 8, event.clientY - fabDrag.offsetY));
+        assistantFab.style.left = `${x}px`;
+        assistantFab.style.top = `${y}px`;
+        assistantFab.style.right = "auto";
+        assistantFab.style.bottom = "auto";
+      });
+      assistantFab.addEventListener("pointerup", event => {
+        if (!fabDrag) return;
+        const moved = fabDrag.moved;
+        fabDrag = null;
+        assistantFab.releasePointerCapture(event.pointerId);
+        if (moved) {
+          const rect = assistantFab.getBoundingClientRect();
+          localStorage.setItem(`${STORAGE_KEY}_fab`, JSON.stringify({ x:Math.round(rect.left), y:Math.round(rect.top) }));
+          showToast("AI助手位置已保存");
+        } else {
+          renderAssistantChat();
+          setAssistantMode("submit");
+          $("#assistantDialog").showModal();
+        }
+      });
+
+      $("#chooseFileBtn").addEventListener("click", () => $("#chatFileInput").click());
+      $("#chatFileInput").addEventListener("change", event => handleFiles(event.target.files));
+      const dropZone = $("#dropZone");
+      ["dragenter","dragover"].forEach(name => dropZone.addEventListener(name, event => { event.preventDefault(); dropZone.classList.add("dragover"); }));
+      ["dragleave","drop"].forEach(name => dropZone.addEventListener(name, event => { event.preventDefault(); dropZone.classList.remove("dragover"); }));
+      dropZone.addEventListener("drop", event => handleFiles(event.dataTransfer.files));
+
+      async function handleFiles(files) {
+        selectedFiles = [...files];
+        $("#fileList").innerHTML = selectedFiles.map(file => `<div class="file-item"><span>${escapeHtml(file.name)}</span><span class="muted">${Math.max(1, Math.round(file.size / 1024))} KB · ${file.type || "文件"}</span></div>`).join("");
+        const textFile = selectedFiles.find(file => /\\.(txt|csv|json|md)$/i.test(file.name));
+        if (textFile) {
+          $("#chatText").value = await textFile.text();
+          showToast("已读取文字聊天文件");
+        } else if (selectedFiles.length) {
+          showToast("已记录媒体文件名；OCR/语音识别服务可在下一阶段接入");
+        }
+      }
+
+      $("#loadSampleBtn").addEventListener("click", () => {
+        $("#chatText").value = sampleChat;
+        selectedFiles = [];
+        $("#fileList").innerHTML = "";
+      });
+
+      $("#importForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const text = $("#chatText").value.trim();
+        if (!text && !selectedFiles.length) return showToast("请粘贴聊天内容或选择文件");
+        const button = $("#recognizeBtn");
+        button.disabled = true;
+        button.innerHTML = `<span class="recognizing"><i class="spinner"></i>正在识别与归类</span>`;
+        setTimeout(() => {
+          pendingRecognition = parseChat(text || sampleChat);
+          renderImportPreview(text || sampleChat, pendingRecognition);
+          $("#importDialog").close();
+          $("#recognitionPreviewDialog").showModal();
+          button.disabled = false;
+          button.textContent = "开始识别并整理";
+        }, 950);
+      });
+
+      $("#saveRecognitionBtn").addEventListener("click", async () => {
+        if (!pendingRecognition.length) return;
+        const form = new FormData($("#importForm"));
+        try {
+          const result = await apiRequest("/imports/analyze", {
+            method:"POST",
+            body:JSON.stringify({
+              source_name:selectedFiles.map(file => file.name).join("、") || "微信聊天粘贴",
+              source_type:"wechat_personal",
+              contact:form.get("contact") || "客户项目群",
+              raw_text:$("#chatText").value.trim() || sampleChat,
+              evidence:selectedFiles.map(file => file.name)
+            })
+          });
+          state = { ...state, ...result.workspace };
+          pendingRecognition = [];
+          saveState(`已识别并保存 ${result.requirements.length} 条项目记录`);
+          $("#recognitionPreviewDialog").close();
+          renderAll();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+
+      document.addEventListener("click", event => {
+        const review = event.target.closest("[data-review]");
+        const confirmBtn = event.target.closest("[data-confirm]");
+        const timeline = event.target.closest("[data-timeline]");
+        const advance = event.target.closest("[data-advance-dev]");
+        const validate = event.target.closest("[data-validate]");
+        const messageButton = event.target.closest("[data-open-message]");
+        const workflowButton = event.target.closest("[data-workflow]");
+        const startDevelopmentButton = event.target.closest("[data-start-development]");
+        const selfTestButton = event.target.closest("[data-self-test]");
+        const acceptanceButton = event.target.closest("[data-customer-acceptance]");
+        if (review) openDetail(review.dataset.review);
+        if (confirmBtn && confirm("确认将这条AI草稿转为正式需求吗？")) confirmRecognition(confirmBtn.dataset.confirm);
+        if (timeline) openTimeline(timeline.dataset.timeline);
+        if (validate) openValidation(validate.dataset.validate);
+        if (workflowButton) openWorkflow(workflowButton.dataset.workflow);
+        if (startDevelopmentButton) startDevelopment(startDevelopmentButton.dataset.startDevelopment);
+        if (selfTestButton) openSelfTest(selfTestButton.dataset.selfTest);
+        if (acceptanceButton) openAcceptance(acceptanceButton.dataset.customerAcceptance);
+        if (messageButton) {
+          const message = state.siteMessages.find(item => item.id === messageButton.dataset.openMessage);
+          if (!message) return;
+          message.unread = false;
+          if (message.databaseId) {
+            apiRequest(`/messages/${message.databaseId}/read`, { method:"PATCH" }).catch(error => showToast(error.message));
+          }
+          saveState("");
+          renderAll();
+          $("#messageCenterDialog").close();
+          if (message.relatedId.startsWith("AI-")) {
+            openDetail(message.relatedId);
+          } else if (message.relatedId.startsWith("REQ-")) {
+            openWorkflow(message.relatedId);
+          }
+        }
+        if (advance) {
+          const task = state.development.find(item => item.id === advance.dataset.advanceDev);
+          if (!task || task.status === "已完成") return;
+          const statuses = ["待开始","开发中","已自测","已完成"];
+          task.status = statuses[Math.min(statuses.indexOf(task.status) + 1, statuses.length - 1)];
+          task.progress = { "待开始":0, "开发中":60, "已自测":100, "已完成":100 }[task.status];
+          const req = requirementById(task.requirementId);
+          if (req) req.status = task.status === "已自测" ? "待验证" : task.status === "已完成" ? "待验证" : "开发中";
+          if (task.status === "已自测" && !state.validations.some(item => item.requirementId === task.requirementId)) {
+            state.validations.unshift({ id:`VAL-${String(Date.now()).slice(-6)}`, requirementId:task.requirementId, type:"功能验证", environment:"测试环境", tester:"待分配", date:"2026-07-22", actualResult:"等待验证", releaseVersion:"V1.6.0-rc1", result:"待验证" });
+          }
+          saveState(`开发任务已推进到“${task.status}”`);
+          renderAll();
+        }
+      });
+
+      $$("#selfTestDialog [data-self-test-result]").forEach(button => button.addEventListener("click", () => {
+        selectedSelfTestResult = button.dataset.selfTestResult;
+        $$("#selfTestDialog [data-self-test-result]").forEach(item => item.classList.toggle("selected", item === button));
+      }));
+      $("#selfTestForm").addEventListener("submit", event => {
+        event.preventDefault();
+        if (!selectedSelfTestResult) return showToast("请选择自测通过或未通过");
+        const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+        const task = state.development.find(item => item.id === data.taskId);
+        applySelfTest(task, selectedSelfTestResult, data.detail);
+        $("#selfTestDialog").close();
+      });
+
+      $$("#acceptanceDialog [data-acceptance-result]").forEach(button => button.addEventListener("click", () => {
+        selectedAcceptanceResult = button.dataset.acceptanceResult;
+        $$("#acceptanceDialog [data-acceptance-result]").forEach(item => item.classList.toggle("selected", item === button));
+      }));
+      $("#sendAcceptanceMessageBtn").addEventListener("click", () => {
+        const task = state.development.find(item => item.id === $("#acceptanceForm").elements.taskId.value);
+        sendAcceptanceMessage(task);
+      });
+      $("#acceptanceForm").addEventListener("submit", event => {
+        event.preventDefault();
+        if (!acceptanceMessageSent) return showToast("请先通过AI助手向客户发送验收消息");
+        if (!selectedAcceptanceResult) return showToast("请选择客户验收通过或未通过");
+        const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+        if (selectedAcceptanceResult === "未通过" && !data.detail.trim()) return showToast("验收未通过时必须填写详细原因");
+        const task = state.development.find(item => item.id === data.taskId);
+        applyAcceptance(task, selectedAcceptanceResult, data.detail);
+        $("#acceptanceDialog").close();
+      });
+
+      $("#detailForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+        const id = data.id;
+        delete data.id;
+        confirmRecognition(id, data);
+        $("#detailDialog").close();
+      });
+      $("#rejectRecognitionBtn").addEventListener("click", () => {
+        const id = $("#detailForm").elements.id.value;
+        const item = state.recognitions.find(entry => entry.id === id);
+        if (item) item.status = "非需求";
+        saveState("已标记为非需求，原始记录仍然保留");
+        $("#detailDialog").close();
+        renderAll();
+      });
+
+      $("#validationForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+        const item = state.validations.find(entry => entry.id === data.id);
+        if (!item) return;
+        Object.assign(item, data);
+        item.date = "2026-07-20";
+        const req = requirementById(item.requirementId);
+        if (req) req.status = data.result === "通过" ? "已完成" : data.result === "不通过" ? "开发中" : "待验证";
+        saveState(`验证结论已保存：${data.result}`);
+        $("#validationDialog").close();
+        renderAll();
+      });
+
+      renderAssistantChat();
+      $("#assistantSearchResults").innerHTML = `<div class="empty"><strong>支持模糊检索</strong>输入日期、文字片段、需求编号或图片文件名，例如“7月20日 报表失败”。</div>`;
+      renderAll();
+      loadBackendState();
+    </script>
+  </body>
+</html>

@@ -49,6 +49,7 @@
           <button class="nav-btn" data-section="integrationsSection">接口管理</button>
           <button id="growthNavBtn" class="nav-btn" data-section="growthSection">积分与推荐</button>
           <button id="rolesNavBtn" class="nav-btn" data-section="rolesSection">角色权限</button>
+          <a class="nav-btn" href="/admin/archive">档案管理</a>
         </nav>
         <button id="logoutBtn" class="ghost-btn">退出登录</button>
       </aside>
@@ -893,7 +894,7 @@
         <header>
           <div>
             <h2>AI 小助手</h2>
-            <p class="muted">操作指南、双语简介、坐标采集与内容初审建议。</p>
+            <p class="muted">操作指南、档案闭环、双语简介、坐标采集与内容初审建议。</p>
           </div>
           <button type="button" class="icon-btn" data-close-dialog="adminAssistantDialog">×</button>
         </header>
@@ -903,6 +904,7 @@
           <button type="button" class="secondary-btn" data-assistant-mode="spot_summary">生成中英文简介</button>
           <button type="button" class="secondary-btn" data-assistant-mode="coordinate">获取坐标方法</button>
           <button type="button" class="secondary-btn" data-assistant-mode="review">内容初审建议</button>
+          <button type="button" class="secondary-btn" data-assistant-mode="archive">档案闭环</button>
         </div>
         <div id="assistantMessages" class="assistant-messages"></div>
         <label>

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminRole, AdminUser
+from app.models.archive import ArchiveChatImport, ArchiveDevelopmentTask, ArchiveEvent, ArchiveInternalMessage, ArchiveRequirement
 from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag
@@ -24,6 +25,7 @@ from app.models.user import (
     UserMembership,
 )
 from app.services.security import hash_password
+from app.services.archive import seed_archive_data
 from app.services.integrations import seed_integration_settings
 from app.services.permissions import ALL_PERMISSIONS
 from app.services.points import seed_point_rules
@@ -130,6 +132,7 @@ def seed_initial_data() -> None:
         seed_safety_level_policies(db)
         seed_point_rules(db)
         seed_integration_settings(db)
+        seed_archive_data(db)
         db.commit()
 
 

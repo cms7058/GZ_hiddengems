@@ -2360,6 +2360,7 @@ $$("[data-assistant-mode]").forEach((button) => {
       spot_summary: "请根据我接下来提供的景点资料，生成适合小程序展示的中英文简介，并提示需要人工核实的内容。",
       coordinate: "请说明如何合法、准确地采集景点坐标，并如何处理需要保护的精确坐标。",
       review: "请说明游记、留言及其图片/视频的初审流程与风险检查要点。",
+      archive: "请输入完整需求编号（包括返工子编号）并说明操作，例如：REQ-20260718-001 查询状态。",
     };
     $("#assistantInput").value = prompts[mode] || "";
     $("#assistantInput").focus();

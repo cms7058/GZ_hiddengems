@@ -7,6 +7,7 @@ from app.models.admin import AdminUser
 from app.models.content import ContentMedia, TravelNote, UserComment
 from app.schemas.admin_assistant import AdminAssistantRequest, ContentReviewRequest
 from app.services.admin_assistant import answer_admin_question, answer_content_review, pending_summary
+from app.services.archive import handle_admin_archive_command
 from app.services.integrations import get_group_config
 
 
@@ -26,6 +27,14 @@ def chat_with_admin_assistant(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> dict:
+    if payload.mode == "archive":
+        result = handle_admin_archive_command(
+            db,
+            current_admin.role,
+            current_admin.username,
+            payload.message,
+        )
+        return {**result, "pending": pending_summary(db)}
     result = answer_admin_question(get_group_config(db, "ai"), payload.message, payload.mode, pending_summary(db))
     return {**result, "pending": pending_summary(db)}
 

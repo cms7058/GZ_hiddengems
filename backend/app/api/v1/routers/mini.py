@@ -27,6 +27,7 @@ from app.services.points import award_points
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
 from app.services.safety_levels import apply_safety_level_policy
 from app.services.localization import choose_text, normalize_language
+from app.services.archive import handle_mini_archive_query
 from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, travel_note_to_out
 
 
@@ -180,6 +181,9 @@ def query_mini_assistant(payload: MiniAssistantQuery, db: Session = Depends(get_
     chinese = assistant_is_chinese(payload.lang)
     query = payload.query.strip()
     lower_query = query.lower()
+    archive_answer = handle_mini_archive_query(db, user, query)
+    if archive_answer is not None:
+        return archive_answer
     asks_about_me = any(token in lower_query for token in ("我的", "我", "积分", "打卡", "会员", "权限", "分享", "资料", "账号", "my", "points", "check-in", "membership", "permissions", "profile"))
     if asks_about_me:
         answer = (

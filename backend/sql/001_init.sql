@@ -454,3 +454,107 @@ INSERT IGNORE INTO lifestyle_recommendations (
     (2, 1, 'food', '从江酸汤鱼本地小馆', 'Congjiang Sour Soup Fish', '适合加榜梯田返程用餐，口味偏酸辣。', 'A sour and spicy local meal after visiting Jiabang terraces.', '黔东南州', '从江县', '从江县城区', NULL, '/media/recommendations/demo-food.jpg', 'mid', 4, TRUE),
     (3, 1, 'hotel', '梯田观景民宿', 'Terrace View Homestay', '靠近观景点，适合日出摄影用户。', 'Near the viewpoint and suitable for sunrise photographers.', '黔东南州', '从江县', NULL, NULL, NULL, 'mid', 3, TRUE),
     (4, 1, 'transport', '从江包车向导', 'Congjiang Local Driver Guide', '适合山路不熟的新用户，建议提前一天预约。', 'Useful for first-time visitors unfamiliar with mountain roads. Book one day ahead.', '黔东南州', '从江县', NULL, '提前预约', NULL, 'high', 4, TRUE);
+
+CREATE TABLE IF NOT EXISTS archive_requirements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(32) NOT NULL UNIQUE,
+    title VARCHAR(160) NOT NULL,
+    module VARCHAR(96) NOT NULL DEFAULT '待确认模块',
+    category VARCHAR(32) NOT NULL,
+    version VARCHAR(16) NOT NULL DEFAULT 'V1',
+    priority VARCHAR(16) NOT NULL DEFAULT '中',
+    status VARCHAR(32) NOT NULL DEFAULT '待确认',
+    owner VARCHAR(64) NULL,
+    requester VARCHAR(96) NULL,
+    requester_user_id INT NULL,
+    source_type VARCHAR(32) NOT NULL DEFAULT 'manual',
+    source_date DATE NOT NULL,
+    source_text TEXT NOT NULL,
+    description TEXT NOT NULL,
+    acceptance_criteria TEXT NOT NULL,
+    evidence_json TEXT NOT NULL,
+    planned_release DATE NULL,
+    created_by_admin_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    INDEX ix_archive_requirement_code (code),
+    INDEX ix_archive_requirement_source_date (source_date),
+    INDEX ix_archive_requirement_category (category),
+    INDEX ix_archive_requirement_status (status),
+    CONSTRAINT fk_archive_requirement_user FOREIGN KEY (requester_user_id) REFERENCES mini_program_users(id),
+    CONSTRAINT fk_archive_requirement_admin FOREIGN KEY (created_by_admin_id) REFERENCES admin_users(id)
+);
+
+CREATE TABLE IF NOT EXISTS archive_development_tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(32) NOT NULL UNIQUE,
+    requirement_id INT NOT NULL,
+    sub_requirement_code VARCHAR(40) NOT NULL,
+    round_number INT NOT NULL DEFAULT 0,
+    title VARCHAR(200) NOT NULL,
+    task_type VARCHAR(32) NOT NULL DEFAULT '综合开发',
+    owner VARCHAR(64) NULL,
+    start_date DATE NULL,
+    end_date DATE NULL,
+    status VARCHAR(32) NOT NULL DEFAULT '待开始',
+    progress INT NOT NULL DEFAULT 0,
+    self_test_result VARCHAR(16) NULL,
+    self_test_detail TEXT NULL,
+    acceptance_result VARCHAR(16) NULL,
+    acceptance_detail TEXT NULL,
+    acceptance_notified_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_archive_task_round_title (requirement_id, sub_requirement_code, title),
+    INDEX ix_archive_task_code (code),
+    INDEX ix_archive_task_requirement (requirement_id),
+    INDEX ix_archive_task_sub_requirement (sub_requirement_code),
+    INDEX ix_archive_task_status (status),
+    CONSTRAINT fk_archive_task_requirement FOREIGN KEY (requirement_id) REFERENCES archive_requirements(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS archive_chat_imports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_name VARCHAR(255) NOT NULL,
+    source_type VARCHAR(32) NOT NULL DEFAULT 'wechat_personal',
+    contact VARCHAR(96) NULL,
+    raw_text TEXT NOT NULL,
+    message_count INT NOT NULL DEFAULT 0,
+    recognized_count INT NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL DEFAULT 'processed',
+    imported_by_admin_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_archive_import_admin (imported_by_admin_id),
+    CONSTRAINT fk_archive_import_admin FOREIGN KEY (imported_by_admin_id) REFERENCES admin_users(id)
+);
+
+CREATE TABLE IF NOT EXISTS archive_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    requirement_id INT NOT NULL,
+    task_id INT NULL,
+    event_type VARCHAR(48) NOT NULL,
+    actor_type VARCHAR(32) NOT NULL,
+    actor_name VARCHAR(96) NULL,
+    detail TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_archive_event_requirement (requirement_id),
+    INDEX ix_archive_event_task (task_id),
+    INDEX ix_archive_event_type (event_type),
+    CONSTRAINT fk_archive_event_requirement FOREIGN KEY (requirement_id) REFERENCES archive_requirements(id) ON DELETE CASCADE,
+    CONSTRAINT fk_archive_event_task FOREIGN KEY (task_id) REFERENCES archive_development_tasks(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS archive_internal_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message_type VARCHAR(32) NOT NULL,
+    title VARCHAR(160) NOT NULL,
+    content TEXT NOT NULL,
+    related_requirement_id INT NULL,
+    target_role VARCHAR(32) NOT NULL DEFAULT 'admin',
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_archive_message_type (message_type),
+    INDEX ix_archive_message_requirement (related_requirement_id),
+    INDEX ix_archive_message_read (is_read),
+    CONSTRAINT fk_archive_message_requirement FOREIGN KEY (related_requirement_id) REFERENCES archive_requirements(id) ON DELETE CASCADE
+);

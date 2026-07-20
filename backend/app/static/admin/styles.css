@@ -205,10 +205,13 @@ textarea:focus {
 }
 
 .nav-btn {
+  display: flex;
+  align-items: center;
   width: 100%;
   background: transparent;
   color: #d7eadc;
   text-align: left;
+  text-decoration: none;
 }
 
 .nav-btn.active,
