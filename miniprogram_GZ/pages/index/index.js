@@ -12,6 +12,7 @@ const CENTER = {
 const DEFAULT_SCALE = 7
 const MIN_SCALE = 5
 const MAX_SCALE = 18
+const MAX_NEARBY_RADIUS_KM = 20000
 const PROFILE_AUTH_DESC = "用于完善用户资料和互动服务"
 
 const COPY = {
@@ -26,6 +27,7 @@ const COPY = {
     filterSummaryCountSuffix: "个秘境",
     radius: "搜索未解锁",
     radiusUnit: "公里",
+    invalidRadius: "请输入 0 到 20000 公里之间的搜索范围",
     recommendSpot: "推荐秘境",
     recommendDenied: "当前账号暂不允许推荐秘境",
     nearbyCountSuffix: "个待解锁",
@@ -76,6 +78,7 @@ const COPY = {
     filterSummaryCountSuffix: " gems",
     radius: "Search locked",
     radiusUnit: "km",
+    invalidRadius: "Enter a search range from 0 to 20000 km",
     recommendSpot: "Recommend a Gem",
     recommendDenied: "This account cannot recommend gems right now",
     nearbyCountSuffix: " locked",
@@ -654,7 +657,19 @@ Page({
       this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
       return
     }
+    if (!this.getNearbyRadiusValidation().valid) return
     this.nearbyCountTimer = setTimeout(() => this.refreshNearbyCount({ refreshSummary: true }), 350)
+  },
+
+  getNearbyRadiusValidation() {
+    const raw = String(this.data.nearbyRadiusKm || "").trim()
+    if (!raw) return { empty: true, valid: false, value: null }
+    const value = Number(raw)
+    return {
+      empty: false,
+      valid: Number.isFinite(value) && value >= 0 && value <= MAX_NEARBY_RADIUS_KM,
+      value,
+    }
   },
 
   shouldProtectNearbyInput() {
@@ -682,6 +697,9 @@ Page({
 
   onNearbyInputConfirm() {
     this.restoreNearbyTabBar(450)
+    if (!this.getNearbyRadiusValidation().empty && !this.getNearbyRadiusValidation().valid) {
+      wx.showToast({ title: this.data.copy.invalidRadius, icon: "none" })
+    }
   },
 
   restoreNearbyTabBar(delay = 0) {
@@ -707,13 +725,14 @@ Page({
   },
 
   async refreshNearbyCount({ requestLocation = true, refreshSummary = false } = {}) {
-    const radiusKm = Number(this.data.nearbyRadiusKm)
-    if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
+    const radius = this.getNearbyRadiusValidation()
+    if (!radius.valid) {
       this.setData({ nearbyCount: null, nearbyCountText: "", lockedSearchActive: false })
       app.globalData.lockedSpotSearch = null
       if (refreshSummary) this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
       return
     }
+    const radiusKm = radius.value
     const requestId = (this.nearbyCountRequestId || 0) + 1
     this.nearbyCountRequestId = requestId
     try {
@@ -748,11 +767,12 @@ Page({
   },
 
   async onSearchLockedSpots() {
-    const radiusKm = Number(this.data.nearbyRadiusKm)
-    if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
+    const radius = this.getNearbyRadiusValidation()
+    if (!radius.valid) {
       wx.showToast({ title: this.data.copy.invalidRadius, icon: "none" })
       return
     }
+    const radiusKm = radius.value
     this.setData({ nearbySearching: true })
     try {
       const location = this.data.userLocation || (await this.getLocation())

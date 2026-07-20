@@ -23,7 +23,7 @@ from app.schemas.spot import (
 from app.schemas.pagination import Page
 from app.schemas.user import CheckinRecordOut
 from app.services.pagination import build_page, paginated_scalars
-from app.services.media_storage import MediaStorageError, delete_media
+from app.services.media_storage import MediaStorageError, cache_remote_image, delete_media
 from app.services.coordinates import normalize_to_gcj02
 from app.services.spot_mapper import spot_to_admin_out
 from app.services.spot_codes import assign_spot_code
@@ -81,6 +81,18 @@ def normalize_spot_coordinates(
         data["latitude"], data["longitude"] = normalize_to_gcj02(float(latitude), float(longitude), source)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def build_wechat_channel_videos(db: Session, videos: list[dict]) -> list[WechatChannelVideo]:
+    records = []
+    for video in videos:
+        data = dict(video)
+        try:
+            data["cover_url"] = cache_remote_image(db, data["cover_url"])
+        except MediaStorageError as error:
+            raise HTTPException(status_code=400, detail=f"Video Channel cover could not be cached: {error}") from error
+        records.append(WechatChannelVideo(**data))
+    return records
 
 
 @router.get("", response_model=Page[SpotAdminOut])
@@ -162,7 +174,7 @@ def create_admin_spot(
     spot = ScenicSpot(**data)
     spot.spot_code = assign_spot_code(db, spot.recommendation_level)
     spot.tags = tags
-    spot.wechat_channel_videos = [WechatChannelVideo(**video.model_dump()) for video in payload.wechat_channel_videos]
+    spot.wechat_channel_videos = build_wechat_channel_videos(db, [video.model_dump() for video in payload.wechat_channel_videos])
 
     db.add(spot)
     db.commit()
@@ -245,7 +257,7 @@ def update_admin_spot(
     if tag_ids is not None:
         spot.tags = load_tags(db, tag_ids)
     if wechat_channel_videos is not None:
-        spot.wechat_channel_videos = [WechatChannelVideo(**video) for video in wechat_channel_videos]
+        spot.wechat_channel_videos = build_wechat_channel_videos(db, wechat_channel_videos)
 
     db.add(spot)
     db.commit()

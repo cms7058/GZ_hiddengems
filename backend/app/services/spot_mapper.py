@@ -85,7 +85,7 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
         river_upstream_latitude=spot.river_upstream_latitude,
         river_upstream_longitude=spot.river_upstream_longitude,
         video_channel_urls=get_video_channel_urls(spot),
-        wechat_channel_videos=[wechat_channel_video_to_out(video) for video in getattr(spot, "wechat_channel_videos", [])],
+        wechat_channel_videos=[wechat_channel_video_to_out(video, db) for video in getattr(spot, "wechat_channel_videos", [])],
         visibility_level=spot.visibility_level,
         review_status=spot.review_status,
         recommendation_level=spot.recommendation_level,
@@ -118,7 +118,7 @@ def get_video_channel_urls(spot: ScenicSpot) -> list[str]:
     return [value for value in values if isinstance(value, str)]
 
 
-def wechat_channel_video_to_out(video: WechatChannelVideo) -> WechatChannelVideoOut:
+def wechat_channel_video_to_out(video: WechatChannelVideo, db: Optional[Session] = None) -> WechatChannelVideoOut:
     return WechatChannelVideoOut(
         id=video.id,
         spot_id=video.spot_id,
@@ -126,7 +126,7 @@ def wechat_channel_video_to_out(video: WechatChannelVideo) -> WechatChannelVideo
         finder_user_name=video.finder_user_name,
         feed_id=video.feed_id,
         title=video.title,
-        cover_url=video.cover_url,
+        cover_url=get_media_display_url(db, video.cover_url) if db else video.cover_url,
         sort_order=video.sort_order,
         is_active=video.is_active,
     )
@@ -320,7 +320,7 @@ def spot_to_detail_out(
         checkin_radius_meters=spot.checkin_radius_meters,
         video_channel_urls=get_video_channel_urls(spot),
         wechat_channel_videos=[
-            wechat_channel_video_to_out(video)
+            wechat_channel_video_to_out(video, db)
             for video in getattr(spot, "wechat_channel_videos", [])
             if video.is_active
         ],

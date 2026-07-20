@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
+from mimetypes import guess_extension
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -10,6 +12,7 @@ from app.services.integrations import get_object_storage_config
 
 
 LOCAL_UPLOAD_BASE = Path(__file__).resolve().parents[1] / "static" / "uploads"
+MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024
 
 
 class MediaStorageError(Exception):
@@ -131,6 +134,49 @@ def get_media_storage(db: Session):
     if config["provider"] == "aliyun_oss":
         return AliyunOssMediaStorage(config)
     raise MediaStorageError("Unsupported media storage provider")
+
+
+def is_managed_media_url(db: Session, url: Optional[str]) -> bool:
+    if not url:
+        return False
+    config = get_object_storage_config(db)
+    if config["provider"] in {"", "local"}:
+        return _extract_local_key(url) is not None
+    if config["provider"] == "aliyun_oss":
+        return _extract_oss_key(url, config) is not None
+    return False
+
+
+def cache_remote_image(db: Session, url: str, folder: str = "wechat-channel-covers") -> str:
+    """Download an administrator-provided public cover and store it in managed media."""
+    if is_managed_media_url(db, url):
+        return url
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise MediaStorageError("Cover URL must be a valid HTTP(S) URL")
+
+    try:
+        request = Request(url, headers={"User-Agent": "GZ-HiddenGems/1.0"})
+        with urlopen(request, timeout=12) as response:
+            content_type = response.headers.get_content_type().lower()
+            if not content_type.startswith("image/"):
+                raise MediaStorageError("Video Channel cover URL must return an image")
+            content = response.read(MAX_REMOTE_IMAGE_BYTES + 1)
+    except MediaStorageError:
+        raise
+    except Exception as error:
+        raise MediaStorageError(f"Could not download Video Channel cover: {error}") from error
+
+    if not content:
+        raise MediaStorageError("Video Channel cover is empty")
+    if len(content) > MAX_REMOTE_IMAGE_BYTES:
+        raise MediaStorageError("Video Channel cover must not exceed 2 MB")
+
+    suffix = guess_extension(content_type) or ".jpg"
+    if suffix == ".jpe":
+        suffix = ".jpg"
+    return save_media(db, folder, suffix, content, content_type)
 
 
 def save_media(

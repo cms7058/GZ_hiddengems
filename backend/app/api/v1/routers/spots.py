@@ -118,7 +118,7 @@ def list_map_spots(
 def list_locked_spots_nearby(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
-    radius_km: float = Query(default=20, gt=0, le=4000),
+    radius_km: float = Query(default=20, ge=0, le=20000),
     lang: str = Query(default="zh-CN"),
     user_id: int = Query(..., ge=1),
     tag_ids: list[int] = Query(default=[]),
@@ -192,7 +192,7 @@ def list_home_catalog(
 def count_locked_spots_nearby(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
-    radius_km: float = Query(default=20, gt=0, le=4000),
+    radius_km: float = Query(default=20, ge=0, le=20000),
     user_id: int = Query(..., ge=1),
     tag_ids: list[int] = Query(default=[]),
     level_ids: list[int] = Query(default=[]),
