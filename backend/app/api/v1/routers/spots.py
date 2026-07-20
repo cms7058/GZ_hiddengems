@@ -43,7 +43,7 @@ def find_locked_spots_nearby(
 ) -> list[tuple[ScenicSpot, int, float]]:
     statement = (
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
         .where(
             ScenicSpot.is_active.is_(True),
             ScenicSpot.review_status == "approved",
@@ -84,7 +84,7 @@ def list_map_spots(
     user, user_explore_points = resolve_user_context(db, user_id, explore_points)
     statement = (
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
         .where(
             ScenicSpot.is_active.is_(True),
             ScenicSpot.review_status == "approved",
@@ -267,6 +267,7 @@ def get_spot_detail(
         .options(
             selectinload(ScenicSpot.tags),
             selectinload(ScenicSpot.spot_images),
+            selectinload(ScenicSpot.wechat_channel_videos),
             selectinload(ScenicSpot.travel_notes).joinedload(TravelNote.user),
             selectinload(ScenicSpot.travel_notes).joinedload(TravelNote.spot),
             selectinload(ScenicSpot.comments).joinedload(UserComment.user),

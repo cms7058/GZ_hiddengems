@@ -38,6 +38,30 @@ class TagAdminOut(TagCreate):
         from_attributes = True
 
 
+class WechatChannelVideoBase(BaseModel):
+    media_type: Literal["wechat_channel"] = "wechat_channel"
+    finder_user_name: str = Field(..., min_length=1, max_length=128)
+    feed_id: str = Field(..., min_length=1, max_length=256)
+    title: str = Field(..., min_length=1, max_length=256)
+    cover_url: str = Field(..., min_length=1, max_length=512)
+    sort_order: int = Field(default=0, ge=0)
+    is_active: bool = True
+
+    @field_validator("cover_url")
+    @classmethod
+    def validate_cover_url(cls, value: str) -> str:
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Wechat channel cover URL must be a valid HTTP(S) URL")
+        return normalized
+
+
+class WechatChannelVideoOut(WechatChannelVideoBase):
+    id: int
+    spot_id: int
+
+
 class SpotCreate(BaseModel):
     name_zh: str = Field(..., max_length=128)
     name_en: str = Field(..., max_length=128)
@@ -56,6 +80,7 @@ class SpotCreate(BaseModel):
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
     video_channel_urls: list[str] = Field(default_factory=list, max_length=10)
+    wechat_channel_videos: list[WechatChannelVideoBase] = Field(default_factory=list, max_length=100)
     visibility_level: str = "public"
     review_status: str = "draft"
     recommendation_level: int = Field(..., ge=0, le=99)
@@ -96,6 +121,7 @@ class SpotUpdate(BaseModel):
     river_upstream_latitude: Optional[float] = None
     river_upstream_longitude: Optional[float] = None
     video_channel_urls: Optional[list[str]] = Field(default=None, max_length=10)
+    wechat_channel_videos: Optional[list[WechatChannelVideoBase]] = Field(default=None, max_length=100)
     visibility_level: Optional[str] = None
     review_status: Optional[str] = None
     recommendation_level: Optional[int] = Field(default=None, ge=0, le=99)
@@ -154,6 +180,7 @@ class SpotAdminOut(SpotCreate):
     id: int
     spot_code: Optional[str] = None
     cover_image_url: Optional[str] = None
+    wechat_channel_videos: list[WechatChannelVideoOut] = Field(default_factory=list)
     tags: list[LocalizedTag] = Field(default_factory=list)
     child_points: list[SpotChildPointOut] = Field(default_factory=list)
 
@@ -234,6 +261,7 @@ class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
     video_channel_urls: list[str] = Field(default_factory=list)
+    wechat_channel_videos: list[WechatChannelVideoOut] = Field(default_factory=list)
     images: list[SpotImageOut] = Field(default_factory=list)
     travel_notes: list[TravelNoteOut] = Field(default_factory=list)
     comments: list[UserCommentOut] = Field(default_factory=list)

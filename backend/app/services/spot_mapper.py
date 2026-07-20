@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
-from app.models.spot import ScenicSpot, Tag
+from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
 from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut
+from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url
@@ -85,6 +85,7 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
         river_upstream_latitude=spot.river_upstream_latitude,
         river_upstream_longitude=spot.river_upstream_longitude,
         video_channel_urls=get_video_channel_urls(spot),
+        wechat_channel_videos=[wechat_channel_video_to_out(video) for video in getattr(spot, "wechat_channel_videos", [])],
         visibility_level=spot.visibility_level,
         review_status=spot.review_status,
         recommendation_level=spot.recommendation_level,
@@ -115,6 +116,20 @@ def get_video_channel_urls(spot: ScenicSpot) -> list[str]:
     except json.JSONDecodeError:
         return []
     return [value for value in values if isinstance(value, str)]
+
+
+def wechat_channel_video_to_out(video: WechatChannelVideo) -> WechatChannelVideoOut:
+    return WechatChannelVideoOut(
+        id=video.id,
+        spot_id=video.spot_id,
+        media_type="wechat_channel",
+        finder_user_name=video.finder_user_name,
+        feed_id=video.feed_id,
+        title=video.title,
+        cover_url=video.cover_url,
+        sort_order=video.sort_order,
+        is_active=video.is_active,
+    )
 
 
 def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Optional[str]:
@@ -304,6 +319,11 @@ def spot_to_detail_out(
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
         video_channel_urls=get_video_channel_urls(spot),
+        wechat_channel_videos=[
+            wechat_channel_video_to_out(video)
+            for video in getattr(spot, "wechat_channel_videos", [])
+            if video.is_active
+        ],
         images=[spot_image_to_out(image, db) for image in getattr(spot, "spot_images", []) if image.is_active],
         travel_notes=[
             travel_note_to_out(note, db, include_unapproved_media=user is not None and note.user_id == user.id)

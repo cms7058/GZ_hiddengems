@@ -25,6 +25,7 @@ const state = {
   currentSpotCheckins: [],
   currentSpotComments: [],
   currentSpotChildPoints: [],
+  currentWechatChannelVideos: [],
   pagination: {},
   editingSpotId: null,
   editingTagId: null,
@@ -1314,6 +1315,23 @@ function renderSpotImages() {
   renderPagination("spotImagesList", "spotImages");
 }
 
+function renderWechatChannelVideos() {
+  const container = $("#wechatChannelVideoList");
+  if (!container) return;
+  container.innerHTML = state.currentWechatChannelVideos.length
+    ? state.currentWechatChannelVideos.map((video, index) => `
+      <article class="wechat-channel-video-item">
+        ${video.cover_url ? `<img src="${escapeHtml(video.cover_url)}" alt="${escapeHtml(video.title)}" onerror="this.hidden=true" />` : "<span class=\"muted\">无封面</span>"}
+        <div class="cell-title">
+          <strong>${escapeHtml(video.title)}</strong>
+          <span class="muted">${escapeHtml(video.finder_user_name)} / ${escapeHtml(video.feed_id)}</span>
+        </div>
+        <button type="button" class="small-btn danger" data-remove-wechat-video="${index}">删除</button>
+      </article>
+    `).join("")
+    : `<p class="muted">暂无视频号视频</p>`;
+}
+
 function renderSpotCheckins() {
   const container = $("#spotCheckinsList");
   if (!container) return;
@@ -1696,10 +1714,12 @@ function fillSpotForm(spot = null) {
     state.currentSpotCheckins = [];
     state.currentSpotComments = [];
     state.currentSpotChildPoints = [];
+    state.currentWechatChannelVideos = [];
     renderSpotImages();
     renderSpotCheckins();
     renderSpotComments();
     renderChildPoints();
+    renderWechatChannelVideos();
     clearChildPointForm();
     form.elements.review_status.value = "draft";
     form.elements.visibility_level.value = "public";
@@ -1714,7 +1734,9 @@ function fillSpotForm(spot = null) {
     return;
   }
   state.currentSpotChildPoints = spot.child_points || [];
+  state.currentWechatChannelVideos = spot.wechat_channel_videos || [];
   renderChildPoints();
+  renderWechatChannelVideos();
   clearChildPointForm();
   form.elements.coordinate_system.value = "gcj02";
 
@@ -2913,6 +2935,15 @@ $("#spotForm").addEventListener("submit", async (event) => {
     river_upstream_latitude: data.river_upstream_latitude ? Number(data.river_upstream_latitude) : null,
     river_upstream_longitude: data.river_upstream_longitude ? Number(data.river_upstream_longitude) : null,
     video_channel_urls: data.video_channel_urls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
+    wechat_channel_videos: state.currentWechatChannelVideos.map((video) => ({
+      media_type: "wechat_channel",
+      finder_user_name: video.finder_user_name,
+      feed_id: video.feed_id,
+      title: video.title,
+      cover_url: video.cover_url,
+      sort_order: Number(video.sort_order || 0),
+      is_active: video.is_active !== false,
+    })),
     recommendation_level: Number(data.recommendation_level),
     required_explore_points: Number(data.required_explore_points),
     checkin_radius_meters: Number(data.checkin_radius_meters),
@@ -2926,6 +2957,37 @@ $("#spotForm").addEventListener("submit", async (event) => {
   $("#spotDialog").close();
   await loadData();
   showToast("秘境已保存");
+});
+
+$("#addWechatChannelVideoBtn").addEventListener("click", () => {
+  const finder = $("#wechatFinderUserName").value.trim();
+  const feedId = $("#wechatFeedId").value.trim();
+  const title = $("#wechatVideoTitle").value.trim();
+  const coverUrl = $("#wechatVideoCoverUrl").value.trim();
+  const sortOrder = Number($("#wechatVideoSortOrder").value || 0);
+  if (!finder || !feedId || !title || !coverUrl) {
+    showToast("请完整填写视频号用户 ID、视频 ID、标题和封面 URL");
+    return;
+  }
+  if (!/^https?:\/\//i.test(coverUrl)) {
+    showToast("封面 URL 必须是 HTTP(S) 地址");
+    return;
+  }
+  if (state.currentWechatChannelVideos.some((item) => item.finder_user_name === finder && item.feed_id === feedId)) {
+    showToast("该视频号视频已添加");
+    return;
+  }
+  state.currentWechatChannelVideos.push({ media_type: "wechat_channel", finder_user_name: finder, feed_id: feedId, title, cover_url: coverUrl, sort_order: sortOrder, is_active: true });
+  ["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl"].forEach((selector) => { $(selector).value = ""; });
+  $("#wechatVideoSortOrder").value = "0";
+  renderWechatChannelVideos();
+});
+
+$("#wechatChannelVideoList").addEventListener("click", (event) => {
+  const index = event.target.dataset.removeWechatVideo;
+  if (index === undefined) return;
+  state.currentWechatChannelVideos.splice(Number(index), 1);
+  renderWechatChannelVideos();
 });
 
 $("#roleForm").addEventListener("submit", async (event) => {

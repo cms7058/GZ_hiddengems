@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260720-spot-filter-row" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260720-wechat-channel-video" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -451,7 +451,19 @@
           <label><span>河流名称</span><input name="river_name" maxlength="128" placeholder="如：都柳江支流" /></label>
           <label><span>上游纬度</span><input name="river_upstream_latitude" type="number" step="0.000001" /></label>
           <label><span>上游经度</span><input name="river_upstream_longitude" type="number" step="0.000001" /></label>
-          <label class="full"><span>视频号链接</span><textarea name="video_channel_urls" rows="3" placeholder="一行一个视频号 URL；小程序会优先展示这些链接对应的视频"></textarea></label>
+          <div class="full wechat-channel-video-panel">
+            <span class="field-label">视频号视频</span>
+            <div class="wechat-channel-video-inputs">
+              <input id="wechatFinderUserName" maxlength="128" placeholder="视频号用户 ID（finder_user_name）" />
+              <input id="wechatFeedId" maxlength="256" placeholder="视频 ID（feed_id）" />
+              <input id="wechatVideoTitle" maxlength="256" placeholder="视频标题" />
+              <input id="wechatVideoCoverUrl" maxlength="512" placeholder="封面 URL（cover_url）" />
+              <input id="wechatVideoSortOrder" type="number" min="0" value="0" placeholder="排序" />
+              <button id="addWechatChannelVideoBtn" type="button" class="secondary-btn">添加视频</button>
+            </div>
+            <div id="wechatChannelVideoList" class="wechat-channel-video-list"></div>
+          </div>
+          <label class="full"><span>旧版视频号链接（兼容）</span><textarea name="video_channel_urls" rows="2" placeholder="旧数据兼容：一行一个视频号 URL"></textarea></label>
           <label>
             <span>可见级别</span>
             <select name="visibility_level">
@@ -920,6 +932,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260720-video-channel-links"></script>
+    <script src="/admin/static/app.js?v=20260720-wechat-channel-video"></script>
   </body>
 </html>

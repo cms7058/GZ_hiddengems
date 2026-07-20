@@ -182,6 +182,24 @@ CREATE TABLE IF NOT EXISTS spot_images (
     CONSTRAINT fk_spot_images_spot FOREIGN KEY (spot_id) REFERENCES scenic_spots(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS spot_wechat_channel_videos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    spot_id INT NOT NULL,
+    media_type VARCHAR(32) NOT NULL DEFAULT 'wechat_channel',
+    finder_user_name VARCHAR(128) NOT NULL,
+    feed_id VARCHAR(256) NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    cover_url VARCHAR(512) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_spot_wechat_channel_video (spot_id, finder_user_name, feed_id),
+    KEY ix_spot_wechat_channel_videos_spot (spot_id),
+    KEY ix_spot_wechat_channel_videos_finder (finder_user_name),
+    CONSTRAINT fk_spot_wechat_channel_videos_spot FOREIGN KEY (spot_id) REFERENCES scenic_spots(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS travel_notes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

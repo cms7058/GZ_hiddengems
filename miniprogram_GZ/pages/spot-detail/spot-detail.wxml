@@ -67,7 +67,17 @@
 
         <view wx:if="{{!spot.is_unlocked}}" class="locked-banner">{{copy.locked}}</view>
         <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
-        <view wx:if="{{spot.video_channel_urls.length}}" class="video-channel-list">
+        <view wx:if="{{spot.wechat_channel_videos.length}}" class="video-channel-list">
+          <view wx:for="{{spot.wechat_channel_videos}}" wx:key="id" class="video-channel-link video-channel-card" data-finder-user-name="{{item.finder_user_name}}" data-feed-id="{{item.feed_id}}" bindtap="onOpenWechatChannelVideo">
+            <image wx:if="{{item.cover_url}}" class="video-channel-cover" src="{{item.cover_url}}" mode="aspectFill"></image>
+            <view class="video-channel-copy">
+              <text class="video-channel-link-title">{{item.title}}</text>
+              <text class="video-channel-author">{{item.finder_user_name}}</text>
+            </view>
+            <text class="video-channel-link-action">{{copy.openVideoChannel}} ›</text>
+          </view>
+        </view>
+        <view wx:elif="{{spot.video_channel_urls.length}}" class="video-channel-list">
           <view wx:for="{{spot.video_channel_urls}}" wx:key="*this" class="video-channel-link" data-url="{{item}}" bindtap="onOpenVideoChannel">
             <text class="video-channel-link-title">{{copy.videoChannel}}</text>
             <text class="video-channel-link-action">{{copy.openVideoChannel}} ›</text>

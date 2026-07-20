@@ -1,7 +1,7 @@
 from app.models.admin import AdminUser
 from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
-from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag
+from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag, WechatChannelVideo
 from app.models.user import (
     CheckinRecord,
     MembershipPlan,
@@ -37,4 +37,5 @@ __all__ = [
     "UserComment",
     "UserSafetyLevelPolicy",
     "UserMembership",
+    "WechatChannelVideo",
 ]

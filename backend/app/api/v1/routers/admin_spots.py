@@ -9,7 +9,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
-from app.models.spot import ScenicSpot, SpotChildPoint, Tag
+from app.models.spot import ScenicSpot, SpotChildPoint, Tag, WechatChannelVideo
 from app.models.user import CheckinRecord, PassLevelSetting
 from app.schemas.spot import (
     ReviewStatusUpdate,
@@ -104,6 +104,7 @@ def list_admin_spots(
         selectinload(ScenicSpot.tags),
         selectinload(ScenicSpot.child_points),
         selectinload(ScenicSpot.spot_images),
+        selectinload(ScenicSpot.wechat_channel_videos),
     )
     active_image = ScenicSpot.spot_images.any(
         and_(SpotImage.is_active.is_(True), SpotImage.media_type == "image")
@@ -155,12 +156,13 @@ def create_admin_spot(
 ) -> SpotAdminOut:
     tags = load_tags(db, payload.tag_ids)
     validate_pass_level(db, payload.recommendation_level)
-    data = payload.model_dump(exclude={"tag_ids", "video_channel_urls"})
+    data = payload.model_dump(exclude={"tag_ids", "video_channel_urls", "wechat_channel_videos"})
     data["video_channel_urls_json"] = json.dumps(payload.video_channel_urls, ensure_ascii=False)
     normalize_spot_coordinates(data)
     spot = ScenicSpot(**data)
     spot.spot_code = assign_spot_code(db, spot.recommendation_level)
     spot.tags = tags
+    spot.wechat_channel_videos = [WechatChannelVideo(**video.model_dump()) for video in payload.wechat_channel_videos]
 
     db.add(spot)
     db.commit()
@@ -177,7 +179,7 @@ def get_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -221,7 +223,7 @@ def update_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -229,6 +231,7 @@ def update_admin_spot(
 
     update_data = payload.model_dump(exclude_unset=True)
     tag_ids = update_data.pop("tag_ids", None)
+    wechat_channel_videos = update_data.pop("wechat_channel_videos", None)
     video_channel_urls = update_data.pop("video_channel_urls", None)
     if video_channel_urls is not None:
         update_data["video_channel_urls_json"] = json.dumps(video_channel_urls, ensure_ascii=False)
@@ -241,6 +244,8 @@ def update_admin_spot(
         setattr(spot, field, value)
     if tag_ids is not None:
         spot.tags = load_tags(db, tag_ids)
+    if wechat_channel_videos is not None:
+        spot.wechat_channel_videos = [WechatChannelVideo(**video) for video in wechat_channel_videos]
 
     db.add(spot)
     db.commit()
@@ -258,7 +263,7 @@ def review_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:

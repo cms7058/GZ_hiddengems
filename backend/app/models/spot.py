@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -60,6 +60,12 @@ class ScenicSpot(Base):
     comments = relationship("UserComment", back_populates="spot")
     lifestyle_recommendations = relationship("LifestyleRecommendation", back_populates="spot")
     spot_images = relationship("SpotImage", back_populates="spot")
+    wechat_channel_videos = relationship(
+        "WechatChannelVideo",
+        back_populates="spot",
+        cascade="all, delete-orphan",
+        order_by="WechatChannelVideo.sort_order",
+    )
     child_points = relationship(
         "SpotChildPoint",
         back_populates="spot",
@@ -84,3 +90,24 @@ class SpotChildPoint(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     spot = relationship("ScenicSpot", back_populates="child_points")
+
+
+class WechatChannelVideo(Base):
+    __tablename__ = "spot_wechat_channel_videos"
+    __table_args__ = (
+        UniqueConstraint("spot_id", "finder_user_name", "feed_id", name="uq_spot_wechat_channel_video"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id", ondelete="CASCADE"), nullable=False, index=True)
+    media_type = Column(String(32), nullable=False, default="wechat_channel")
+    finder_user_name = Column(String(128), nullable=False, index=True)
+    feed_id = Column(String(256), nullable=False)
+    title = Column(String(256), nullable=False)
+    cover_url = Column(String(512), nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    spot = relationship("ScenicSpot", back_populates="wechat_channel_videos")

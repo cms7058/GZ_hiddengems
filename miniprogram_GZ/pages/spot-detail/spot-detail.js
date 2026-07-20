@@ -369,6 +369,7 @@ Page({
       has_successful_checkin: myCheckins.some((item) => item.status === "approved"),
       lifestyle_recommendations: spot.lifestyle_recommendations || [],
       images: spot.images || [],
+      wechat_channel_videos: (spot.wechat_channel_videos || []).filter((item) => item.is_active !== false && item.finder_user_name && item.feed_id),
     }
   },
 
@@ -394,7 +395,7 @@ Page({
 
   buildPhotoSlides(spot) {
     const media = this.getSpotPhotos(spot)
-    const hasVideoChannel = (spot.video_channel_urls || []).length > 0
+    const hasVideoChannel = (spot.wechat_channel_videos || []).length > 0 || (spot.video_channel_urls || []).length > 0
     const storedVideos = hasVideoChannel
       ? []
       : media.filter((item) => (item.media_type || "image") === "video")
@@ -446,15 +447,28 @@ Page({
     }, {})
     const finderUserName = values.finderUserName || values.finder_username
     const feedId = values.feedId || values.feed_id
-    if (wx.openChannelsActivity && finderUserName && feedId) {
-      wx.openChannelsActivity({ finderUserName, feedId, fail: () => this.copyVideoChannelUrl(url) })
+    if (finderUserName && feedId) {
+      this.openWechatChannelVideo(finderUserName, feedId)
       return
     }
-    this.copyVideoChannelUrl(url)
+    wx.showToast({ title: this.data.copy.videoChannel, icon: "none" })
   },
 
-  copyVideoChannelUrl(url) {
-    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: this.data.copy.videoChannelLinkCopied, icon: "none" }) })
+  onOpenWechatChannelVideo(event) {
+    this.openWechatChannelVideo(event.currentTarget.dataset.finderUserName, event.currentTarget.dataset.feedId)
+  },
+
+  openWechatChannelVideo(finderUserName, feedId) {
+    if (!finderUserName || !feedId) return
+    if (wx.openChannelsActivity) {
+      wx.openChannelsActivity({
+        finderUserName,
+        feedId,
+        fail: () => wx.showToast({ title: this.data.copy.videoChannel, icon: "none" }),
+      })
+      return
+    }
+    wx.showToast({ title: this.data.copy.videoChannel, icon: "none" })
   },
 
   async onPreviewTravelNoteImage(event) {

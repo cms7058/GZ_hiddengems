@@ -754,6 +754,49 @@ td .image-thumb {
   align-items: center;
 }
 
+.wechat-channel-video-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.wechat-channel-video-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wechat-channel-video-inputs input,
+.wechat-channel-video-inputs button {
+  min-height: 38px;
+}
+
+.wechat-channel-video-list {
+  display: grid;
+  gap: 8px;
+}
+
+.wechat-channel-video-item {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbf8;
+}
+
+.wechat-channel-video-item img {
+  width: 74px;
+  height: 56px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .wechat-channel-video-inputs { grid-template-columns: 1fr; }
+}
+
 .spot-filters input,
 .spot-filters select {
   width: 100%;

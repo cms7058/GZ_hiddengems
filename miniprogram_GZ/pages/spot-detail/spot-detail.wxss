@@ -85,6 +85,35 @@ page {
   color: #ffffff;
 }
 
+.video-channel-card {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.video-channel-cover {
+  width: 144rpx;
+  height: 98rpx;
+  flex: 0 0 auto;
+  border-radius: 8rpx;
+  background: #dfe9e0;
+}
+
+.video-channel-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 6rpx;
+}
+
+.video-channel-author {
+  color: #7c9283;
+  font-size: 22rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .video-channel-link + .video-channel-link { margin-top: 12rpx; }
 
 .video-channel-link-title { font-size: 28rpx; font-weight: 800; }
