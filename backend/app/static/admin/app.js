@@ -544,6 +544,29 @@ function setSpotSaveStatus(message = "", type = "") {
   status.className = `save-status${type ? ` ${type}` : ""}`;
 }
 
+async function cacheWechatChannelCoversBeforeSave() {
+  const videos = state.currentWechatChannelVideos || [];
+  const cachedVideos = [];
+  for (const video of videos) {
+    const sourceUrl = (video.cover_url || "").trim();
+    if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(sourceUrl)) {
+      throw new Error(t("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。"));
+    }
+    try {
+      const data = await request("/admin/content/wechat-channel-covers/cache", {
+        method: "POST",
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+      cachedVideos.push({ ...video, cover_url: data.image_url, display_url: data.display_url || data.image_url });
+    } catch (error) {
+      const title = video.title ? `《${video.title}》` : t("视频号视频");
+      throw new Error(`${title}：${error.message || t("上传失败")}`);
+    }
+  }
+  state.currentWechatChannelVideos = cachedVideos;
+  renderWechatChannelVideos();
+}
+
 function confirmDeletion() {
   return window.confirm(t("删除后数据不可恢复，确认删除吗？"));
 }
@@ -2976,29 +2999,6 @@ $("#spotForm").addEventListener("submit", async (event) => {
   const saveButton = $("#saveSpotBtn");
   if (saveButton?.disabled) return;
   const data = formToObject(form);
-  const payload = {
-    ...data,
-    latitude: Number(data.latitude),
-    longitude: Number(data.longitude),
-    river_name: data.river_name || null,
-    river_upstream_latitude: data.river_upstream_latitude ? Number(data.river_upstream_latitude) : null,
-    river_upstream_longitude: data.river_upstream_longitude ? Number(data.river_upstream_longitude) : null,
-    wechat_channel_videos: state.currentWechatChannelVideos.map((video) => ({
-      media_type: "wechat_channel",
-      finder_user_name: video.finder_user_name,
-      feed_id: video.feed_id,
-      title: video.title,
-      cover_url: video.cover_url,
-      sort_order: Number(video.sort_order || 0),
-      is_active: video.is_active !== false,
-    })),
-    recommendation_level: Number(data.recommendation_level),
-    required_explore_points: Number(data.required_explore_points),
-    checkin_radius_meters: Number(data.checkin_radius_meters),
-    is_active: form.elements.is_active.checked,
-    tag_ids: getSelectedSpotTagIds(),
-  };
-
   const path = state.editingSpotId ? `/admin/spots/${state.editingSpotId}` : "/admin/spots";
   const method = state.editingSpotId ? "PATCH" : "POST";
   setSpotSaveStatus("正在保存");
@@ -3007,6 +3007,29 @@ $("#spotForm").addEventListener("submit", async (event) => {
     saveButton.textContent = t("正在保存");
   }
   try {
+    await cacheWechatChannelCoversBeforeSave();
+    const payload = {
+      ...data,
+      latitude: Number(data.latitude),
+      longitude: Number(data.longitude),
+      river_name: data.river_name || null,
+      river_upstream_latitude: data.river_upstream_latitude ? Number(data.river_upstream_latitude) : null,
+      river_upstream_longitude: data.river_upstream_longitude ? Number(data.river_upstream_longitude) : null,
+      wechat_channel_videos: state.currentWechatChannelVideos.map((video) => ({
+        media_type: "wechat_channel",
+        finder_user_name: video.finder_user_name,
+        feed_id: video.feed_id,
+        title: video.title,
+        cover_url: video.cover_url,
+        sort_order: Number(video.sort_order || 0),
+        is_active: video.is_active !== false,
+      })),
+      recommendation_level: Number(data.recommendation_level),
+      required_explore_points: Number(data.required_explore_points),
+      checkin_radius_meters: Number(data.checkin_radius_meters),
+      is_active: form.elements.is_active.checked,
+      tag_ids: getSelectedSpotTagIds(),
+    };
     const savedSpot = await request(path, { method, body: JSON.stringify(payload) });
     if (!state.editingSpotId && savedSpot?.id) state.editingSpotId = savedSpot.id;
     await loadData();
