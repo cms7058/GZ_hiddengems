@@ -23,6 +23,15 @@
               bindplay="onSpotVideoPlay"
             ></video>
             <image
+              wx:elif="{{photo.media_type === 'wechat_channel'}}"
+              class="hero-image-thumb hero-channel-cover"
+              src="{{photo.display_url || photo.cover_url}}"
+              mode="aspectFill"
+              data-finder-user-name="{{photo.finder_user_name}}"
+              data-feed-id="{{photo.feed_id}}"
+              bindtap="onWechatChannelCoverTap"
+            ></image>
+            <image
               wx:else
               class="hero-image-thumb"
               src="{{photo.display_url || photo.image_url}}"
@@ -67,7 +76,7 @@
 
         <view wx:if="{{!spot.is_unlocked}}" class="locked-banner">{{copy.locked}}</view>
         <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
-        <view wx:if="{{spot.wechat_channel_videos.length}}" class="video-channel-list">
+        <view wx:if="{{spot.wechat_channel_videos.length && spot.images.length}}" class="video-channel-list">
           <view wx:for="{{spot.wechat_channel_videos}}" wx:key="id" class="video-channel-link video-channel-card" data-finder-user-name="{{item.finder_user_name}}" data-feed-id="{{item.feed_id}}" bindtap="onOpenWechatChannelVideo">
             <image wx:if="{{item.cover_url}}" class="video-channel-cover" src="{{item.cover_url}}" mode="aspectFill"></image>
             <view class="video-channel-copy">

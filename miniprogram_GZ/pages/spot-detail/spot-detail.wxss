@@ -71,6 +71,10 @@ page {
   display: block;
 }
 
+.hero-channel-cover {
+  display: block;
+}
+
 .video-channel-list { margin-top: 24rpx; }
 
 .video-channel-link {

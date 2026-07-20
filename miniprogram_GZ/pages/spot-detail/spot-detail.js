@@ -395,14 +395,18 @@ Page({
 
   buildPhotoSlides(spot) {
     const media = this.getSpotPhotos(spot)
-    const hasVideoChannel = (spot.wechat_channel_videos || []).length > 0 || (spot.video_channel_urls || []).length > 0
-    const storedVideos = hasVideoChannel
-      ? []
-      : media.filter((item) => (item.media_type || "image") === "video")
-    return [
-      ...media.filter((item) => (item.media_type || "image") === "image"),
-      ...storedVideos,
-    ]
+    // Keep uploaded images and videos ahead of external Video Channel covers.
+    // A Video Channel feed cannot be fetched from finder/feed IDs alone, so the
+    // administrator-supplied cover_url is its safe, displayable first-frame.
+    if (media.length) return media
+    return (spot.wechat_channel_videos || [])
+      .filter((item) => item.cover_url && item.finder_user_name && item.feed_id)
+      .map((item) => ({
+        ...item,
+        id: `wechat-channel-${item.id}`,
+        media_type: "wechat_channel",
+        display_url: item.cover_url,
+      }))
   },
 
   onPreviewSpotPhoto(event) {
@@ -425,6 +429,13 @@ Page({
     const video = wx.createVideoContext(videoId, this)
     video.play()
     this.openSpotVideoFullscreen(videoId)
+  },
+
+  onWechatChannelCoverTap(event) {
+    this.openWechatChannelVideo(
+      event.currentTarget.dataset.finderUserName,
+      event.currentTarget.dataset.feedId,
+    )
   },
 
   openSpotVideoFullscreen(videoId) {
