@@ -739,6 +739,34 @@ td .image-thumb {
 
 .spot-filters {
   margin: 0 0 14px;
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 1.4fr)
+    repeat(3, minmax(96px, 0.8fr))
+    repeat(2, minmax(112px, 0.9fr))
+    repeat(4, minmax(96px, 0.8fr))
+    auto
+    auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.spot-filters input,
+.spot-filters select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1240px) {
+  .spot-filters {
+    display: flex;
+  }
+
+  .spot-filters input,
+  .spot-filters select {
+    width: auto;
+    flex: 1 1 150px;
+  }
 }
 
 .assistant-badge {

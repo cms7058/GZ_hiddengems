@@ -133,6 +133,7 @@ const I18N = {
   "升序": "Ascending",
   "查询": "Search",
   "重置": "Reset",
+  "图片加载失败": "Image failed to load",
   "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
   "管理小程序注册用户、会员状态、探秘积分、贡献数和环保信用。": "Manage registered users, membership status, explore points, contribution count, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
@@ -737,10 +738,11 @@ function imageCell(url, alt = "图片") {
   if (!url) return `<span class="muted">${t("未上传")}</span>`;
   const cleanUrl = String(url).split("?")[0].toLowerCase();
   const escapedUrl = escapeHtml(url);
+  const fallback = escapeHtml(t("图片加载失败"));
   if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".m4v")) {
-    return `<video class="image-thumb" src="${escapedUrl}" controls preload="metadata"></video>`;
+    return `<video class="image-thumb" src="${escapedUrl}" controls preload="metadata" onerror="this.replaceWith(document.createTextNode('${fallback}'))"></video>`;
   }
-  return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" />`;
+  return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" onerror="this.replaceWith(document.createTextNode('${fallback}'))" />`;
 }
 
 function userAvatarCell(url, nickname = "用户") {
