@@ -62,11 +62,12 @@ def tag_to_admin_out(tag: Tag) -> TagAdminOut:
     )
 
 
-def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
+def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdminOut:
     return SpotAdminOut(
         id=spot.id,
         spot_code=spot.spot_code,
-        cover_image_url=spot_cover_image_url(spot),
+        # Admin list thumbnails need the same signed display URL as other media.
+        cover_image_url=spot_cover_image_url(spot, db),
         name_zh=spot.name_zh,
         name_en=spot.name_en,
         locked_name_zh=spot.locked_name_zh,

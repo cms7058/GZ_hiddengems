@@ -420,6 +420,23 @@ input.color-hex-input {
   font-size: 13px;
 }
 
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-filters input,
+.admin-filters select {
+  min-width: 126px;
+  min-height: 36px;
+}
+
+.admin-filters input[name="name"] {
+  min-width: 176px;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
@@ -711,6 +728,17 @@ td .image-thumb {
   color: #fff;
   font-weight: 800;
   box-shadow: 0 12px 28px rgba(31, 78, 96, 0.28);
+  cursor: grab;
+  touch-action: none;
+}
+
+.admin-assistant-fab.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.spot-filters {
+  margin: 0 0 14px;
 }
 
 .assistant-badge {

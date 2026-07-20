@@ -38,6 +38,7 @@ const state = {
   editingRoleId: null,
   editingAdminAccountId: null,
   checkinFilters: {},
+  spotFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
   assistantMessages: [],
@@ -110,6 +111,28 @@ const I18N = {
   "待审内容": "Pending Content",
   "推荐条目": "Recommendations",
   "维护中英文内容、坐标、标签、可见级别和审核状态。": "Maintain bilingual content, coordinates, tags, visibility levels, and review states.",
+  "按名称搜索": "Search by name",
+  "全部图片": "All media",
+  "有图片": "With image",
+  "无图片": "Without image",
+  "全部标签": "All tags",
+  "全部等级": "All levels",
+  "解锁积分最低": "Min unlock points",
+  "解锁积分最高": "Max unlock points",
+  "全部审核": "All reviews",
+  "全部状态": "All statuses",
+  "按最新创建": "Newest first",
+  "按编号": "By code",
+  "按名称": "By name",
+  "按图片": "By image",
+  "按等级": "By level",
+  "按解锁积分": "By unlock points",
+  "按审核": "By review",
+  "按状态": "By status",
+  "降序": "Descending",
+  "升序": "Ascending",
+  "查询": "Search",
+  "重置": "Reset",
   "标签会用于小程序首页地图筛选和秘境推荐。": "Tags are used for mini program map filtering and spot recommendations.",
   "管理小程序注册用户、会员状态、探秘积分、贡献数和环保信用。": "Manage registered users, membership status, explore points, contribution count, and eco credit.",
   "配置 L0-L5 探索等级的通关条件、会员要求和解锁权益。": "Configure L0-L5 pass requirements, membership rules, and unlock benefits.",
@@ -436,6 +459,7 @@ function setLanguage(lang) {
 function renderAll() {
   renderMetrics();
   renderTags();
+  renderSpotFilters();
   renderSpots();
   renderUsers();
   renderPassSettings();
@@ -803,6 +827,29 @@ function renderTags() {
   renderPagination("tagsTable", "tags");
 }
 
+function renderSpotFilters() {
+  const form = $("#spotSearchForm");
+  if (!form) return;
+  const filters = state.spotFilters || {};
+  const tagFilter = $("#spotTagFilter");
+  const levelFilter = $("#spotLevelFilter");
+  tagFilter.innerHTML = `<option value="">${t("全部标签")}</option>${state.tags
+    .map((tag) => `<option value="${tag.id}">${escapeHtml(tag.name_zh)}</option>`)
+    .join("")}`;
+  levelFilter.innerHTML = `<option value="">${t("全部等级")}</option>${state.passSettings
+    .map((setting) => `<option value="${setting.level}">L${setting.level} ${escapeHtml(setting.name_zh)}</option>`)
+    .join("")}`;
+  Object.entries(filters).forEach(([name, value]) => {
+    const input = form.elements[name];
+    if (input) input.value = value;
+  });
+}
+
+function spotListPath() {
+  const query = new URLSearchParams(state.spotFilters || {}).toString();
+  return `/admin/spots${query ? `?${query}` : ""}`;
+}
+
 function renderSpots() {
   $("#spotsTable").innerHTML = state.spots
     .map((spot) => {
@@ -812,7 +859,7 @@ function renderSpots() {
       return `
         <tr>
           <td>${escapeHtml(spot.spot_code || "-")}</td>
-          <td>${spot.cover_image_url ? imageCell(spot.cover_image_url, spot.name_zh) : t("无")}</td>
+          <td>${spot.cover_image_url ? imageCell(displayMediaUrl(spot.cover_image_url), spot.name_zh) : t("无")}</td>
           <td>
             <div class="cell-title">
               <strong>${escapeHtml(spot.name_zh)}</strong>
@@ -1528,7 +1575,7 @@ async function loadData() {
     shareStats,
   ] = await Promise.all([
     can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
-    requestPage("spots", "/admin/spots"),
+    requestPage("spots", spotListPath()),
     can("users") ? requestPage("users", "/admin/users?include_inactive=true") : Promise.resolve([]),
     can("pass_settings") ? requestPage("passSettings", "/admin/pass-settings") : Promise.resolve([]),
     can("memberships") ? requestPage("membershipPlans", "/admin/memberships/plans") : Promise.resolve([]),
@@ -2090,6 +2137,22 @@ $("#resetCheckinSearchBtn").addEventListener("click", async () => {
   await loadData();
 });
 
+$("#spotSearchForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  state.spotFilters = Object.fromEntries(
+    [...new FormData(event.currentTarget).entries()].filter(([, value]) => String(value).trim()),
+  );
+  state.pagination.spots = { ...(state.pagination.spots || {}), page: 1 };
+  await loadData();
+});
+
+$("#resetSpotSearchBtn").addEventListener("click", async () => {
+  $("#spotSearchForm").reset();
+  state.spotFilters = {};
+  state.pagination.spots = { ...(state.pagination.spots || {}), page: 1 };
+  await loadData();
+});
+
 $("#accountSettingsBtn").addEventListener("click", () => {
   fillAccountSettingsForm();
   $("#accountSettingsDialog").showModal();
@@ -2220,7 +2283,58 @@ $$("[data-close-dialog]").forEach((button) => {
   });
 });
 
-$("#adminAssistantToggle").addEventListener("click", () => {
+function initializeAssistantFloatingPosition() {
+  const button = $("#adminAssistantToggle");
+  if (!button) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem("gz_admin_assistant_position") || "null");
+    if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+      button.style.left = `${saved.left}px`;
+      button.style.top = `${saved.top}px`;
+      button.style.right = "auto";
+      button.style.bottom = "auto";
+    }
+  } catch (_) {
+    // A malformed saved position should not prevent the assistant from opening.
+  }
+
+  let start = null;
+  button.addEventListener("pointerdown", (event) => {
+    start = { x: event.clientX, y: event.clientY, left: button.getBoundingClientRect().left, top: button.getBoundingClientRect().top, moved: false };
+    button.setPointerCapture?.(event.pointerId);
+  });
+  button.addEventListener("pointermove", (event) => {
+    if (!start) return;
+    const left = Math.max(8, Math.min(window.innerWidth - button.offsetWidth - 8, start.left + event.clientX - start.x));
+    const top = Math.max(8, Math.min(window.innerHeight - button.offsetHeight - 8, start.top + event.clientY - start.y));
+    if (Math.abs(event.clientX - start.x) > 4 || Math.abs(event.clientY - start.y) > 4) start.moved = true;
+    if (!start.moved) return;
+    button.classList.add("dragging");
+    button.style.left = `${left}px`;
+    button.style.top = `${top}px`;
+    button.style.right = "auto";
+    button.style.bottom = "auto";
+  });
+  button.addEventListener("pointerup", () => {
+    if (!start) return;
+    button.classList.remove("dragging");
+    if (start.moved) {
+      button.dataset.skipAssistantOpen = "true";
+      const rect = button.getBoundingClientRect();
+      localStorage.setItem("gz_admin_assistant_position", JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+    }
+    start = null;
+  });
+}
+
+initializeAssistantFloatingPosition();
+
+$("#adminAssistantToggle").addEventListener("click", (event) => {
+  const button = event.currentTarget;
+  if (button.dataset.skipAssistantOpen === "true") {
+    delete button.dataset.skipAssistantOpen;
+    return;
+  }
   renderAssistantPending();
   renderAssistantMessages();
   $("#adminAssistantDialog").showModal();

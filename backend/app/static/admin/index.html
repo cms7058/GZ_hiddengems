@@ -117,6 +117,28 @@
               <p class="muted">维护中英文内容、坐标、标签、可见级别和审核状态。</p>
             </div>
           </div>
+          <form id="spotSearchForm" class="admin-filters spot-filters">
+            <input name="name" placeholder="按名称搜索" maxlength="128" />
+            <select name="has_image">
+              <option value="">全部图片</option>
+              <option value="true">有图片</option>
+              <option value="false">无图片</option>
+            </select>
+            <select id="spotTagFilter" name="tag_id"><option value="">全部标签</option></select>
+            <select id="spotLevelFilter" name="recommendation_level"><option value="">全部等级</option></select>
+            <input name="required_points_min" type="number" min="0" placeholder="解锁积分最低" />
+            <input name="required_points_max" type="number" min="0" placeholder="解锁积分最高" />
+            <select name="review_status">
+              <option value="">全部审核</option><option value="draft">草稿</option><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已拒绝</option>
+            </select>
+            <select name="is_active"><option value="">全部状态</option><option value="true">启用</option><option value="false">停用</option></select>
+            <select name="sort_by">
+              <option value="id">按最新创建</option><option value="spot_code">按编号</option><option value="name">按名称</option><option value="has_image">按图片</option><option value="recommendation_level">按等级</option><option value="required_explore_points">按解锁积分</option><option value="review_status">按审核</option><option value="is_active">按状态</option>
+            </select>
+            <select name="sort_order"><option value="desc">降序</option><option value="asc">升序</option></select>
+            <button type="submit" class="secondary-btn">查询</button>
+            <button id="resetSpotSearchBtn" type="button" class="small-btn">重置</button>
+          </form>
           <div class="table-wrap">
             <table>
               <thead>
@@ -861,7 +883,7 @@
       </form>
     </dialog>
 
-    <button id="adminAssistantToggle" class="admin-assistant-fab hidden" type="button" aria-label="打开 AI 小助手">
+    <button id="adminAssistantToggle" class="admin-assistant-fab hidden" type="button" aria-label="打开 AI 小助手" title="AI 小助手，可拖动定位">
       <span>AI</span>
       <strong id="assistantPendingBadge" class="assistant-badge hidden">0</strong>
     </button>
@@ -895,6 +917,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260715-admin-password-reset"></script>
+    <script src="/admin/static/app.js?v=20260720-spot-list-tools"></script>
   </body>
 </html>

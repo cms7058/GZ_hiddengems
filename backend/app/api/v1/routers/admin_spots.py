@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import get_current_admin
@@ -86,19 +86,60 @@ def normalize_spot_coordinates(
 def list_admin_spots(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    name: Optional[str] = Query(default=None, max_length=128),
+    has_image: Optional[bool] = Query(default=None),
+    tag_id: Optional[int] = Query(default=None, ge=1),
+    recommendation_level: Optional[int] = Query(default=None, ge=0),
+    required_points_min: Optional[int] = Query(default=None, ge=0),
+    required_points_max: Optional[int] = Query(default=None, ge=0),
+    review_status: Optional[str] = Query(default=None, max_length=32),
+    is_active: Optional[bool] = Query(default=None),
+    sort_by: str = Query(default="id", pattern="^(id|spot_code|name|recommendation_level|required_explore_points|review_status|is_active|has_image)$"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[SpotAdminOut]:
-    result = paginated_scalars(
-        db,
-        select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
-        .order_by(ScenicSpot.id.desc()),
-        page,
-        page_size,
+    statement = select(ScenicSpot).options(
+        selectinload(ScenicSpot.tags),
+        selectinload(ScenicSpot.child_points),
+        selectinload(ScenicSpot.spot_images),
     )
+    active_image = ScenicSpot.spot_images.any(
+        and_(SpotImage.is_active.is_(True), SpotImage.media_type == "image")
+    )
+    if name and name.strip():
+        keyword = f"%{name.strip()}%"
+        statement = statement.where((ScenicSpot.name_zh.ilike(keyword)) | (ScenicSpot.name_en.ilike(keyword)))
+    if has_image is not None:
+        statement = statement.where(active_image if has_image else ~active_image)
+    if tag_id is not None:
+        statement = statement.where(ScenicSpot.tags.any(Tag.id == tag_id))
+    if recommendation_level is not None:
+        statement = statement.where(ScenicSpot.recommendation_level == recommendation_level)
+    if required_points_min is not None:
+        statement = statement.where(ScenicSpot.required_explore_points >= required_points_min)
+    if required_points_max is not None:
+        statement = statement.where(ScenicSpot.required_explore_points <= required_points_max)
+    if review_status:
+        statement = statement.where(ScenicSpot.review_status == review_status)
+    if is_active is not None:
+        statement = statement.where(ScenicSpot.is_active.is_(is_active))
+
+    sort_columns = {
+        "id": ScenicSpot.id,
+        "spot_code": ScenicSpot.spot_code,
+        "name": ScenicSpot.name_zh,
+        "recommendation_level": ScenicSpot.recommendation_level,
+        "required_explore_points": ScenicSpot.required_explore_points,
+        "review_status": ScenicSpot.review_status,
+        "is_active": ScenicSpot.is_active,
+        "has_image": active_image,
+    }
+    order_column = sort_columns[sort_by]
+    statement = statement.order_by(order_column.asc() if sort_order == "asc" else order_column.desc(), ScenicSpot.id.desc())
+    result = paginated_scalars(db, statement, page, page_size)
     return build_page(
-        [spot_to_admin_out(spot) for spot in result.items],
+        [spot_to_admin_out(spot, db) for spot in result.items],
         result.total,
         result.page,
         result.page_size,
@@ -123,7 +164,7 @@ def create_admin_spot(
     db.commit()
     db.refresh(spot)
     db.refresh(spot, attribute_names=["tags"])
-    return spot_to_admin_out(spot)
+    return spot_to_admin_out(spot, db)
 
 
 @router.get("/{spot_id}", response_model=SpotAdminOut)
@@ -139,7 +180,7 @@ def get_admin_spot(
     )
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
-    return spot_to_admin_out(spot)
+    return spot_to_admin_out(spot, db)
 
 
 @router.get("/{spot_id}/checkins", response_model=Page[CheckinRecordOut])
@@ -200,7 +241,7 @@ def update_admin_spot(
     db.commit()
     db.refresh(spot)
     db.refresh(spot, attribute_names=["tags"])
-    return spot_to_admin_out(spot)
+    return spot_to_admin_out(spot, db)
 
 
 @router.patch("/{spot_id}/review", response_model=SpotAdminOut)
@@ -212,7 +253,7 @@ def review_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -223,7 +264,7 @@ def review_admin_spot(
     db.commit()
     db.refresh(spot)
     db.refresh(spot, attribute_names=["tags"])
-    return spot_to_admin_out(spot)
+    return spot_to_admin_out(spot, db)
 
 
 @router.post("/{spot_id}/child-points", response_model=SpotChildPointOut, status_code=201)
