@@ -43,10 +43,11 @@ def create_app() -> FastAPI:
         api_prefix = settings.api_v1_prefix.rstrip("/")
         admin_prefix = f"{api_prefix}/admin"
         service_hours_path = f"{api_prefix}/mini/service-hours"
+        media_prefix = f"{api_prefix}/media/"
         is_public_api = path.startswith(f"{api_prefix}/") and not (
             path == admin_prefix or path.startswith(f"{admin_prefix}/")
         )
-        if is_public_api and path != service_hours_path:
+        if is_public_api and path != service_hours_path and not path.startswith(media_prefix):
             with SessionLocal() as db:
                 service_hours = get_mini_program_service_hours(db)
             if service_hours["enabled"] and not public_api_is_open(

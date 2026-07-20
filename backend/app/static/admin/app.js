@@ -1324,7 +1324,7 @@ function renderWechatChannelVideos() {
   container.innerHTML = state.currentWechatChannelVideos.length
     ? state.currentWechatChannelVideos.map((video, index) => `
       <article class="wechat-channel-video-item">
-        ${video.cover_url ? `<img src="${escapeHtml(video.cover_url)}" alt="${escapeHtml(video.title)}" onerror="this.hidden=true" />` : "<span class=\"muted\">无封面</span>"}
+        ${video.display_url || video.cover_url ? `<img src="${escapeHtml(video.display_url || video.cover_url)}" alt="${escapeHtml(video.title)}" onerror="this.hidden=true" />` : "<span class=\"muted\">无封面</span>"}
         <div class="cell-title">
           <strong>${escapeHtml(video.title)}</strong>
           <span class="muted">${escapeHtml(video.finder_user_name)} / ${escapeHtml(video.feed_id)}</span>

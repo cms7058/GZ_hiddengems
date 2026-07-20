@@ -2,12 +2,13 @@ from datetime import datetime, timedelta, timezone
 from mimetypes import guess_extension
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.services.integrations import get_object_storage_config
 
 
@@ -109,6 +110,18 @@ class AliyunOssMediaStorage:
             )
         except Exception as error:
             raise MediaStorageError(f"OSS delete failed: {error}") from error
+
+    def read(self, key: str) -> tuple[bytes, str]:
+        """Read an object through a short-lived signed URL for the API media proxy."""
+        try:
+            signed_url = self.presign_url(key)
+            request = Request(signed_url, headers={"User-Agent": "GZ-HiddenGems/1.0"})
+            with urlopen(request, timeout=20) as response:
+                return response.read(), response.headers.get_content_type() or "application/octet-stream"
+        except MediaStorageError:
+            raise
+        except Exception as error:
+            raise MediaStorageError(f"OSS media read failed: {error}") from error
 
     def test_connection(self) -> dict[str, str]:
         try:
@@ -236,6 +249,37 @@ def get_media_display_url(db: Session, url: Optional[str], expires: timedelta = 
         return storage.presign_url(key, expires)
     except MediaStorageError:
         return url
+
+
+def get_media_proxy_path(db: Session, url: Optional[str]) -> Optional[str]:
+    """Return a same-origin API path for managed OSS media."""
+    if not url:
+        return url
+    config = get_object_storage_config(db)
+    if config["provider"] != "aliyun_oss":
+        return url
+    key = _extract_oss_key(url, config)
+    if not key:
+        return url
+    return f"{settings.api_v1_prefix}/media/{quote(key, safe='/')}"
+
+
+def read_managed_media(db: Session, key: str) -> tuple[bytes, str]:
+    """Read a local or OSS object after validating a managed-media key."""
+    normalized_key = key.strip().lstrip("/")
+    if not normalized_key or "\\" in normalized_key or any(part in {"", ".", ".."} for part in normalized_key.split("/")):
+        raise MediaStorageError("Invalid media key")
+
+    config = get_object_storage_config(db)
+    if config["provider"] in {"", "local"}:
+        target = (LOCAL_UPLOAD_BASE / normalized_key).resolve()
+        if LOCAL_UPLOAD_BASE.resolve() not in target.parents or not target.is_file():
+            raise MediaStorageError("Media file not found")
+        content_type = "image/jpeg" if target.suffix.lower() in {".jpg", ".jpeg"} else "application/octet-stream"
+        return target.read_bytes(), content_type
+    if config["provider"] == "aliyun_oss":
+        return AliyunOssMediaStorage(config).read(normalized_key)
+    raise MediaStorageError("Unsupported media storage provider")
 
 
 def delete_media(db: Session, url: Optional[str]) -> None:

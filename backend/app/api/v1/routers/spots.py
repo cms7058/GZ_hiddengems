@@ -10,6 +10,7 @@ from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.spot import HomeSpotOut, LockedNearbySpotCountOut, LockedSpotDetailOut, LockedSpotPreviewOut, MapSpotOut, SpotDetailOut
 from app.services.geo import distance_km_between
+from app.services.media_storage import MediaStorageError, cache_remote_image, is_managed_media_url
 from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
 from app.services.spot_mapper import spot_to_detail_out, spot_to_home_out, spot_to_locked_detail_out, spot_to_locked_preview_out, spot_to_map_out
 
@@ -28,6 +29,23 @@ def resolve_user_context(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
     return user, user.explore_points
+
+
+def cache_legacy_wechat_channel_covers(db: Session, spot: ScenicSpot) -> None:
+    """Upgrade older third-party covers to managed OSS media when possible."""
+    covers_updated = False
+    for video in spot.wechat_channel_videos:
+        if is_managed_media_url(db, video.cover_url):
+            continue
+        try:
+            cached_cover_url = cache_remote_image(db, video.cover_url)
+        except MediaStorageError:
+            continue
+        if cached_cover_url != video.cover_url:
+            video.cover_url = cached_cover_url
+            covers_updated = True
+    if covers_updated:
+        db.commit()
 
 
 def find_locked_spots_nearby(
@@ -222,7 +240,11 @@ def get_locked_spot_preview(
     user, user_explore_points = resolve_user_context(db, user_id)
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.spot_images))
+        .options(
+            selectinload(ScenicSpot.tags),
+            selectinload(ScenicSpot.spot_images),
+            selectinload(ScenicSpot.wechat_channel_videos),
+        )
         .where(
             ScenicSpot.id == spot_id,
             ScenicSpot.is_active.is_(True),
@@ -231,6 +253,7 @@ def get_locked_spot_preview(
     )
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
+    cache_legacy_wechat_channel_covers(db, spot)
     pass_settings_by_level = get_active_pass_settings_by_level(db)
     is_unlocked, required_explore_points = get_spot_unlock_state(
         spot_required_explore_points=spot.required_explore_points,
@@ -283,6 +306,7 @@ def get_spot_detail(
     )
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
+    cache_legacy_wechat_channel_covers(db, spot)
     pass_settings_by_level = get_active_pass_settings_by_level(db)
     is_unlocked, required_explore_points = get_spot_unlock_state(
         spot_required_explore_points=spot.required_explore_points,

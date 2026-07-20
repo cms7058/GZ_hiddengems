@@ -11,7 +11,7 @@ from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut
 from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
-from app.services.media_storage import get_media_display_url
+from app.services.media_storage import get_media_display_url, get_media_proxy_path
 from app.services.pass_levels import get_spot_unlock_state
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.user import CheckinRecordOut
@@ -126,7 +126,8 @@ def wechat_channel_video_to_out(video: WechatChannelVideo, db: Optional[Session]
         finder_user_name=video.finder_user_name,
         feed_id=video.feed_id,
         title=video.title,
-        cover_url=get_media_display_url(db, video.cover_url) if db else video.cover_url,
+        cover_url=video.cover_url,
+        display_url=get_media_proxy_path(db, video.cover_url) if db else video.cover_url,
         sort_order=video.sort_order,
         is_active=video.is_active,
     )

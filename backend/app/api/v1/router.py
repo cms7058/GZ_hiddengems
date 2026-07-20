@@ -16,6 +16,7 @@ from app.api.v1.routers import (
     auth,
     mini,
     mini_archive,
+    media,
     safety,
     spots,
     tags,
@@ -28,6 +29,7 @@ api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(spots.router, prefix="/spots", tags=["spots"])
 api_router.include_router(mini.router, prefix="/mini", tags=["mini-program"])
 api_router.include_router(mini_archive.router, prefix="/mini/archive", tags=["mini-archive"])
+api_router.include_router(media.router, prefix="/media", tags=["media"])
 api_router.include_router(safety.router, tags=["safety"])
 api_router.include_router(admin_tags.router, prefix="/admin/tags", tags=["admin-tags"])
 api_router.include_router(admin_spots.router, prefix="/admin/spots", tags=["admin-spots"])

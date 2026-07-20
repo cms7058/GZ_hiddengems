@@ -27,9 +27,11 @@
               class="hero-image-thumb hero-channel-cover"
               src="{{photo.display_url || photo.cover_url}}"
               mode="aspectFill"
+              data-id="{{photo.id}}"
               data-finder-user-name="{{photo.finder_user_name}}"
               data-feed-id="{{photo.feed_id}}"
               bindtap="onWechatChannelCoverTap"
+              binderror="onHeroMediaError"
             ></image>
             <image
               wx:else

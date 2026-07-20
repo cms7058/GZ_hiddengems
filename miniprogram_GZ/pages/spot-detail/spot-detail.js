@@ -1,10 +1,16 @@
 const { isServiceClosedError, request, uploadMedia } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
 const { getMarkerIcon, normalizeMarkerColor } = require("../../utils/marker-icon")
+const config = require("../../utils/config")
 
 const app = getApp()
 const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
+
+function resolveMediaUrl(url) {
+  if (!url || !url.startsWith("/")) return url
+  return `${config.apiBaseUrl.replace(/\/api\/v1$/, "")}${url}`
+}
 
 const COPY = {
   "zh-CN": {
@@ -405,7 +411,7 @@ Page({
         ...item,
         id: `wechat-channel-${item.id}`,
         media_type: "wechat_channel",
-        display_url: item.cover_url,
+        display_url: resolveMediaUrl(item.display_url || item.cover_url),
       }))
   },
 
@@ -436,6 +442,12 @@ Page({
       event.currentTarget.dataset.finderUserName,
       event.currentTarget.dataset.feedId,
     )
+  },
+
+  onHeroMediaError(event) {
+    const failedId = event.currentTarget.dataset.id
+    const remaining = (this.data.photoSlides || []).filter((item) => String(item.id) !== String(failedId))
+    this.setData({ photoSlides: remaining })
   },
 
   openSpotVideoFullscreen(videoId) {

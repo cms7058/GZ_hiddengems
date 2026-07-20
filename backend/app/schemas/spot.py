@@ -60,6 +60,7 @@ class WechatChannelVideoBase(BaseModel):
 class WechatChannelVideoOut(WechatChannelVideoBase):
     id: int
     spot_id: int
+    display_url: Optional[str] = None
 
 
 class SpotCreate(BaseModel):
