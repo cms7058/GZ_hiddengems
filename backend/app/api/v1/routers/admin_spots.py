@@ -25,6 +25,7 @@ from app.services.pagination import build_page, paginated_scalars
 from app.services.media_storage import MediaStorageError, delete_media
 from app.services.coordinates import normalize_to_gcj02
 from app.services.spot_mapper import spot_to_admin_out
+from app.services.spot_codes import assign_spot_code
 
 
 router = APIRouter()
@@ -91,7 +92,7 @@ def list_admin_spots(
     result = paginated_scalars(
         db,
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
         .order_by(ScenicSpot.id.desc()),
         page,
         page_size,
@@ -115,6 +116,7 @@ def create_admin_spot(
     data = payload.model_dump(exclude={"tag_ids"})
     normalize_spot_coordinates(data)
     spot = ScenicSpot(**data)
+    spot.spot_code = assign_spot_code(db, spot.recommendation_level)
     spot.tags = tags
 
     db.add(spot)
@@ -132,7 +134,7 @@ def get_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -176,7 +178,7 @@ def update_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -187,6 +189,8 @@ def update_admin_spot(
     normalize_spot_coordinates(update_data, spot.latitude, spot.longitude)
     if "recommendation_level" in update_data:
         validate_pass_level(db, update_data["recommendation_level"])
+        if update_data["recommendation_level"] != spot.recommendation_level:
+            spot.spot_code = assign_spot_code(db, update_data["recommendation_level"], exclude_spot_id=spot.id)
     for field, value in update_data.items():
         setattr(spot, field, value)
     if tag_ids is not None:

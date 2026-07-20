@@ -65,6 +65,8 @@ def tag_to_admin_out(tag: Tag) -> TagAdminOut:
 def spot_to_admin_out(spot: ScenicSpot) -> SpotAdminOut:
     return SpotAdminOut(
         id=spot.id,
+        spot_code=spot.spot_code,
+        cover_image_url=spot_cover_image_url(spot),
         name_zh=spot.name_zh,
         name_en=spot.name_en,
         locked_name_zh=spot.locked_name_zh,
@@ -104,6 +106,14 @@ def locked_spot_name(spot: ScenicSpot, lang: str) -> str:
     return "Locked Gem" if lang == "en-US" else "待解锁秘境"
 
 
+def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Optional[str]:
+    images = sorted(
+        (image for image in getattr(spot, "spot_images", []) if image.is_active and image.media_type == "image"),
+        key=lambda image: (not image.is_cover, image.sort_order, image.id),
+    )
+    return spot_image_to_out(images[0], db).display_url if images else None
+
+
 def locked_spot_intro(spot: ScenicSpot, lang: str) -> str:
     blocked_terms = tuple(
         term
@@ -123,6 +133,7 @@ def spot_to_map_out(
     marker_colors_by_level: Optional[dict[int, str]] = None,
     pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
     user: Optional[MiniProgramUser] = None,
+    db: Optional[Session] = None,
 ) -> MapSpotOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     is_unlocked, required_explore_points = get_spot_unlock_state(
@@ -140,6 +151,7 @@ def spot_to_map_out(
         is_member=is_member,
         decimals=settings.coordinate_mask_decimals,
     )
+    cover_image_url = spot_cover_image_url(spot, db)
     return MapSpotOut(
         id=spot.id,
         name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
@@ -155,6 +167,7 @@ def spot_to_map_out(
         is_precise_location=coordinate.is_precise,
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
+        cover_image_url=cover_image_url,
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
     )
 
@@ -204,9 +217,12 @@ def spot_to_home_out(
         fallback_explore_points=user_explore_points,
         settings_by_level=pass_settings_by_level,
     )
+    full_name = choose_text(normalized_lang, spot.name_zh, spot.name_en) or ""
+    safe_locked_name = locked_spot_name(spot, normalized_lang)
     return HomeSpotOut(
         id=spot.id,
-        name=(choose_text(normalized_lang, spot.name_zh, spot.name_en) or "") if is_unlocked else locked_spot_name(spot, normalized_lang),
+        name=full_name if is_unlocked else safe_locked_name,
+        locked_name=safe_locked_name,
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         is_unlocked=is_unlocked,
@@ -270,6 +286,7 @@ def spot_to_detail_out(
         marker_colors_by_level,
         pass_settings_by_level,
         user,
+        db,
     )
     return SpotDetailOut(
         **base.model_dump(),

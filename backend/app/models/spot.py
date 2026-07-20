@@ -29,6 +29,7 @@ class ScenicSpot(Base):
     __tablename__ = "scenic_spots"
 
     id = Column(Integer, primary_key=True, index=True)
+    spot_code = Column(String(8), nullable=True, unique=True, index=True)
     name_zh = Column(String(128), nullable=False)
     name_en = Column(String(128), nullable=False)
     locked_name_zh = Column(String(128), nullable=True)

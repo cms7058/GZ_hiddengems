@@ -27,6 +27,7 @@ from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
 from app.services.permissions import ALL_PERMISSIONS
 from app.services.points import seed_point_rules
+from app.services.spot_codes import ensure_spot_codes
 
 
 def wait_for_database(max_attempts: int = 30, delay_seconds: int = 2) -> None:
@@ -94,6 +95,7 @@ def ensure_runtime_columns() -> None:
             "required_explore_points": "INT NOT NULL DEFAULT 0",
         },
         "scenic_spots": {
+            "spot_code": "VARCHAR(8) NULL",
             "locked_name_zh": "VARCHAR(128) NULL",
             "locked_name_en": "VARCHAR(128) NULL",
             "required_explore_points": "INT NOT NULL DEFAULT 0",
@@ -119,6 +121,7 @@ def seed_initial_data() -> None:
         seed_admin_roles(db)
         seed_admin(db)
         seed_tags_and_spots(db)
+        ensure_spot_codes(db)
         seed_users(db)
         seed_pass_settings(db)
         seed_memberships(db)

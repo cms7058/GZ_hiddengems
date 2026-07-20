@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tags (
 
 CREATE TABLE IF NOT EXISTS scenic_spots (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    spot_code VARCHAR(8) NULL UNIQUE,
     name_zh VARCHAR(128) NOT NULL,
     name_en VARCHAR(128) NOT NULL,
     locked_name_zh VARCHAR(128) NULL,

@@ -58,6 +58,19 @@ page {
   background: #ffffff;
 }
 
+.spot-cover {
+  display: block;
+  width: 100%;
+  height: 256rpx;
+  margin-bottom: 18rpx;
+  border-radius: 6rpx;
+}
+
+.spot-cover {
+  background: #e7ece5;
+}
+
+
 .card-head {
   display: flex;
   align-items: center;

@@ -186,7 +186,7 @@ Page({
       nextNeed: 0,
     },
     showUnlockBubble: false,
-    nearbyRadiusKm: "20",
+    nearbyRadiusKm: "",
     nearbyCount: null,
     nearbyCountText: "",
     lockedSearchActive: false,
@@ -365,6 +365,7 @@ Page({
   normalizeSpots(spots) {
     return (spots || []).map((spot) => ({
       ...spot,
+      name: spot.is_unlocked === false && spot.locked_name ? spot.locked_name : spot.name,
       required_explore_points: spot.required_explore_points || 0,
       user_explore_points: spot.user_explore_points || this.data.user.explore_points || 0,
       is_unlocked: spot.is_unlocked !== false,
@@ -640,13 +641,19 @@ Page({
   },
 
   onNearbyRadiusInput(event) {
+    const nearbyRadiusKm = String(event.detail.value || "").trim()
     this.setData({
-      nearbyRadiusKm: event.detail.value,
+      nearbyRadiusKm,
       nearbyCount: null,
       nearbyCountText: "",
       lockedSearchActive: false,
     })
     clearTimeout(this.nearbyCountTimer)
+    if (!nearbyRadiusKm) {
+      app.globalData.lockedSpotSearch = null
+      this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
+      return
+    }
     this.nearbyCountTimer = setTimeout(() => this.refreshNearbyCount({ refreshSummary: true }), 350)
   },
 
@@ -703,6 +710,7 @@ Page({
     const radiusKm = Number(this.data.nearbyRadiusKm)
     if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 4000) {
       this.setData({ nearbyCount: null, nearbyCountText: "", lockedSearchActive: false })
+      app.globalData.lockedSpotSearch = null
       if (refreshSummary) this.applyFilters({ preserveSelection: true, skipNearbyRefresh: true })
       return
     }

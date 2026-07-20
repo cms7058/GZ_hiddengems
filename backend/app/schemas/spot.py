@@ -129,6 +129,8 @@ class SpotChildPointOut(SpotChildPointBase):
 
 class SpotAdminOut(SpotCreate):
     id: int
+    spot_code: Optional[str] = None
+    cover_image_url: Optional[str] = None
     tags: list[LocalizedTag] = Field(default_factory=list)
     child_points: list[SpotChildPointOut] = Field(default_factory=list)
 
@@ -151,6 +153,7 @@ class MapSpotOut(BaseModel):
     is_precise_location: bool
     recommendation_level: int
     marker_color: str = "#2f6b4f"
+    cover_image_url: Optional[str] = None
     tags: list[LocalizedTag]
 
 
@@ -180,6 +183,7 @@ class HomeSpotOut(BaseModel):
 
     id: int
     name: str
+    locked_name: str = ""
     recommendation_level: int
     marker_color: str = "#2f6b4f"
     is_unlocked: bool

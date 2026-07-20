@@ -811,6 +811,8 @@ function renderSpots() {
         : `<span class="muted">${t("未设置")}</span>`;
       return `
         <tr>
+          <td>${escapeHtml(spot.spot_code || "-")}</td>
+          <td>${spot.cover_image_url ? imageCell(spot.cover_image_url, spot.name_zh) : t("无")}</td>
           <td>
             <div class="cell-title">
               <strong>${escapeHtml(spot.name_zh)}</strong>

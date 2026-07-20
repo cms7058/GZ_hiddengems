@@ -13,6 +13,7 @@
 
   <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view wx:for="{{spots}}" wx:key="id" class="spot-card" data-id="{{item.id}}" bindtap="onSpotTap">
+      <image wx:if="{{item.cover_image_url}}" class="spot-cover" src="{{item.cover_image_url}}" mode="aspectFill"></image>
       <view class="card-head">
         <view class="marker" style="background: {{item.markerColor}};"></view>
         <text class="spot-name">{{item.name}}</text>
