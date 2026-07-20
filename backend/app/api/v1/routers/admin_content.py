@@ -2,6 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -27,7 +28,7 @@ from app.schemas.content import (
     UserCommentUpdate,
 )
 from app.schemas.pagination import Page
-from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
+from app.services.media_storage import MediaStorageError, cache_remote_image, delete_media, get_media_display_url, save_media
 from app.services.pagination import build_page, paginated_scalars
 from app.services.spot_mapper import content_media_to_out, get_content_media
 
@@ -41,6 +42,10 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
+
+
+class RemoteCoverCacheIn(BaseModel):
+    url: str = Field(..., min_length=1, max_length=512)
 
 
 def sync_content_contribution(user, previous_status: str, next_status: str, db: Session) -> None:
@@ -261,10 +266,27 @@ async def upload_content_image(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> dict[str, str]:
-    allowed_folders = {"travel-notes", "comments", "recommendations", "avatars"}
+    allowed_folders = {"travel-notes", "comments", "recommendations", "avatars", "wechat-channel-covers"}
     if folder not in allowed_folders:
         raise HTTPException(status_code=404, detail="Upload folder not found")
     image_url, _ = await save_upload(file, folder, db, allow_video=folder != "avatars")
+    return {
+        "image_url": image_url,
+        "display_url": get_media_display_url(db, image_url) or image_url,
+    }
+
+
+@router.post("/wechat-channel-covers/cache")
+def cache_wechat_channel_cover(
+    payload: RemoteCoverCacheIn,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict[str, str]:
+    """Download a direct image URL into managed OSS media for a Video Channel cover."""
+    try:
+        image_url = cache_remote_image(db, payload.url.strip(), folder="wechat-channel-covers")
+    except MediaStorageError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     return {
         "image_url": image_url,
         "display_url": get_media_display_url(db, image_url) or image_url,

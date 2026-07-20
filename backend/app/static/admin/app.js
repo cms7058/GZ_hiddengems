@@ -273,11 +273,19 @@ const I18N = {
   "图片说明": "Caption",
   "媒体说明": "Media Caption",
   "上传媒体": "Upload Media",
+  "上传封面图片": "Upload Cover Image",
+  "从图片 URL 上传": "Upload from Image URL",
+  "请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。": "Upload a JPG, PNG, WebP, or GIF cover under 2 MB. A Video Channel playback link is not an image cover.",
+  "视频号封面已上传": "Video Channel cover uploaded",
+  "视频号封面已上传，请点击保存秘境生效": "Video Channel cover uploaded. Save the spot to apply it.",
+  "视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。": "A Video Channel playback link cannot be used as an image cover. Upload a cover image or provide a direct image URL.",
   "媒体": "Media",
   "视频": "Video",
   "设为封面": "Set as Cover",
   "取消": "Cancel",
   "保存": "Save",
+  "正在保存": "Saving",
+  "保存成功": "Saved successfully",
   "中文标签": "Chinese Tag",
   "英文标签": "English Tag",
   "昵称": "Nickname",
@@ -527,6 +535,13 @@ function showToast(message) {
   window.clearTimeout(showToast.timer);
   const duration = String(message).length > 80 ? 10000 : 3200;
   showToast.timer = window.setTimeout(() => toast.classList.add("hidden"), duration);
+}
+
+function setSpotSaveStatus(message = "", type = "") {
+  const status = $("#spotSaveStatus");
+  if (!status) return;
+  status.textContent = message ? t(message) : "";
+  status.className = `save-status${type ? ` ${type}` : ""}`;
 }
 
 function confirmDeletion() {
@@ -1340,8 +1355,9 @@ function renderWechatChannelVideos() {
 
 function clearWechatChannelVideoForm() {
   state.editingWechatChannelVideoIndex = null;
-  ["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl"].forEach((selector) => { $(selector).value = ""; });
+  ["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl", "#wechatVideoCoverFile"].forEach((selector) => { $(selector).value = ""; });
   $("#wechatVideoSortOrder").value = "0";
+  setUploadStatus("#wechatVideoCoverFileStatus", t("请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。"));
   $("#addWechatChannelVideoBtn").textContent = "添加视频";
 }
 
@@ -1351,6 +1367,8 @@ function fillWechatChannelVideoForm(video, index) {
   $("#wechatFeedId").value = video.feed_id || "";
   $("#wechatVideoTitle").value = video.title || "";
   $("#wechatVideoCoverUrl").value = video.cover_url || "";
+  $("#wechatVideoCoverFile").value = "";
+  setUploadStatus("#wechatVideoCoverFileStatus", t("请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。"));
   $("#wechatVideoSortOrder").value = video.sort_order ?? 0;
   $("#addWechatChannelVideoBtn").textContent = "更新视频";
 }
@@ -1727,6 +1745,12 @@ function fillAccountSettingsForm() {
 function fillSpotForm(spot = null) {
   const form = $("#spotForm");
   form.reset();
+  setSpotSaveStatus();
+  const saveButton = $("#saveSpotBtn");
+  if (saveButton) {
+    saveButton.disabled = false;
+    saveButton.textContent = t("保存");
+  }
   state.editingSpotId = spot?.id || null;
   $("#spotDialogTitle").textContent = spot ? t("编辑秘境") : t("新增秘境");
   renderTagChecks(spot?.tag_ids || []);
@@ -2949,6 +2973,8 @@ $("#accountSettingsForm").addEventListener("submit", async (event) => {
 $("#spotForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const saveButton = $("#saveSpotBtn");
+  if (saveButton?.disabled) return;
   const data = formToObject(form);
   const payload = {
     ...data,
@@ -2975,10 +3001,27 @@ $("#spotForm").addEventListener("submit", async (event) => {
 
   const path = state.editingSpotId ? `/admin/spots/${state.editingSpotId}` : "/admin/spots";
   const method = state.editingSpotId ? "PATCH" : "POST";
-  await request(path, { method, body: JSON.stringify(payload) });
-  $("#spotDialog").close();
-  await loadData();
-  showToast("秘境已保存");
+  setSpotSaveStatus("正在保存");
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.textContent = t("正在保存");
+  }
+  try {
+    const savedSpot = await request(path, { method, body: JSON.stringify(payload) });
+    if (!state.editingSpotId && savedSpot?.id) state.editingSpotId = savedSpot.id;
+    await loadData();
+    setSpotSaveStatus("保存成功", "success");
+    showToast("秘境已保存");
+  } catch (error) {
+    const message = error.message || t("保存失败");
+    setSpotSaveStatus(`${t("保存失败")}：${message}`, "error");
+    showToast(`${t("保存失败")}：${message}`);
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = t("保存");
+    }
+  }
 });
 
 $("#addWechatChannelVideoBtn").addEventListener("click", () => {
@@ -2995,6 +3038,10 @@ $("#addWechatChannelVideoBtn").addEventListener("click", () => {
     showToast("视频首帧/封面 URL 必须是 HTTP(S) 地址");
     return;
   }
+  if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(coverUrl)) {
+    showToast("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。");
+    return;
+  }
   const editingIndex = state.editingWechatChannelVideoIndex;
   if (state.currentWechatChannelVideos.some((item, index) => index !== editingIndex && item.finder_user_name === finder && item.feed_id === feedId)) {
     showToast("该视频号视频已添加");
@@ -3008,6 +3055,75 @@ $("#addWechatChannelVideoBtn").addEventListener("click", () => {
   }
   clearWechatChannelVideoForm();
   renderWechatChannelVideos();
+});
+
+$("#wechatVideoCoverFile").addEventListener("change", () => {
+  const file = $("#wechatVideoCoverFile").files[0];
+  if (!file) return;
+  const validation = validateUploadFile(file, false);
+  if (!validation.valid) setUploadStatus("#wechatVideoCoverFileStatus", validation.message, "error");
+  else setUploadStatus("#wechatVideoCoverFileStatus", `${t("已选择")}：${file.name} / ${t("文件大小")}：${formatFileSize(file.size)}`, "ok");
+});
+
+function applyWechatChannelCover(data) {
+  $("#wechatVideoCoverUrl").value = data.image_url;
+  if (state.editingWechatChannelVideoIndex !== null) {
+    state.currentWechatChannelVideos[state.editingWechatChannelVideoIndex].cover_url = data.image_url;
+    state.currentWechatChannelVideos[state.editingWechatChannelVideoIndex].display_url = data.display_url || data.image_url;
+    renderWechatChannelVideos();
+  }
+}
+
+$("#cacheWechatVideoCoverUrlBtn").addEventListener("click", async () => {
+  const sourceUrl = $("#wechatVideoCoverUrl").value.trim();
+  if (!/^https?:\/\//i.test(sourceUrl)) {
+    showToast("视频首帧/封面 URL 必须是 HTTP(S) 地址");
+    return;
+  }
+  if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(sourceUrl)) {
+    showToast("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。");
+    return;
+  }
+  setUploadStatus("#wechatVideoCoverFileStatus", t("正在上传"), "ok");
+  try {
+    const data = await request("/admin/content/wechat-channel-covers/cache", {
+      method: "POST",
+      body: JSON.stringify({ url: sourceUrl }),
+    });
+    applyWechatChannelCover(data);
+    const message = state.editingWechatChannelVideoIndex !== null ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
+    setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
+    showToast(message);
+  } catch (error) {
+    const message = error.message || t("上传失败");
+    setUploadStatus("#wechatVideoCoverFileStatus", message, "error");
+    showToast(`${t("上传失败")}：${message}`);
+  }
+});
+
+$("#uploadWechatVideoCoverBtn").addEventListener("click", async () => {
+  const input = $("#wechatVideoCoverFile");
+  const file = input.files[0];
+  const validation = validateUploadFile(file, false);
+  if (!validation.valid) {
+    setUploadStatus("#wechatVideoCoverFileStatus", validation.message, "error");
+    showToast(validation.message);
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const data = await uploadWithProgress(`${API}/admin/content/uploads/wechat-channel-covers`, formData, "#wechatVideoCoverFileStatus");
+    applyWechatChannelCover(data);
+    input.value = "";
+    const message = state.editingWechatChannelVideoIndex !== null ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
+    setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
+    showToast(message);
+  } catch (error) {
+    const message = error.message || t("上传失败");
+    setUploadStatus("#wechatVideoCoverFileStatus", message, "error");
+    showToast(`${t("上传失败")}：${message}`);
+  }
 });
 
 $("#wechatChannelVideoList").addEventListener("click", (event) => {

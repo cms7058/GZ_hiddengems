@@ -458,9 +458,13 @@
               <input id="wechatFeedId" maxlength="256" placeholder="视频 ID（feed_id）" />
               <input id="wechatVideoTitle" maxlength="256" placeholder="视频标题" />
               <input id="wechatVideoCoverUrl" maxlength="512" placeholder="视频首帧/封面 URL（cover_url）" />
+              <button id="cacheWechatVideoCoverUrlBtn" type="button" class="secondary-btn">从图片 URL 上传</button>
+              <input id="wechatVideoCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+              <button id="uploadWechatVideoCoverBtn" type="button" class="secondary-btn">上传封面图片</button>
               <input id="wechatVideoSortOrder" type="number" min="0" value="0" placeholder="排序" />
               <button id="addWechatChannelVideoBtn" type="button" class="secondary-btn">添加视频</button>
             </div>
+            <p id="wechatVideoCoverFileStatus" class="upload-file-info muted">请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。</p>
             <div id="wechatChannelVideoList" class="wechat-channel-video-list"></div>
           </div>
           <label>
@@ -549,8 +553,9 @@
           </div>
         </div>
         <footer>
+          <p id="spotSaveStatus" class="save-status" role="status" aria-live="polite"></p>
           <button type="button" class="secondary-btn" data-close-dialog="spotDialog">取消</button>
-          <button type="submit" class="primary-btn">保存</button>
+          <button id="saveSpotBtn" type="submit" class="primary-btn">保存</button>
         </footer>
       </form>
     </dialog>
@@ -931,6 +936,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260720-wechat-channel-cover-proxy"></script>
+    <script src="/admin/static/app.js?v=20260720-video-channel-cover-upload"></script>
   </body>
 </html>

@@ -718,6 +718,23 @@ td .image-thumb {
   box-shadow: var(--shadow);
 }
 
+.save-status {
+  flex: 1;
+  min-height: 20px;
+  margin: 0 auto 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.save-status.success {
+  color: var(--primary-strong);
+}
+
+.save-status.error {
+  color: var(--danger);
+}
+
 .admin-assistant-fab {
   position: fixed;
   right: 24px;
