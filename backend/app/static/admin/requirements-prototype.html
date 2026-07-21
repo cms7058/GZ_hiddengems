@@ -327,6 +327,18 @@
       .progress > span { display: block; height: 100%; background: var(--brand); }
       .task-card footer { display: flex; justify-content: flex-end; margin-top: 10px; }
       .workflow-dialog { width: min(1280px, calc(100vw - 28px)); }
+      .error-dialog { width: min(680px, calc(100vw - 28px)); }
+      .error-summary { margin: 0; color: var(--ink); font-weight: 700; line-height: 1.65; }
+      .error-hint { margin: 10px 0 0; color: var(--muted); line-height: 1.65; }
+      .error-detail {
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid #efd2c9;
+        border-radius: 8px;
+        background: #fff7f4;
+      }
+      .error-detail strong { color: #9c3422; }
+      .error-detail pre { margin: 8px 0 0; max-height: 190px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: #6f2d23; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
       .workflow-summary {
         display: grid;
         grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(110px, .55fr));
@@ -959,6 +971,31 @@
       </footer>
     </dialog>
 
+    <dialog id="operationErrorDialog" class="error-dialog">
+      <header class="dialog-head">
+        <div>
+          <h3 id="operationErrorTitle">操作未完成</h3>
+          <p class="muted">请查看原因后再重试。</p>
+        </div>
+        <button type="button" class="btn icon" data-close="operationErrorDialog" aria-label="关闭">×</button>
+      </header>
+      <div class="dialog-body">
+        <p id="operationErrorSummary" class="error-summary"></p>
+        <p id="operationErrorHint" class="error-hint"></p>
+        <section class="error-detail">
+          <strong>技术详情</strong>
+          <pre id="operationErrorDetails"></pre>
+        </section>
+      </div>
+      <footer class="dialog-foot">
+        <span class="muted">可复制技术详情后交给管理员排查。</span>
+        <div class="row-actions">
+          <button id="copyOperationErrorBtn" type="button" class="btn">复制详情</button>
+          <button type="button" class="btn primary" data-close="operationErrorDialog">我知道了</button>
+        </div>
+      </footer>
+    </dialog>
+
     <dialog id="detailDialog">
       <form id="detailForm">
         <header class="dialog-head">
@@ -1296,7 +1333,15 @@
           throw new Error("登录已失效，请重新登录");
         }
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.detail || "后端请求失败");
+        if (!response.ok) {
+          const detail = typeof body.detail === "string"
+            ? body.detail
+            : body.detail?.message || body.message || "后端请求失败";
+          const error = new Error(detail);
+          error.statusCode = response.status;
+          error.detailText = JSON.stringify(body, null, 2);
+          throw error;
+        }
         return body;
       }
 
@@ -1328,6 +1373,17 @@
         toast.classList.remove("hidden");
         clearTimeout(showToast.timer);
         showToast.timer = setTimeout(() => toast.classList.add("hidden"), 2800);
+      }
+
+      function showOperationError(title, error, hint = "请检查输入内容和接口管理中的大模型配置后重试。") {
+        const message = error?.message || String(error || "未知错误");
+        const details = error?.detailText || message;
+        $("#operationErrorTitle").textContent = title;
+        $("#operationErrorSummary").textContent = message;
+        $("#operationErrorHint").textContent = hint;
+        $("#operationErrorDetails").textContent = details;
+        const dialog = $("#operationErrorDialog");
+        if (!dialog.open) dialog.showModal();
       }
 
       function pill(text) {
@@ -2092,7 +2148,8 @@
           }
         } catch (error) {
           selectedEvidence = [];
-          showToast(error.message || "文件处理失败");
+          $("#importDialog").close();
+          showOperationError("文件处理失败", error, "截图仅支持 JPG、PNG、WEBP、GIF，且单个文件不能超过 2 MB。关闭后可重新导入文件。");
         }
       }
 
@@ -2106,7 +2163,10 @@
       $("#importForm").addEventListener("submit", async event => {
         event.preventDefault();
         const text = $("#chatText").value.trim();
-        if (!text && !selectedFiles.length) return showToast("请粘贴聊天内容或选择文件");
+        if (!text && !selectedFiles.length) {
+          showOperationError("缺少聊天内容", new Error("请粘贴微信聊天文字，或选择文字文件、聊天截图。"), "系统不能从空白内容生成开发需求草稿。");
+          return;
+        }
         const button = $("#recognizeBtn");
         button.disabled = true;
         button.innerHTML = `<span class="recognizing"><i class="spinner"></i>正在识别与归类</span>`;
@@ -2123,12 +2183,23 @@
             })
           });
           pendingRecognition = result.drafts || [];
-          renderImportPreview(text || `[上传文件：${selectedFiles.map(file => file.name).join("、")}]`, pendingRecognition);
-          if (result.warning) showToast(result.warning);
           $("#importDialog").close();
+          if (!pendingRecognition.length) {
+            showOperationError(
+              "未识别出可保存的开发需求",
+              new Error(result.warning || "聊天内容中没有找到新增、修改、缺陷、确认等可执行事项。"),
+              "请粘贴完整的微信对话，至少包含具体问题、期望调整或待确认事项；关闭后可重新导入。"
+            );
+            return;
+          }
+          renderImportPreview(text || `[上传文件：${selectedFiles.map(file => file.name).join("、")}]`, pendingRecognition);
+          if (result.warning) {
+            $("#recognitionSummary").textContent += ` 注意：${result.warning}`;
+          }
           $("#recognitionPreviewDialog").showModal();
         } catch (error) {
-          showToast(error.message || "AI 整理失败");
+          $("#importDialog").close();
+          showOperationError("识别与归类失败", error, "请确认接口管理中的大模型测试连接已通过；若为截图，请同时开启图片视觉识别。关闭后可重新导入。 ");
         } finally {
           button.disabled = false;
           button.textContent = "开始识别并整理";
@@ -2173,7 +2244,7 @@
           $("#recognitionPreviewDialog").close();
           renderAll();
         } catch (error) {
-          showToast(error.message);
+          showOperationError("保存项目记录失败", error, "请检查草稿中的标题、分类、来源日期与验收标准是否完整，再重新保存。");
         } finally {
           button.disabled = false;
           button.textContent = "保存到项目记录";
@@ -2196,10 +2267,20 @@
           saveState(`已新建开发需求 ${result.requirement.id}`);
           renderAll();
         } catch (error) {
-          showToast(error.message || "新建需求失败");
+          showOperationError("新建开发需求失败", error, "请补全必填字段后重试。");
         } finally {
           button.disabled = false;
           button.textContent = "保存需求";
+        }
+      });
+
+      $("#copyOperationErrorBtn").addEventListener("click", async () => {
+        const text = `${$("#operationErrorTitle").textContent}\n${$("#operationErrorSummary").textContent}\n\n${$("#operationErrorDetails").textContent}`;
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("错误详情已复制");
+        } catch (error) {
+          showToast("浏览器未允许复制，请手动选择技术详情复制");
         }
       });
 
