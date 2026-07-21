@@ -1,4 +1,4 @@
-const { isServiceClosedError, request } = require("../../utils/request")
+const { isServiceClosedError, request, resolveMediaUrl } = require("../../utils/request")
 
 const app = getApp()
 
@@ -122,7 +122,7 @@ Page({
       tags: spot.tags || [],
       required_explore_points: Number(spot.required_explore_points || 0),
       is_unlocked: spot.is_unlocked !== false,
-      cover_image_url: spot.cover_image_url || "",
+      cover_image_url: resolveMediaUrl(spot.cover_image_url || ""),
       markerColor: /^#[0-9a-fA-F]{6}$/.test(spot.marker_color || "") ? spot.marker_color : "#2f6b4f",
     }))
   },

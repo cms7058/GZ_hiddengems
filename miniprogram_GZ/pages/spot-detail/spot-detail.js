@@ -1,16 +1,10 @@
-const { isServiceClosedError, request, uploadMedia } = require("../../utils/request")
+const { isServiceClosedError, request, resolveMediaUrl, uploadMedia } = require("../../utils/request")
 const { chooseNavigationApp } = require("../../utils/navigation")
 const { getMarkerIcon, normalizeMarkerColor } = require("../../utils/marker-icon")
-const config = require("../../utils/config")
 
 const app = getApp()
 const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
-
-function resolveMediaUrl(url) {
-  if (!url || !url.startsWith("/")) return url
-  return `${config.apiBaseUrl.replace(/\/api\/v1$/, "")}${url}`
-}
 
 const COPY = {
   "zh-CN": {
@@ -373,8 +367,14 @@ Page({
       comments: (spot.comments || []).map((item) => this.decorateSubmission(item)),
       my_checkins: myCheckins.map((item) => this.decorateSubmission(item)),
       has_successful_checkin: myCheckins.some((item) => item.status === "approved"),
-      lifestyle_recommendations: spot.lifestyle_recommendations || [],
-      images: spot.images || [],
+      lifestyle_recommendations: (spot.lifestyle_recommendations || []).map((item) => ({
+        ...item,
+        display_url: resolveMediaUrl(item.display_url || item.image_url),
+      })),
+      images: (spot.images || []).map((item) => ({
+        ...item,
+        display_url: resolveMediaUrl(item.display_url || item.image_url),
+      })),
       wechat_channel_videos: (spot.wechat_channel_videos || []).filter((item) => item.is_active !== false && item.finder_user_name && item.feed_id),
     }
   },
@@ -388,6 +388,11 @@ Page({
     }[status] || ""
     return {
       ...item,
+      display_url: resolveMediaUrl(item.display_url || item.image_url),
+      media: (item.media || []).map((media) => ({
+        ...media,
+        display_url: resolveMediaUrl(media.display_url || media.media_url),
+      })),
       isMine: Number(item.user_id) === Number(this.data.user.id),
       statusText,
     }

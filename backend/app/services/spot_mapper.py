@@ -11,7 +11,7 @@ from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut
 from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
-from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
+from app.services.media_storage import get_media_proxy_path, is_managed_media_url
 from app.services.pass_levels import get_spot_unlock_state
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.user import CheckinRecordOut
@@ -370,7 +370,10 @@ def spot_to_detail_out(
 
 
 def spot_image_to_out(image: SpotImage, db: Optional[Session] = None) -> SpotImageOut:
-    display_url = get_media_display_url(db, image.image_url) if db else image.image_url
+    # Mini Program image components can only load declared download domains.
+    # Route managed OSS objects through the existing API media proxy so list and
+    # detail views share the same configured domain as the JSON API.
+    display_url = get_media_proxy_path(db, image.image_url) if db else image.image_url
     return SpotImageOut(
         id=image.id,
         spot_id=image.spot_id,
@@ -390,7 +393,7 @@ def content_media_to_out(media: ContentMedia, db: Optional[Session] = None) -> C
         media_url=media.media_url,
         media_type=media.media_type,
         status=media.status,
-        display_url=get_media_display_url(db, media.media_url) if db else media.media_url,
+        display_url=get_media_proxy_path(db, media.media_url) if db else media.media_url,
     )
 
 
@@ -404,7 +407,7 @@ def get_content_media(db: Optional[Session], owner_type: str, owner_id: int, inc
 
 
 def travel_note_to_out(note: TravelNote, db: Optional[Session] = None, include_unapproved_media: bool = True) -> TravelNoteOut:
-    display_url = get_media_display_url(db, note.image_url) if db else note.image_url
+    display_url = get_media_proxy_path(db, note.image_url) if db else note.image_url
     return TravelNoteOut(
         id=note.id,
         user_id=note.user_id,
@@ -428,7 +431,7 @@ def comment_to_out(
     include_unapproved_media: bool = True,
     viewer_user_id: Optional[int] = None,
 ) -> UserCommentOut:
-    display_url = get_media_display_url(db, comment.image_url) if db else comment.image_url
+    display_url = get_media_proxy_path(db, comment.image_url) if db else comment.image_url
     return UserCommentOut(
         id=comment.id,
         user_id=comment.user_id,
@@ -467,7 +470,7 @@ def checkin_to_out(record: CheckinRecord, db: Optional[Session] = None) -> Check
 
 
 def recommendation_to_out(recommendation: LifestyleRecommendation, db: Optional[Session] = None) -> RecommendationOut:
-    display_url = get_media_display_url(db, recommendation.image_url) if db else recommendation.image_url
+    display_url = get_media_proxy_path(db, recommendation.image_url) if db else recommendation.image_url
     return RecommendationOut(
         id=recommendation.id,
         spot_id=recommendation.spot_id,

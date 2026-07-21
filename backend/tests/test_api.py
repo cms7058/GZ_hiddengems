@@ -390,6 +390,32 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["marker_color"], "#C63D52")
 
+    def test_map_spot_uses_same_origin_media_proxy_for_oss_cover(self):
+        db = self.SessionLocal()
+        values = {
+            "MEDIA_STORAGE_PROVIDER": "aliyun_oss",
+            "ALIYUN_OSS_ENDPOINT": "oss-cn-chengdu.aliyuncs.com",
+            "ALIYUN_OSS_REGION": "cn-chengdu",
+            "ALIYUN_OSS_BUCKET": "hiddengems",
+        }
+        for key, value in values.items():
+            setting = db.scalar(
+                select(IntegrationSetting).where(
+                    IntegrationSetting.group == "object_storage",
+                    IntegrationSetting.key == key,
+                )
+            )
+            setting.value = value
+        image = db.get(SpotImage, 1)
+        image.image_url = "https://hiddengems.oss-cn-chengdu.aliyuncs.com/spots/2026/07/cover.jpg"
+        db.commit()
+        db.close()
+
+        response = self.client.get("/api/v1/spots/map?lang=zh-CN&explore_points=120")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["cover_image_url"], "/api/v1/media/spots/2026/07/cover.jpg")
+
     @patch("app.api.v1.routers.admin_spots.cache_remote_image", side_effect=lambda _db, url: url)
     def test_spot_update_keeps_existing_wechat_channel_video(self, _cache_remote_image):
         db = self.SessionLocal()

@@ -73,6 +73,11 @@ function getLanguage() {
   }
 }
 
+function resolveMediaUrl(url) {
+  if (!url || !String(url).startsWith("/")) return url
+  return `${config.apiBaseUrl.replace(/\/api\/v1$/, "")}${url}`
+}
+
 function serviceHoursText(hours = serviceHours) {
   const start = `${String(hours.open_hour).padStart(2, "0")}:00`
   const end = `${String(hours.close_hour).padStart(2, "0")}:00`
@@ -236,5 +241,6 @@ module.exports = {
   notifyServiceClosedIfNeeded,
   preloadServiceHours,
   request,
+  resolveMediaUrl,
   uploadMedia,
 }
