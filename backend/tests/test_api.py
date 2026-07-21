@@ -357,6 +357,38 @@ class ApiTest(unittest.TestCase):
         image_urls.assert_called_once()
         self.assertTrue(call_ai.call_args.args[3][0].startswith("data:image/png"))
 
+    @patch("app.services.archive.call_ai")
+    def test_archive_ai_draft_normalizes_null_date_and_text_confidence(self, call_ai):
+        db = self.SessionLocal()
+        for key, value in {"AI_API_BASE": "https://example.invalid/v1", "AI_MODEL": "test-model", "AI_API_KEY": "test-key"}.items():
+            setting = db.scalar(select(IntegrationSetting).where(IntegrationSetting.group == "ai", IntegrationSetting.key == key))
+            setting.value = value
+        db.commit()
+        db.close()
+        call_ai.return_value = json.dumps(
+            {"requirements": [{
+                "title": "展示完整识别错误",
+                "category": "新功能",
+                "priority": "高",
+                "source_date": None,
+                "source_text": "识别失败时需要显示完整错误。",
+                "description": "新增独立错误弹窗。",
+                "acceptance_criteria": "管理员可以看到完整错误详情。",
+                "confidence": "高",
+            }]}
+        )
+
+        response = self.client.post(
+            "/api/v1/admin/archive/imports/draft",
+            headers=self.login_headers(),
+            json={"raw_text": "识别失败时显示完整错误", "contact": "测试客户"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["source"], "ai")
+        self.assertEqual(response.json()["drafts"][0]["sourceDate"], date.today().isoformat())
+        self.assertEqual(response.json()["drafts"][0]["confidence"], 88)
+
     def test_map_spots_mask_protected_location_for_regular_user(self):
         response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN&explore_points=120")
 

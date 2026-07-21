@@ -258,20 +258,63 @@ def _parse_ai_drafts(
     if not isinstance(records, list):
         raise ValueError("AI response requirements must be a list")
     today = date.today().isoformat()
+    allowed_categories = {"新功能", "需求变更", "缺陷", "确认信息", "验证反馈"}
+    allowed_priorities = {"紧急", "高", "中", "低"}
+    category_aliases = {"bug": "缺陷", "问题": "缺陷", "优化": "需求变更", "功能": "新功能"}
+    confidence_by_priority = {"紧急": 95, "高": 88, "中": 78, "低": 68}
+
+    def text_value(value: object, fallback: str) -> str:
+        return str(value).strip() if value is not None and str(value).strip() else fallback
+
+    def iso_date(value: object, fallback: Optional[str]) -> Optional[str]:
+        if value is None or not str(value).strip():
+            return fallback
+        match = re.search(r"(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})", str(value))
+        if not match:
+            return fallback
+        try:
+            return date(int(match.group(1)), int(match.group(2)), int(match.group(3))).isoformat()
+        except ValueError:
+            return fallback
+
+    def confidence_value(value: object, priority: str) -> int:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0, min(100, int(value)))
+        if value is not None:
+            match = re.search(r"\d+", str(value))
+            if match:
+                return max(0, min(100, int(match.group(0))))
+        return confidence_by_priority.get(priority, 80)
+
     drafts = []
-    for record in records[:20]:
+    for raw_record in records[:20]:
+        record = dict(raw_record) if isinstance(raw_record, dict) else None
         if not isinstance(record, dict):
             continue
-        record.setdefault("module", "待确认模块")
-        record.setdefault("priority", "中")
-        record.setdefault("requester", contact or "客户")
-        record.setdefault("source_date", today)
-        record.setdefault("source_text", raw_text[:8000])
-        record.setdefault("description", record.get("source_text") or "待补充需求描述")
-        record.setdefault("acceptance_criteria", "由管理员补充可验证的验收标准。")
-        record.setdefault("evidence", evidence)
-        record.setdefault("confidence", 80)
-        drafts.append(ArchiveRequirementDraft.model_validate(record))
+        category = text_value(record.get("category"), "确认信息")
+        category = category_aliases.get(category.lower(), category)
+        priority = text_value(record.get("priority"), "中")
+        if priority not in allowed_priorities:
+            priority = "中"
+        normalized = {
+            "title": text_value(record.get("title"), raw_text[:60] or "待确认开发需求"),
+            "module": text_value(record.get("module"), "待确认模块"),
+            "category": category if category in allowed_categories else "确认信息",
+            "priority": priority,
+            "requester": text_value(record.get("requester"), contact or "客户"),
+            "source_date": iso_date(record.get("source_date") or record.get("sourceDate"), today),
+            "source_text": text_value(record.get("source_text") or record.get("sourceText"), raw_text[:8000]),
+            "description": text_value(record.get("description"), raw_text[:8000] or "待补充需求描述"),
+            "acceptance_criteria": text_value(
+                record.get("acceptance_criteria") or record.get("acceptanceCriteria"),
+                "由管理员补充可验证的验收标准。",
+            ),
+            "owner": text_value(record.get("owner"), "") or None,
+            "planned_release": iso_date(record.get("planned_release") or record.get("plannedRelease"), None),
+            "evidence": evidence,
+            "confidence": confidence_value(record.get("confidence"), priority),
+        }
+        drafts.append(ArchiveRequirementDraft.model_validate(normalized))
     if not drafts:
         raise ValueError("AI response did not produce valid drafts")
     return drafts
@@ -286,6 +329,7 @@ def analyze_chat_drafts(db: Session, payload: ArchiveChatImportIn) -> tuple[list
         "你是软件项目需求分析助手。只返回 JSON，不要 Markdown。"
         "格式：{\"requirements\":[{title,module,category,priority,requester,source_date,source_text,description,acceptance_criteria,owner,planned_release,confidence}]}。"
         "category 只能是 新功能、需求变更、缺陷、确认信息、验证反馈；priority 只能是 紧急、高、中、低。"
+        "source_date 必须是 YYYY-MM-DD 字符串，confidence 必须是 0 到 100 的整数，不能返回 null 或文字。"
         "仅提取可执行或需要确认的需求，保留原文事实，不臆造。"
     )
     prompt = f"沟通对象：{payload.contact or '客户'}\n聊天原文：\n{payload.raw_text}"
