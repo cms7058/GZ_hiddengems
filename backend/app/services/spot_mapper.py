@@ -11,7 +11,7 @@ from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut
 from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
-from app.services.media_storage import get_media_display_url, get_media_proxy_path
+from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
 from app.services.pass_levels import get_spot_unlock_state
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.user import CheckinRecordOut
@@ -138,7 +138,26 @@ def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Opti
         (image for image in getattr(spot, "spot_images", []) if image.is_active and image.media_type == "image"),
         key=lambda image: (not image.is_cover, image.sort_order, image.id),
     )
-    return spot_image_to_out(images[0], db).display_url if images else None
+    if images:
+        return spot_image_to_out(images[0], db).display_url
+
+    # When no spot media is uploaded, Video Channel covers are the next visual
+    # source for map/list cards. Their display URL is proxied through the API
+    # domain so the mini program does not need an OSS download-domain entry.
+    channel_videos = sorted(
+        (
+            video
+            for video in getattr(spot, "wechat_channel_videos", [])
+            if video.is_active and video.cover_url
+        ),
+        key=lambda video: (video.sort_order, video.id),
+    )
+    if channel_videos:
+        if db is not None and not is_managed_media_url(db, channel_videos[0].cover_url):
+            return None
+        channel_cover = wechat_channel_video_to_out(channel_videos[0], db)
+        return channel_cover.display_url or channel_cover.cover_url
+    return None
 
 
 def locked_spot_intro(spot: ScenicSpot, lang: str) -> str:

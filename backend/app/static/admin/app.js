@@ -3090,11 +3090,21 @@ $("#wechatVideoCoverFile").addEventListener("change", () => {
 
 function applyWechatChannelCover(data) {
   $("#wechatVideoCoverUrl").value = data.image_url;
-  if (state.editingWechatChannelVideoIndex !== null) {
-    state.currentWechatChannelVideos[state.editingWechatChannelVideoIndex].cover_url = data.image_url;
-    state.currentWechatChannelVideos[state.editingWechatChannelVideoIndex].display_url = data.display_url || data.image_url;
-    renderWechatChannelVideos();
+  let targetIndex = state.editingWechatChannelVideoIndex;
+  if (targetIndex === null) {
+    const finder = $("#wechatFinderUserName").value.trim();
+    const feedId = $("#wechatFeedId").value.trim();
+    targetIndex = state.currentWechatChannelVideos.findIndex(
+      (video) => video.finder_user_name === finder && video.feed_id === feedId,
+    );
   }
+  if (targetIndex !== null && targetIndex >= 0) {
+    state.currentWechatChannelVideos[targetIndex].cover_url = data.image_url;
+    state.currentWechatChannelVideos[targetIndex].display_url = data.display_url || data.image_url;
+    renderWechatChannelVideos();
+    return true;
+  }
+  return false;
 }
 
 $("#cacheWechatVideoCoverUrlBtn").addEventListener("click", async () => {
@@ -3113,8 +3123,8 @@ $("#cacheWechatVideoCoverUrlBtn").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ url: sourceUrl }),
     });
-    applyWechatChannelCover(data);
-    const message = state.editingWechatChannelVideoIndex !== null ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
+    const updated = applyWechatChannelCover(data);
+    const message = updated ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
     setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
     showToast(message);
   } catch (error) {
@@ -3137,9 +3147,9 @@ $("#uploadWechatVideoCoverBtn").addEventListener("click", async () => {
   formData.append("file", file);
   try {
     const data = await uploadWithProgress(`${API}/admin/content/uploads/wechat-channel-covers`, formData, "#wechatVideoCoverFileStatus");
-    applyWechatChannelCover(data);
+    const updated = applyWechatChannelCover(data);
     input.value = "";
-    const message = state.editingWechatChannelVideoIndex !== null ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
+    const message = updated ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
     setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
     showToast(message);
   } catch (error) {

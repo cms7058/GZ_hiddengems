@@ -80,7 +80,7 @@
         <view wx:if="{{fallbackMode}}" class="locked-banner">{{copy.fallbackNotice}}</view>
         <view wx:if="{{spot.wechat_channel_videos.length && spot.images.length}}" class="video-channel-list">
           <view wx:for="{{spot.wechat_channel_videos}}" wx:key="id" class="video-channel-link video-channel-card" data-finder-user-name="{{item.finder_user_name}}" data-feed-id="{{item.feed_id}}" bindtap="onOpenWechatChannelVideo">
-            <image wx:if="{{item.cover_url}}" class="video-channel-cover" src="{{item.cover_url}}" mode="aspectFill"></image>
+            <image wx:if="{{item.display_url || item.cover_url}}" class="video-channel-cover" src="{{item.display_url || item.cover_url}}" mode="aspectFill"></image>
             <view class="video-channel-copy">
               <text class="video-channel-link-title">{{item.title}}</text>
               <text class="video-channel-author">{{item.finder_user_name}}</text>
