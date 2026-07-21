@@ -15,7 +15,7 @@ from app.models.admin import AdminRole, AdminUser
 from app.models.archive import ArchiveDevelopmentTask, ArchiveEvent, ArchiveInternalMessage, ArchiveRequirement
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
-from app.models.spot import ScenicSpot, Tag
+from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
 from app.models.user import CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
@@ -282,6 +282,46 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["marker_color"], "#C63D52")
+
+    @patch("app.api.v1.routers.admin_spots.cache_remote_image", side_effect=lambda _db, url: url)
+    def test_spot_update_keeps_existing_wechat_channel_video(self, _cache_remote_image):
+        db = self.SessionLocal()
+        video = WechatChannelVideo(
+            spot_id=1,
+            finder_user_name="finder-user",
+            feed_id="feed-id",
+            title="原始标题",
+            cover_url="https://example.com/cover.jpg",
+        )
+        db.add(video)
+        db.commit()
+        db.close()
+
+        response = self.client.patch(
+            "/api/v1/admin/spots/1",
+            headers=self.login_headers(),
+            json={
+                "wechat_channel_videos": [
+                    {
+                        "media_type": "wechat_channel",
+                        "finder_user_name": "finder-user",
+                        "feed_id": "feed-id",
+                        "title": "更新后的标题",
+                        "cover_url": "https://example.com/cover.jpg",
+                        "sort_order": 1,
+                        "is_active": True,
+                    }
+                ]
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        db = self.SessionLocal()
+        videos = db.scalars(select(WechatChannelVideo).where(WechatChannelVideo.spot_id == 1)).all()
+        self.assertEqual(len(videos), 1)
+        self.assertEqual(videos[0].title, "更新后的标题")
+        self.assertEqual(videos[0].sort_order, 1)
+        db.close()
 
     def test_spot_detail_supports_english(self):
         response = self.client.get("/api/v1/spots/1?lang=en-US&user_level=3&is_member=true&explore_points=120")

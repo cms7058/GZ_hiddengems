@@ -776,15 +776,98 @@ td .image-thumb {
   gap: 8px;
 }
 
+.wechat-channel-video-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.wechat-channel-video-form,
+.wechat-channel-video-guide {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.wechat-channel-video-form {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  background: #fbfdfb;
+}
+
 .wechat-channel-video-inputs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 .wechat-channel-video-inputs input,
 .wechat-channel-video-inputs button {
+  width: 100%;
   min-height: 38px;
+}
+
+.wechat-channel-video-guide {
+  background: #f3f8f4;
+  color: var(--text);
+}
+
+.wechat-channel-video-guide h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.wechat-channel-video-guide ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 21px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.wechat-channel-video-guide li {
+  position: relative;
+  padding-right: 24px;
+}
+
+.wechat-channel-video-guide li.is-complete {
+  color: var(--brand);
+}
+
+.wechat-channel-video-guide li.is-complete::after {
+  content: "✓";
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.wechat-channel-video-guide strong,
+.wechat-channel-video-guide code {
+  color: var(--text);
+}
+
+.wechat-channel-video-guide li.is-complete strong,
+.wechat-channel-video-guide li.is-complete code {
+  color: var(--brand-strong);
+}
+
+.wechat-channel-video-guide a {
+  color: var(--brand);
+  font-weight: 700;
 }
 
 .wechat-channel-video-list {
@@ -816,7 +899,7 @@ td .image-thumb {
 }
 
 @media (max-width: 640px) {
-  .wechat-channel-video-inputs { grid-template-columns: 1fr; }
+  .wechat-channel-video-layout { grid-template-columns: 1fr; }
   .wechat-channel-video-item { grid-template-columns: 56px minmax(0, 1fr); }
   .wechat-channel-video-item img { width: 56px; height: 48px; }
   .wechat-channel-video-actions { grid-column: 1 / -1; }

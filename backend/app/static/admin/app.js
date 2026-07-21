@@ -27,6 +27,8 @@ const state = {
   currentSpotChildPoints: [],
   currentWechatChannelVideos: [],
   editingWechatChannelVideoIndex: null,
+  wechatChannelCoverConverted: false,
+  wechatChannelVideoAdded: false,
   pagination: {},
   editingSpotId: null,
   editingTagId: null,
@@ -150,8 +152,8 @@ const I18N = {
   "新增会员套餐": "New Membership Plan",
   "升级积分": "Upgrade Points",
   "删除后数据不可恢复，确认删除吗？": "Deleted data cannot be recovered. Continue?",
-  "确认删除该视频号视频？删除后数据不可恢复。": "Delete this Video Channel video? This cannot be undone.",
-  "视频号视频已移除，请保存秘境": "Video Channel video removed. Save the spot to apply changes.",
+  "确认删除该微信视频号信息？删除后数据不可恢复。": "Delete this Video Channel video? This cannot be undone.",
+  "微信视频号信息已移除，请保存秘境": "Video Channel video removed. Save the spot to apply changes.",
   "删除失败": "Delete failed",
   "维护会员套餐、价格、周期、权益，并查看用户会员记录。": "Maintain membership plans, prices, periods, benefits, and user membership records.",
   "审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。": "Review GPS and image check-ins; approvals increase user check-in counts.",
@@ -550,7 +552,7 @@ async function cacheWechatChannelCoversBeforeSave() {
   for (const video of videos) {
     const sourceUrl = (video.cover_url || "").trim();
     if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(sourceUrl)) {
-      throw new Error(t("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。"));
+      throw new Error(t("微信视频号播放链接不能作为封面图片，请填写图片直链。"));
     }
     try {
       const data = await request("/admin/content/wechat-channel-covers/cache", {
@@ -559,7 +561,7 @@ async function cacheWechatChannelCoversBeforeSave() {
       });
       cachedVideos.push({ ...video, cover_url: data.image_url, display_url: data.display_url || data.image_url });
     } catch (error) {
-      const title = video.title ? `《${video.title}》` : t("视频号视频");
+      const title = video.title ? `《${video.title}》` : t("微信视频号信息");
       throw new Error(`${title}：${error.message || t("上传失败")}`);
     }
   }
@@ -1373,15 +1375,40 @@ function renderWechatChannelVideos() {
         </div>
       </article>
     `).join("")
-    : `<p class="muted">暂无视频号视频</p>`;
+    : `<p class="muted">暂无微信视频号信息</p>`;
+  updateWechatChannelGuide();
 }
 
-function clearWechatChannelVideoForm() {
+function updateWechatChannelGuide() {
+  const finder = $("#wechatFinderUserName")?.value.trim() || "";
+  const feedId = $("#wechatFeedId")?.value.trim() || "";
+  const title = $("#wechatVideoTitle")?.value.trim() || "";
+  const hasVideo = state.currentWechatChannelVideos.some(
+    (video) => video.finder_user_name === finder && video.feed_id === feedId,
+  );
+  const completed = {
+    finder: Boolean(finder),
+    feed: Boolean(feedId),
+    title: Boolean(title),
+    cover: state.wechatChannelCoverConverted,
+    video: hasVideo || state.wechatChannelVideoAdded,
+  };
+  $$('[data-wechat-guide-step]').forEach((item) => {
+    const isComplete = Boolean(completed[item.dataset.wechatGuideStep]);
+    item.classList.toggle("is-complete", isComplete);
+    item.setAttribute("aria-label", isComplete ? "已完成" : "未完成");
+  });
+}
+
+function clearWechatChannelVideoForm(keepAddedStep = false) {
   state.editingWechatChannelVideoIndex = null;
-  ["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl", "#wechatVideoCoverFile"].forEach((selector) => { $(selector).value = ""; });
+  state.wechatChannelCoverConverted = false;
+  state.wechatChannelVideoAdded = keepAddedStep;
+  ["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl"].forEach((selector) => { $(selector).value = ""; });
   $("#wechatVideoSortOrder").value = "0";
-  setUploadStatus("#wechatVideoCoverFileStatus", t("请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。"));
+  setUploadStatus("#wechatVideoCoverFileStatus", t("请填写可直接访问的图片 URL，系统会转存至 OSS。视频号播放链接不能作为封面图片。"));
   $("#addWechatChannelVideoBtn").textContent = "添加视频";
+  updateWechatChannelGuide();
 }
 
 function fillWechatChannelVideoForm(video, index) {
@@ -1390,10 +1417,11 @@ function fillWechatChannelVideoForm(video, index) {
   $("#wechatFeedId").value = video.feed_id || "";
   $("#wechatVideoTitle").value = video.title || "";
   $("#wechatVideoCoverUrl").value = video.cover_url || "";
-  $("#wechatVideoCoverFile").value = "";
-  setUploadStatus("#wechatVideoCoverFileStatus", t("请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。"));
+  state.wechatChannelCoverConverted = Boolean(video.cover_url);
+  setUploadStatus("#wechatVideoCoverFileStatus", t("请填写可直接访问的图片 URL，系统会转存至 OSS。视频号播放链接不能作为封面图片。"));
   $("#wechatVideoSortOrder").value = video.sort_order ?? 0;
   $("#addWechatChannelVideoBtn").textContent = "更新视频";
+  updateWechatChannelGuide();
 }
 
 function renderSpotCheckins() {
@@ -3062,12 +3090,12 @@ $("#addWechatChannelVideoBtn").addEventListener("click", () => {
     return;
   }
   if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(coverUrl)) {
-    showToast("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。");
+    showToast("微信视频号播放链接不能作为封面图片，请填写图片直链。");
     return;
   }
   const editingIndex = state.editingWechatChannelVideoIndex;
   if (state.currentWechatChannelVideos.some((item, index) => index !== editingIndex && item.finder_user_name === finder && item.feed_id === feedId)) {
-    showToast("该视频号视频已添加");
+    showToast("该微信视频号信息已添加");
     return;
   }
   const video = { media_type: "wechat_channel", finder_user_name: finder, feed_id: feedId, title, cover_url: coverUrl, sort_order: sortOrder, is_active: true };
@@ -3076,20 +3104,21 @@ $("#addWechatChannelVideoBtn").addEventListener("click", () => {
   } else {
     state.currentWechatChannelVideos.splice(editingIndex, 1, video);
   }
-  clearWechatChannelVideoForm();
+  clearWechatChannelVideoForm(true);
   renderWechatChannelVideos();
 });
 
-$("#wechatVideoCoverFile").addEventListener("change", () => {
-  const file = $("#wechatVideoCoverFile").files[0];
-  if (!file) return;
-  const validation = validateUploadFile(file, false);
-  if (!validation.valid) setUploadStatus("#wechatVideoCoverFileStatus", validation.message, "error");
-  else setUploadStatus("#wechatVideoCoverFileStatus", `${t("已选择")}：${file.name} / ${t("文件大小")}：${formatFileSize(file.size)}`, "ok");
+["#wechatFinderUserName", "#wechatFeedId", "#wechatVideoTitle", "#wechatVideoCoverUrl"].forEach((selector) => {
+  $(selector).addEventListener("input", () => {
+    if (selector === "#wechatVideoCoverUrl") state.wechatChannelCoverConverted = false;
+    state.wechatChannelVideoAdded = false;
+    updateWechatChannelGuide();
+  });
 });
 
 function applyWechatChannelCover(data) {
   $("#wechatVideoCoverUrl").value = data.image_url;
+  state.wechatChannelCoverConverted = true;
   let targetIndex = state.editingWechatChannelVideoIndex;
   if (targetIndex === null) {
     const finder = $("#wechatFinderUserName").value.trim();
@@ -3114,42 +3143,17 @@ $("#cacheWechatVideoCoverUrlBtn").addEventListener("click", async () => {
     return;
   }
   if (/weixin\.qq\.com\/sph\/|channels\.weixin\.qq\.com\/finder-preview/i.test(sourceUrl)) {
-    showToast("视频号播放链接不能作为封面图片，请上传封面图片或填写图片直链。");
+    showToast("微信视频号播放链接不能作为封面图片，请填写图片直链。");
     return;
   }
-  setUploadStatus("#wechatVideoCoverFileStatus", t("正在上传"), "ok");
+  setUploadStatus("#wechatVideoCoverFileStatus", t("正在转存"), "ok");
   try {
     const data = await request("/admin/content/wechat-channel-covers/cache", {
       method: "POST",
       body: JSON.stringify({ url: sourceUrl }),
     });
     const updated = applyWechatChannelCover(data);
-    const message = updated ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
-    setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
-    showToast(message);
-  } catch (error) {
-    const message = error.message || t("上传失败");
-    setUploadStatus("#wechatVideoCoverFileStatus", message, "error");
-    showToast(`${t("上传失败")}：${message}`);
-  }
-});
-
-$("#uploadWechatVideoCoverBtn").addEventListener("click", async () => {
-  const input = $("#wechatVideoCoverFile");
-  const file = input.files[0];
-  const validation = validateUploadFile(file, false);
-  if (!validation.valid) {
-    setUploadStatus("#wechatVideoCoverFileStatus", validation.message, "error");
-    showToast(validation.message);
-    return;
-  }
-  const formData = new FormData();
-  formData.append("file", file);
-  try {
-    const data = await uploadWithProgress(`${API}/admin/content/uploads/wechat-channel-covers`, formData, "#wechatVideoCoverFileStatus");
-    const updated = applyWechatChannelCover(data);
-    input.value = "";
-    const message = updated ? "视频号封面已上传，请点击保存秘境生效" : "视频号封面已上传";
+    const message = updated ? "微信视频号封面已转存至 OSS，请点击保存秘境生效" : "微信视频号封面已转存至 OSS";
     setUploadStatus("#wechatVideoCoverFileStatus", t(message), "ok");
     showToast(message);
   } catch (error) {
@@ -3167,12 +3171,13 @@ $("#wechatChannelVideoList").addEventListener("click", (event) => {
   }
   const index = event.target.dataset.removeWechatVideo;
   if (index === undefined) return;
-  if (!window.confirm(t("确认删除该视频号视频？删除后数据不可恢复。"))) return;
+  if (!window.confirm(t("确认删除该微信视频号信息？删除后数据不可恢复。"))) return;
   state.currentWechatChannelVideos.splice(Number(index), 1);
+  state.wechatChannelVideoAdded = false;
   if (state.editingWechatChannelVideoIndex === Number(index)) clearWechatChannelVideoForm();
   else if (state.editingWechatChannelVideoIndex !== null && state.editingWechatChannelVideoIndex > Number(index)) state.editingWechatChannelVideoIndex -= 1;
   renderWechatChannelVideos();
-  showToast("视频号视频已移除，请保存秘境");
+  showToast("微信视频号信息已移除，请保存秘境");
 });
 
 $("#roleForm").addEventListener("submit", async (event) => {

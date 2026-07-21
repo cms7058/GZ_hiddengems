@@ -451,22 +451,6 @@
           <label><span>河流名称</span><input name="river_name" maxlength="128" placeholder="如：都柳江支流" /></label>
           <label><span>上游纬度</span><input name="river_upstream_latitude" type="number" step="0.000001" /></label>
           <label><span>上游经度</span><input name="river_upstream_longitude" type="number" step="0.000001" /></label>
-          <div class="full wechat-channel-video-panel">
-            <span class="field-label">视频号视频</span>
-            <div class="wechat-channel-video-inputs">
-              <input id="wechatFinderUserName" maxlength="128" placeholder="视频号用户 ID（finder_user_name）" />
-              <input id="wechatFeedId" maxlength="256" placeholder="视频 ID（feed_id）" />
-              <input id="wechatVideoTitle" maxlength="256" placeholder="视频标题" />
-              <input id="wechatVideoCoverUrl" maxlength="4096" placeholder="视频首帧/封面 URL（cover_url）" />
-              <button id="cacheWechatVideoCoverUrlBtn" type="button" class="secondary-btn">从图片 URL 上传</button>
-              <input id="wechatVideoCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-              <button id="uploadWechatVideoCoverBtn" type="button" class="secondary-btn">上传封面图片</button>
-              <input id="wechatVideoSortOrder" type="number" min="0" value="0" placeholder="排序" />
-              <button id="addWechatChannelVideoBtn" type="button" class="secondary-btn">添加视频</button>
-            </div>
-            <p id="wechatVideoCoverFileStatus" class="upload-file-info muted">请上传 JPG、PNG、WebP 或 GIF 封面，最大 2MB。视频号播放链接不能作为封面图片。</p>
-            <div id="wechatChannelVideoList" class="wechat-channel-video-list"></div>
-          </div>
           <label>
             <span>可见级别</span>
             <select name="visibility_level">
@@ -493,6 +477,34 @@
           <label><span>打卡半径米</span><input name="checkin_radius_meters" type="number" min="50" value="300" /></label>
           <label class="full"><span>标签</span><div id="spotTagChecks" class="checks"></div></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
+          <div class="full wechat-channel-video-panel">
+            <span class="field-label">微信视频号信息</span>
+            <div class="wechat-channel-video-layout">
+              <div class="wechat-channel-video-form">
+                <div class="wechat-channel-video-inputs">
+                  <input id="wechatFinderUserName" maxlength="128" placeholder="微信视频号用户 ID（finder_user_name）" />
+                  <input id="wechatFeedId" maxlength="256" placeholder="视频 ID（feed_id）" />
+                  <input id="wechatVideoTitle" maxlength="256" placeholder="视频标题" />
+                  <input id="wechatVideoCoverUrl" maxlength="4096" placeholder="视频首帧/封面图片 URL（cover_url）" />
+                  <button id="cacheWechatVideoCoverUrlBtn" type="button" class="secondary-btn">URL 转换</button>
+                  <input id="wechatVideoSortOrder" type="number" min="0" value="0" placeholder="排序" />
+                  <button id="addWechatChannelVideoBtn" type="button" class="secondary-btn">添加视频</button>
+                </div>
+                <p id="wechatVideoCoverFileStatus" class="upload-file-info muted">请填写可直接访问的图片 URL，系统会转存至 OSS。视频号播放链接不能作为封面图片。</p>
+                <div id="wechatChannelVideoList" class="wechat-channel-video-list"></div>
+              </div>
+              <aside class="wechat-channel-video-guide" aria-label="微信视频号链接设置指南">
+                <h3>微信视频号链接设置指南</h3>
+                <ol>
+                  <li data-wechat-guide-step="finder">用电脑打开<a href="https://channels.weixin.qq.com/platform" target="_blank" rel="noopener noreferrer">视频号助手</a>，用个人视频号绑定的微信扫码登录；在首页头像或账号信息附近查看<strong>视频号 ID</strong>，通常以 <code>sph...</code> 开头，填入 <strong>finder_user_name</strong>。</li>
+                  <li data-wechat-guide-step="feed"><strong>feed_id</strong>：进入“内容管理 / 视频管理”，找到目标视频，点击右侧分享或更多，选择“复制视频 ID”。</li>
+                  <li data-wechat-guide-step="title"><strong>title</strong>：填写该视频标题，也可自定义。</li>
+                  <li data-wechat-guide-step="cover"><strong>cover_url</strong>：右键点击封面图片并复制图片地址，然后点击“URL 转换”。</li>
+                  <li data-wechat-guide-step="video">点击“添加视频”，确认下方出现视频信息和封面图片。</li>
+                </ol>
+              </aside>
+            </div>
+          </div>
           <div class="full upload-panel">
             <div class="section-head compact-head">
               <div>

@@ -83,16 +83,47 @@ def normalize_spot_coordinates(
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
-def build_wechat_channel_videos(db: Session, videos: list[dict]) -> list[WechatChannelVideo]:
-    records = []
+def prepare_wechat_channel_videos(db: Session, videos: list[dict]) -> list[dict]:
+    records: list[dict] = []
+    seen_keys: set[tuple[str, str]] = set()
     for video in videos:
         data = dict(video)
+        key = (data["finder_user_name"], data["feed_id"])
+        if key in seen_keys:
+            raise HTTPException(status_code=400, detail="Duplicate Video Channel user ID and video ID")
+        seen_keys.add(key)
         try:
             data["cover_url"] = cache_remote_image(db, data["cover_url"])
         except MediaStorageError as error:
             raise HTTPException(status_code=400, detail=f"Video Channel cover could not be cached: {error}") from error
-        records.append(WechatChannelVideo(**data))
+        records.append(data)
     return records
+
+
+def build_wechat_channel_videos(db: Session, videos: list[dict]) -> list[WechatChannelVideo]:
+    return [WechatChannelVideo(**data) for data in prepare_wechat_channel_videos(db, videos)]
+
+
+def sync_wechat_channel_videos(db: Session, spot: ScenicSpot, videos: list[dict]) -> None:
+    """Update channel videos in place to preserve their unique spot/user/video key."""
+    prepared = prepare_wechat_channel_videos(db, videos)
+    existing_by_key = {
+        (video.finder_user_name, video.feed_id): video
+        for video in spot.wechat_channel_videos
+    }
+    incoming_keys = set()
+    for data in prepared:
+        key = (data["finder_user_name"], data["feed_id"])
+        incoming_keys.add(key)
+        existing = existing_by_key.get(key)
+        if existing is None:
+            spot.wechat_channel_videos.append(WechatChannelVideo(**data))
+            continue
+        for field, value in data.items():
+            setattr(existing, field, value)
+    for key, existing in existing_by_key.items():
+        if key not in incoming_keys:
+            db.delete(existing)
 
 
 @router.get("", response_model=Page[SpotAdminOut])
@@ -257,7 +288,7 @@ def update_admin_spot(
     if tag_ids is not None:
         spot.tags = load_tags(db, tag_ids)
     if wechat_channel_videos is not None:
-        spot.wechat_channel_videos = build_wechat_channel_videos(db, wechat_channel_videos)
+        sync_wechat_channel_videos(db, spot, wechat_channel_videos)
 
     db.add(spot)
     db.commit()
