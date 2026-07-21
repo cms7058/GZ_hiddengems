@@ -1,6 +1,7 @@
 import json
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,12 +14,14 @@ from app.schemas.archive import (
     ArchiveAssistantCommandIn,
     ArchiveAssistantSubmitIn,
     ArchiveChatImportIn,
+    ArchiveRequirementDraft,
     ArchiveRequirementCreate,
     ArchiveRequirementUpdate,
     ArchiveSelfTestIn,
 )
 from app.services.archive import (
     add_event,
+    analyze_chat_drafts,
     analyze_chat_import,
     get_requirement_by_code,
     get_task_by_code,
@@ -31,6 +34,7 @@ from app.services.archive import (
     submit_from_assistant,
     workspace,
 )
+from app.services.media_storage import MediaStorageError, save_media
 
 
 router = APIRouter()
@@ -159,6 +163,7 @@ def import_wechat_messages(
         payload.contact,
         payload.evidence,
         current_admin.id,
+        payload.drafts or None,
     )
     db.commit()
     return {
@@ -170,6 +175,64 @@ def import_wechat_messages(
         },
         "requirements": [requirement_to_dict(item) for item in requirements],
         "workspace": workspace(db, current_admin.role),
+    }
+
+
+@router.post("/imports/draft")
+def draft_wechat_import(
+    payload: ArchiveChatImportIn,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    drafts, source, warning = analyze_chat_drafts(db, payload)
+    return {
+        "drafts": [_draft_to_out(item) for item in drafts],
+        "source": source,
+        "warning": warning,
+    }
+
+
+@router.post("/imports/attachments")
+async def upload_import_attachment(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    content = await file.read(2 * 1024 * 1024 + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="Attachment is empty")
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Screenshot must not exceed 2 MB")
+    content_type = (file.content_type or "").lower()
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only screenshot images can be uploaded for AI recognition")
+    suffix = Path(file.filename or "screenshot.jpg").suffix.lower() or ".jpg"
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        raise HTTPException(status_code=400, detail="Unsupported screenshot format")
+    try:
+        url = save_media(db, "archive-evidence", suffix, content, content_type)
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=f"Screenshot upload failed: {error}") from error
+    return {"name": file.filename or "screenshot", "url": url, "kind": "image"}
+
+
+def _draft_to_out(draft: ArchiveRequirementDraft) -> dict:
+    data = draft.model_dump()
+    return {
+        "title": data["title"],
+        "module": data["module"],
+        "category": data["category"],
+        "priority": data["priority"],
+        "requester": data["requester"],
+        "sourceDate": data["source_date"],
+        "sourceText": data["source_text"],
+        "description": data["description"],
+        "acceptance": data["acceptance_criteria"],
+        "owner": data["owner"],
+        "plannedRelease": data["planned_release"],
+        "evidence": data["evidence"],
+        "confidence": data["confidence"],
+        "status": "待确认",
     }
 
 

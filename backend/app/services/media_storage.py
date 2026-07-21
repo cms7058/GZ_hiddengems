@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from mimetypes import guess_extension
+from mimetypes import guess_extension, guess_type
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, urlparse
@@ -275,11 +275,20 @@ def read_managed_media(db: Session, key: str) -> tuple[bytes, str]:
         target = (LOCAL_UPLOAD_BASE / normalized_key).resolve()
         if LOCAL_UPLOAD_BASE.resolve() not in target.parents or not target.is_file():
             raise MediaStorageError("Media file not found")
-        content_type = "image/jpeg" if target.suffix.lower() in {".jpg", ".jpeg"} else "application/octet-stream"
+        content_type = guess_type(target.name)[0] or "application/octet-stream"
         return target.read_bytes(), content_type
     if config["provider"] == "aliyun_oss":
         return AliyunOssMediaStorage(config).read(normalized_key)
     raise MediaStorageError("Unsupported media storage provider")
+
+
+def read_managed_media_url(db: Session, url: str) -> tuple[bytes, str]:
+    """Read a managed local or OSS media URL without exposing storage details to callers."""
+    config = get_object_storage_config(db)
+    key = _extract_local_key(url) if config["provider"] in {"", "local"} else _extract_oss_key(url, config)
+    if not key:
+        raise MediaStorageError("Media URL is not managed by this application")
+    return read_managed_media(db, key)
 
 
 def delete_media(db: Session, url: Optional[str]) -> None:

@@ -709,6 +709,7 @@
             </label>
             <button id="messageCenterBtn" class="btn message-btn">站内消息<span id="messageBadge" class="notification-badge">2</span></button>
             <button id="resetBtn" class="btn">刷新数据</button>
+            <button id="newRequirementBtn" class="btn" data-super-admin-only>新建需求</button>
             <button id="openImportBtn" class="btn primary">导入微信聊天</button>
           </div>
         </header>
@@ -999,6 +1000,34 @@
       </form>
     </dialog>
 
+    <dialog id="newRequirementDialog">
+      <form id="newRequirementForm">
+        <header class="dialog-head">
+          <div><h3>新建开发需求</h3><p class="muted">填写后直接生成需求编号并进入项目记录。</p></div>
+          <button type="button" class="btn icon" data-close="newRequirementDialog" aria-label="关闭">×</button>
+        </header>
+        <div class="dialog-body">
+          <div class="form-grid">
+            <label>标题<input name="title" required maxlength="160" /></label>
+            <label>所属模块<input name="module" required maxlength="96" value="待确认模块" /></label>
+            <label>分类<select name="category"><option>新功能</option><option>需求变更</option><option>缺陷</option><option>确认信息</option><option>验证反馈</option></select></label>
+            <label>优先级<select name="priority"><option>紧急</option><option>高</option><option selected>中</option><option>低</option></select></label>
+            <label>提出人<input name="requester" maxlength="96" /></label>
+            <label>来源日期<input name="source_date" type="date" required /></label>
+            <label class="full">原始需求描述<textarea name="source_text" required></textarea></label>
+            <label class="full">整理后的需求描述<textarea name="description" required></textarea></label>
+            <label class="full">验收标准<textarea name="acceptance_criteria" required></textarea></label>
+            <label>负责人<input name="owner" maxlength="64" /></label>
+            <label>计划发布<input name="planned_release" type="date" /></label>
+          </div>
+        </div>
+        <footer class="dialog-foot">
+          <button type="button" class="btn" data-close="newRequirementDialog">取消</button>
+          <button type="submit" class="btn primary">创建需求</button>
+        </footer>
+      </form>
+    </dialog>
+
     <dialog id="timelineDialog">
       <header class="dialog-head">
         <div>
@@ -1241,6 +1270,7 @@
       let state = clone(defaultState);
       let pendingRecognition = [];
       let selectedFiles = [];
+      let selectedEvidence = [];
       let currentWorkflowId = "";
       let selectedSelfTestResult = "";
       let selectedAcceptanceResult = "";
@@ -1252,11 +1282,12 @@
       ];
 
       async function apiRequest(path, options = {}) {
+        const isFormData = options.body instanceof FormData;
         const response = await fetch(`${API_BASE}${path}`, {
           ...options,
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${adminToken}`,
+            ...(isFormData ? {} : { "Content-Type": "application/json" }),
             ...(options.headers || {})
           }
         });
@@ -1546,11 +1577,11 @@
           const parts = line.split(/[：:]/);
           return `<div class="chat-message ${index % 3 === 1 ? "me" : ""}"><strong>${escapeHtml(parts[0] || "微信消息")}</strong>${escapeHtml(parts.slice(1).join("：") || line)}</div>`;
         }).join("");
-        $("#aiPreview").innerHTML = results.map(item => `
+        $("#aiPreview").innerHTML = results.length ? results.map(item => `
           <article class="ai-result">${pill(item.category)} <span class="muted">置信度 ${item.confidence}%</span>
             <strong>${escapeHtml(item.title)}</strong><span class="muted">${escapeHtml(item.module)} · ${escapeHtml(item.priority)}优先级</span>
-          </article>`).join("");
-        $("#recognitionSummary").textContent = `从 ${lines.length} 条聊天中识别出 ${results.length} 项可跟踪信息。`;
+          </article>`).join("") : `<div class="empty"><strong>未识别出可保存的需求草稿</strong>请补充聊天文字，或确认后台已启用图片视觉识别。</div>`;
+        $("#recognitionSummary").textContent = `已处理 ${lines.length} 条原始记录，生成 ${results.length} 项待确认草稿。`;
       }
 
       function openDetail(id) {
@@ -1944,6 +1975,13 @@
       $$(".tab").forEach(button => button.addEventListener("click", () => setTab(button.dataset.tab)));
       ["searchInput","categoryFilter","statusFilter"].forEach(id => $(`#${id}`).addEventListener("input", renderAll));
       $("#openImportBtn").addEventListener("click", () => $("#importDialog").showModal());
+      $("#newRequirementBtn").addEventListener("click", () => {
+        const form = $("#newRequirementForm");
+        form.reset();
+        form.elements.module.value = "待确认模块";
+        form.elements.source_date.value = new Date().toISOString().slice(0, 10);
+        $("#newRequirementDialog").showModal();
+      });
       $("#roleSelect").addEventListener("change", () => showToast("身份由当前登录账号权限决定"));
       $("#messageCenterBtn").addEventListener("click", () => {
         renderMessages();
@@ -2032,49 +2070,101 @@
         selectedFiles = [...files];
         $("#fileList").innerHTML = selectedFiles.map(file => `<div class="file-item"><span>${escapeHtml(file.name)}</span><span class="muted">${Math.max(1, Math.round(file.size / 1024))} KB · ${file.type || "文件"}</span></div>`).join("");
         const textFile = selectedFiles.find(file => /\\.(txt|csv|json|md)$/i.test(file.name));
-        if (textFile) {
-          $("#chatText").value = await textFile.text();
-          showToast("已读取文字聊天文件");
-        } else if (selectedFiles.length) {
-          showToast("已记录媒体文件名；OCR/语音识别服务可在下一阶段接入");
+        selectedEvidence = [];
+        try {
+          if (textFile) {
+            $("#chatText").value = await textFile.text();
+            showToast("已读取文字聊天文件");
+          }
+          const imageFiles = selectedFiles.filter(file => file.type.startsWith("image/"));
+          for (const image of imageFiles) {
+            if (image.size > 2 * 1024 * 1024) throw new Error(`截图“${image.name}”超过 2 MB 限制`);
+            const data = new FormData();
+            data.append("file", image);
+            const attachment = await apiRequest("/imports/attachments", { method:"POST", body:data });
+            selectedEvidence.push(attachment.url);
+          }
+          if (!textFile && imageFiles.length) {
+            $("#chatText").value = `[上传截图：${imageFiles.map(file => file.name).join("、")}]`;
+            showToast("截图已上传，将交由已启用的 AI 图片识别能力整理");
+          } else if (!textFile && selectedFiles.length) {
+            showToast("支持粘贴内容、TXT/CSV/JSON/MD 文件和截图识别；其他文件仅保留文件名作为证据");
+          }
+        } catch (error) {
+          selectedEvidence = [];
+          showToast(error.message || "文件处理失败");
         }
       }
 
       $("#loadSampleBtn").addEventListener("click", () => {
         $("#chatText").value = sampleChat;
         selectedFiles = [];
+        selectedEvidence = [];
         $("#fileList").innerHTML = "";
       });
 
-      $("#importForm").addEventListener("submit", event => {
+      $("#importForm").addEventListener("submit", async event => {
         event.preventDefault();
         const text = $("#chatText").value.trim();
         if (!text && !selectedFiles.length) return showToast("请粘贴聊天内容或选择文件");
         const button = $("#recognizeBtn");
         button.disabled = true;
         button.innerHTML = `<span class="recognizing"><i class="spinner"></i>正在识别与归类</span>`;
-        setTimeout(() => {
-          pendingRecognition = parseChat(text || sampleChat);
-          renderImportPreview(text || sampleChat, pendingRecognition);
+        const form = new FormData($("#importForm"));
+        try {
+          const result = await apiRequest("/imports/draft", {
+            method:"POST",
+            body:JSON.stringify({
+              source_name:selectedFiles.map(file => file.name).join("、") || "微信聊天粘贴",
+              source_type:selectedEvidence.length ? "image" : "wechat_personal",
+              contact:form.get("contact") || "客户项目群",
+              raw_text:text || `[上传文件：${selectedFiles.map(file => file.name).join("、")}]`,
+              evidence:selectedEvidence
+            })
+          });
+          pendingRecognition = result.drafts || [];
+          renderImportPreview(text || `[上传文件：${selectedFiles.map(file => file.name).join("、")}]`, pendingRecognition);
+          if (result.warning) showToast(result.warning);
           $("#importDialog").close();
           $("#recognitionPreviewDialog").showModal();
+        } catch (error) {
+          showToast(error.message || "AI 整理失败");
+        } finally {
           button.disabled = false;
           button.textContent = "开始识别并整理";
-        }, 950);
+        }
       });
 
       $("#saveRecognitionBtn").addEventListener("click", async () => {
-        if (!pendingRecognition.length) return;
+        if (!pendingRecognition.length) return showToast("没有可保存的需求草稿");
         const form = new FormData($("#importForm"));
+        const button = $("#saveRecognitionBtn");
+        button.disabled = true;
+        button.textContent = "正在保存...";
         try {
           const result = await apiRequest("/imports/analyze", {
             method:"POST",
             body:JSON.stringify({
               source_name:selectedFiles.map(file => file.name).join("、") || "微信聊天粘贴",
-              source_type:"wechat_personal",
+              source_type:selectedEvidence.length ? "image" : "wechat_personal",
               contact:form.get("contact") || "客户项目群",
-              raw_text:$("#chatText").value.trim() || sampleChat,
-              evidence:selectedFiles.map(file => file.name)
+              raw_text:$("#chatText").value.trim() || `[上传文件：${selectedFiles.map(file => file.name).join("、")}]`,
+              evidence:selectedEvidence,
+              drafts:pendingRecognition.map(item => ({
+                title:item.title,
+                module:item.module,
+                category:item.category,
+                priority:item.priority,
+                requester:item.requester || null,
+                source_date:item.sourceDate,
+                source_text:item.sourceText,
+                description:item.description,
+                acceptance_criteria:item.acceptance,
+                owner:item.owner || null,
+                planned_release:item.plannedRelease || null,
+                evidence:item.evidence || selectedEvidence,
+                confidence:Number(item.confidence || 75)
+              }))
             })
           });
           state = { ...state, ...result.workspace };
@@ -2084,6 +2174,32 @@
           renderAll();
         } catch (error) {
           showToast(error.message);
+        } finally {
+          button.disabled = false;
+          button.textContent = "保存到项目记录";
+        }
+      });
+
+      $("#newRequirementForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const button = event.submitter;
+        button.disabled = true;
+        button.textContent = "正在保存...";
+        try {
+          const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+          const result = await apiRequest("/requirements", {
+            method:"POST",
+            body:JSON.stringify({ ...data, evidence:[] })
+          });
+          state = { ...state, ...result.workspace };
+          $("#newRequirementDialog").close();
+          saveState(`已新建开发需求 ${result.requirement.id}`);
+          renderAll();
+        } catch (error) {
+          showToast(error.message || "新建需求失败");
+        } finally {
+          button.disabled = false;
+          button.textContent = "保存需求";
         }
       });
 

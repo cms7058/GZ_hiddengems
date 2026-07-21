@@ -1,5 +1,6 @@
 import json
 import re
+from base64 import b64encode
 from datetime import date, datetime
 from typing import Optional
 
@@ -15,7 +16,10 @@ from app.models.archive import (
     ArchiveRequirement,
 )
 from app.models.user import MiniProgramUser
-from app.schemas.archive import ArchiveAssistantSubmitIn, ArchiveRequirementCreate
+from app.schemas.archive import ArchiveAssistantSubmitIn, ArchiveChatImportIn, ArchiveRequirementCreate, ArchiveRequirementDraft
+from app.services.admin_assistant import _ai_configured, call_ai
+from app.services.integrations import get_group_config
+from app.services.media_storage import MediaStorageError, read_managed_media_url
 
 
 FULL_REQUIREMENT_PATTERN = re.compile(r"REQ-\d{8}-\d{3}(?:-\d+)?")
@@ -186,6 +190,113 @@ def classify_chat_line(content: str) -> tuple[str, str, str, str, str, int]:
     return category, priority, title, description, acceptance, confidence
 
 
+def heuristic_requirement_drafts(
+    raw_text: str,
+    contact: Optional[str],
+    evidence: list[str],
+) -> list[ArchiveRequirementDraft]:
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    candidates = [
+        line
+        for line in lines
+        if re.search(r"增加|新增|能不能|希望|改成|修改|不要了|打不开|失败|报错|异常|尽快", line)
+    ]
+    drafts: list[ArchiveRequirementDraft] = []
+    for line in candidates[:20]:
+        date_match = re.search(r"(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})", line)
+        source_date = (
+            date(int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3)))
+            if date_match
+            else date.today()
+        )
+        speaker_match = re.search(r"\s([^\s：:]{2,16})[：:]", line)
+        requester = speaker_match.group(1) if speaker_match else (contact or "客户")
+        content = re.split(r"[：:]", line, maxsplit=1)[-1].strip()
+        category, priority, title, description, acceptance, confidence = classify_chat_line(content)
+        drafts.append(
+            ArchiveRequirementDraft(
+                title=title,
+                module="后台报表" if "报表" in content else "首页界面" if "首页" in content or "按钮" in content else "地图与路线" if "地图" in content or "路线" in content else "待确认模块",
+                category=category,
+                priority=priority,
+                requester=requester,
+                source_date=source_date.isoformat(),
+                source_text=content,
+                description=description,
+                acceptance_criteria=acceptance,
+                evidence=evidence,
+                confidence=confidence,
+            )
+        )
+    return drafts
+
+
+def _image_data_urls(db: Session, evidence: list[str]) -> list[str]:
+    urls: list[str] = []
+    for media_url in evidence[:6]:
+        try:
+            content, content_type = read_managed_media_url(db, media_url)
+        except MediaStorageError:
+            continue
+        if not content_type.startswith("image/") or len(content) > 2 * 1024 * 1024:
+            continue
+        urls.append(f"data:{content_type};base64,{b64encode(content).decode('ascii')}")
+    return urls
+
+
+def _parse_ai_drafts(
+    answer: str,
+    raw_text: str,
+    contact: Optional[str],
+    evidence: list[str],
+) -> list[ArchiveRequirementDraft]:
+    match = re.search(r"\{[\s\S]*\}", answer)
+    if not match:
+        raise ValueError("AI response did not contain JSON")
+    payload = json.loads(match.group(0))
+    records = payload.get("requirements", payload) if isinstance(payload, dict) else payload
+    if not isinstance(records, list):
+        raise ValueError("AI response requirements must be a list")
+    today = date.today().isoformat()
+    drafts = []
+    for record in records[:20]:
+        if not isinstance(record, dict):
+            continue
+        record.setdefault("module", "待确认模块")
+        record.setdefault("priority", "中")
+        record.setdefault("requester", contact or "客户")
+        record.setdefault("source_date", today)
+        record.setdefault("source_text", raw_text[:8000])
+        record.setdefault("description", record.get("source_text") or "待补充需求描述")
+        record.setdefault("acceptance_criteria", "由管理员补充可验证的验收标准。")
+        record.setdefault("evidence", evidence)
+        record.setdefault("confidence", 80)
+        drafts.append(ArchiveRequirementDraft.model_validate(record))
+    if not drafts:
+        raise ValueError("AI response did not produce valid drafts")
+    return drafts
+
+
+def analyze_chat_drafts(db: Session, payload: ArchiveChatImportIn) -> tuple[list[ArchiveRequirementDraft], str, Optional[str]]:
+    config = get_group_config(db, "ai")
+    fallback = heuristic_requirement_drafts(payload.raw_text, payload.contact, payload.evidence)
+    if not _ai_configured(config):
+        return fallback, "fallback", "后台大模型未配置，已使用规则整理草稿。"
+    system = (
+        "你是软件项目需求分析助手。只返回 JSON，不要 Markdown。"
+        "格式：{\"requirements\":[{title,module,category,priority,requester,source_date,source_text,description,acceptance_criteria,owner,planned_release,confidence}]}。"
+        "category 只能是 新功能、需求变更、缺陷、确认信息、验证反馈；priority 只能是 紧急、高、中、低。"
+        "仅提取可执行或需要确认的需求，保留原文事实，不臆造。"
+    )
+    prompt = f"沟通对象：{payload.contact or '客户'}\n聊天原文：\n{payload.raw_text}"
+    image_urls = _image_data_urls(db, payload.evidence) if (config.get("AI_VISION_ENABLED") or "").lower() == "true" else None
+    try:
+        answer = call_ai(config, system, prompt, image_urls)
+        return _parse_ai_drafts(answer, payload.raw_text, payload.contact, payload.evidence), "ai", None
+    except (RuntimeError, ValueError, json.JSONDecodeError) as error:
+        return fallback, "fallback", f"大模型整理失败，已使用规则整理草稿：{error}"
+
+
 def analyze_chat_import(
     db: Session,
     raw_text: str,
@@ -194,13 +305,9 @@ def analyze_chat_import(
     contact: Optional[str],
     evidence: list[str],
     admin_id: int,
+    drafts: Optional[list[ArchiveRequirementDraft]] = None,
 ) -> tuple[ArchiveChatImport, list[ArchiveRequirement]]:
     lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    candidates = [
-        line
-        for line in lines
-        if re.search(r"增加|新增|能不能|希望|改成|修改|不要了|打不开|失败|报错|异常|尽快", line)
-    ]
     imported = ArchiveChatImport(
         source_name=source_name,
         source_type=source_type,
@@ -214,35 +321,16 @@ def analyze_chat_import(
     db.add(imported)
     db.flush()
     requirements: list[ArchiveRequirement] = []
-    for line in candidates[:20]:
-        date_match = re.search(r"(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})", line)
-        source_date = (
-            date(int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3)))
-            if date_match
-            else date.today()
-        )
-        speaker_match = re.search(r"\s([^\s：:]{2,16})[：:]", line)
-        requester = speaker_match.group(1) if speaker_match else (contact or "客户")
-        content = re.split(r"[：:]", line, maxsplit=1)[-1].strip()
-        category, priority, title, description, acceptance, _ = classify_chat_line(content)
+    for draft in drafts if drafts is not None else heuristic_requirement_drafts(raw_text, contact, evidence):
         payload = ArchiveRequirementCreate(
-            title=title,
-            module="后台报表" if "报表" in content else "首页界面" if "首页" in content or "按钮" in content else "地图与路线" if "地图" in content or "路线" in content else "待确认模块",
-            category=category,
-            priority=priority,
-            requester=requester,
-            source_date=source_date.isoformat(),
-            source_text=content,
-            description=description,
-            acceptance_criteria=acceptance,
-            evidence=evidence,
+            **draft.model_dump(exclude={"confidence"}),
         )
         requirement = create_requirement(db, payload, source_type=source_type, admin_id=admin_id)
         requirements.append(requirement)
         add_message(
             db,
             "微信导入",
-            f"微信聊天识别出{category}",
+            f"微信聊天识别出{payload.category}",
             f"{requirement.code} {requirement.title}，请审核后进入开发。",
             requirement,
         )

@@ -1,5 +1,5 @@
-import unittest
 import json
+import unittest
 from datetime import date
 from unittest.mock import PropertyMock, patch
 
@@ -249,6 +249,113 @@ class ApiTest(unittest.TestCase):
         self.assertIsNone(db.get(ArchiveEvent, event_id))
         self.assertIsNone(db.get(ArchiveInternalMessage, message_id))
         db.close()
+
+    def test_archive_import_uses_draft_and_saves_requirements(self):
+        headers = self.login_headers()
+        payload = {
+            "source_name": "微信聊天粘贴",
+            "source_type": "wechat_personal",
+            "contact": "测试客户",
+            "raw_text": "2026-07-21 客户：希望增加开发需求的新建按钮，并且导入截图后可以自动整理。",
+            "evidence": [],
+        }
+        draft_response = self.client.post(
+            "/api/v1/admin/archive/imports/draft",
+            headers=headers,
+            json=payload,
+        )
+        self.assertEqual(draft_response.status_code, 200)
+        draft_result = draft_response.json()
+        self.assertEqual(draft_result["source"], "fallback")
+        self.assertGreaterEqual(len(draft_result["drafts"]), 1)
+
+        drafts = [
+            {
+                "title": item["title"],
+                "module": item["module"],
+                "category": item["category"],
+                "priority": item["priority"],
+                "requester": item["requester"],
+                "source_date": item["sourceDate"],
+                "source_text": item["sourceText"],
+                "description": item["description"],
+                "acceptance_criteria": item["acceptance"],
+                "owner": item["owner"],
+                "planned_release": item["plannedRelease"],
+                "evidence": item["evidence"],
+                "confidence": item["confidence"],
+            }
+            for item in draft_result["drafts"]
+        ]
+        save_response = self.client.post(
+            "/api/v1/admin/archive/imports/analyze",
+            headers=headers,
+            json={**payload, "drafts": drafts},
+        )
+        self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(len(save_response.json()["requirements"]), len(drafts))
+
+    @patch("app.api.v1.routers.admin_archive.save_media", return_value="/media/archive-evidence/test.png")
+    @patch("app.services.archive.call_ai")
+    def test_archive_can_send_screenshot_evidence_to_configured_ai(self, call_ai, _save_media):
+        db = self.SessionLocal()
+        for key, value in {
+            "AI_API_BASE": "https://example.invalid/v1",
+            "AI_MODEL": "test-model",
+            "AI_API_KEY": "test-key",
+            "AI_VISION_ENABLED": "true",
+        }.items():
+            setting = db.scalar(
+                select(IntegrationSetting).where(
+                    IntegrationSetting.group == "ai",
+                    IntegrationSetting.key == key,
+                )
+            )
+            setting.value = value
+        db.commit()
+        db.close()
+        call_ai.return_value = json.dumps(
+            {
+                "requirements": [
+                    {
+                        "title": "截图中的开发需求",
+                        "module": "开发需求",
+                        "category": "新功能",
+                        "priority": "中",
+                        "source_date": "2026-07-21",
+                        "source_text": "请识别截图中的需求",
+                        "description": "根据截图整理需求。",
+                        "acceptance_criteria": "可以保存为需求记录。",
+                    }
+                ]
+            }
+        )
+        headers = self.login_headers()
+        upload_response = self.client.post(
+            "/api/v1/admin/archive/imports/attachments",
+            headers=headers,
+            files={"file": ("chat.png", b"fake-image", "image/png")},
+        )
+        self.assertEqual(upload_response.status_code, 200)
+        self.assertEqual(upload_response.json()["url"], "/media/archive-evidence/test.png")
+
+        with patch("app.services.archive._image_data_urls", return_value=["data:image/png;base64,ZmFrZQ=="]) as image_urls:
+            draft_response = self.client.post(
+                "/api/v1/admin/archive/imports/draft",
+                headers=headers,
+                json={
+                    "source_name": "chat.png",
+                    "source_type": "image",
+                    "contact": "测试客户",
+                    "raw_text": "[上传截图：chat.png]",
+                    "evidence": [upload_response.json()["url"]],
+                },
+            )
+        self.assertEqual(draft_response.status_code, 200)
+        self.assertEqual(draft_response.json()["source"], "ai")
+        self.assertEqual(draft_response.json()["drafts"][0]["title"], "截图中的开发需求")
+        image_urls.assert_called_once()
+        self.assertTrue(call_ai.call_args.args[3][0].startswith("data:image/png"))
 
     def test_map_spots_mask_protected_location_for_regular_user(self):
         response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN&explore_points=120")
