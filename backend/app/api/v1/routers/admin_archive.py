@@ -119,9 +119,30 @@ def update_archive_requirement(
 
             value = date.fromisoformat(value) if value else None
         setattr(requirement, target, value)
-    add_event(db, requirement, "requirement_updated", "管理员更新需求档案", "admin", current_admin.username)
+    add_event(db, requirement, "requirement_updated", "管理员更新开发需求", "admin", current_admin.username)
     db.commit()
     return {"requirement": requirement_to_dict(requirement), "workspace": workspace(db, current_admin.role)}
+
+
+@router.delete("/requirements/{requirement_code}", status_code=204)
+def delete_archive_requirement(
+    requirement_code: str,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> None:
+    require_super_admin(current_admin)
+    requirement = get_requirement_by_code(db, requirement_code)
+
+    # Keep message cleanup explicit because it is not an ORM relationship.
+    messages = db.scalars(
+        select(ArchiveInternalMessage).where(
+            ArchiveInternalMessage.related_requirement_id == requirement.id,
+        )
+    ).all()
+    for message in messages:
+        db.delete(message)
+    db.delete(requirement)
+    db.commit()
 
 
 @router.post("/imports/analyze")
@@ -235,7 +256,7 @@ def archive_assistant_submit(
     )
     db.commit()
     return {
-        "answer": f"已生成 {requirement.code}，并进入档案闭环。",
+        "answer": f"已生成 {requirement.code}，并进入开发需求闭环。",
         "requirement": requirement_to_dict(requirement),
         "workspace": workspace(db, current_admin.role),
     }

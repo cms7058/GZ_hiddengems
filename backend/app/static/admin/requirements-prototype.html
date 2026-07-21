@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>档案管理 · 研发闭环台账</title>
+    <title>开发需求 · 研发闭环台账</title>
     <style>
       :root {
         color-scheme: light;
@@ -689,7 +689,7 @@
           <a class="side-link" href="/admin#integrationsSection">接口管理</a>
           <a class="side-link" href="/admin#growthSection">积分与推荐</a>
           <a class="side-link" href="/admin#rolesSection">角色权限</a>
-          <a class="side-link active" href="/admin/archive" aria-current="page">档案管理</a>
+          <a class="side-link active" href="/admin/archive" aria-current="page">开发需求</a>
         </nav>
       </aside>
 
@@ -697,7 +697,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">REQUIREMENT · DEVELOPMENT · VALIDATION</p>
-            <h2>研发闭环台账</h2>
+            <h2>开发需求</h2>
             <p class="muted">把个人微信中的碎片沟通，转成可确认、可开发、可验证、可追溯的项目记录。</p>
           </div>
           <div class="top-actions">
@@ -714,7 +714,7 @@
         </header>
 
         <div class="prototype-banner">
-          <span><strong>档案数据已接入后端。</strong> 管理员可导入并整理，只有超级管理员可以推进开发任务。</span>
+          <span><strong>开发需求数据已接入后端。</strong> 管理员可导入并整理，只有超级管理员可以推进开发任务。</span>
           <span id="lastSavedText">正在连接数据库</span>
         </div>
 
@@ -1399,7 +1399,7 @@
             <td>${escapeHtml(item.module)}</td><td>${pill(item.category)}</td><td>${pill(item.version)}</td>
             <td>${pill(item.priority)}</td><td>${pill(item.status)}</td><td>${escapeHtml(item.plannedRelease || "待排期")}</td>
             <td>${escapeHtml(item.owner || "待分配")}</td>
-            <td><div class="row-actions"><button class="btn small" data-timeline="${item.id}">查看闭环</button></div></td>
+            <td><div class="row-actions"><button class="btn small" data-timeline="${item.id}">查看闭环</button>${state.role === "super_admin" ? `<button class="btn small danger" data-delete-requirement="${item.id}">删除</button>` : ""}</div></td>
           </tr>`).join("") : `<tr><td colspan="9"><div class="empty"><strong>暂无需求</strong>确认AI识别结果后会进入这里。</div></td></tr>`;
       }
 
@@ -1427,7 +1427,7 @@
             <td>${round ? pill(`已返工 ${round} 轮`) : '<span class="muted">首次开发</span>'}</td>
             <td>${escapeHtml(item.owner || "待分配")}</td>
             <td>${escapeHtml(item.plannedRelease || "待排期")}</td>
-            <td><button class="btn small" data-workflow="${item.id}">查看闭环</button></td>
+            <td><div class="row-actions"><button class="btn small" data-workflow="${item.id}">查看闭环</button>${state.role === "super_admin" ? `<button class="btn small danger" data-delete-requirement="${item.id}">删除</button>` : ""}</div></td>
           </tr>`;
         }).join("") : `<tr><td colspan="9"><div class="empty"><strong>没有符合条件的项目记录</strong>请调整分类、状态或搜索条件。</div></td></tr>`;
       }
@@ -1472,6 +1472,7 @@
         applyRolePermissions();
         renderMetrics();
         renderMessages();
+        renderRequirements();
         renderProjectRecords();
         if (currentWorkflowId && $("#workflowDialog").open) renderWorkflow(currentWorkflowId);
       }
@@ -2097,6 +2098,7 @@
         const startDevelopmentButton = event.target.closest("[data-start-development]");
         const selfTestButton = event.target.closest("[data-self-test]");
         const acceptanceButton = event.target.closest("[data-customer-acceptance]");
+        const deleteRequirementButton = event.target.closest("[data-delete-requirement]");
         if (review) openDetail(review.dataset.review);
         if (confirmBtn && confirm("确认将这条AI草稿转为正式需求吗？")) confirmRecognition(confirmBtn.dataset.confirm);
         if (timeline) openTimeline(timeline.dataset.timeline);
@@ -2105,6 +2107,22 @@
         if (startDevelopmentButton) startDevelopment(startDevelopmentButton.dataset.startDevelopment);
         if (selfTestButton) openSelfTest(selfTestButton.dataset.selfTest);
         if (acceptanceButton) openAcceptance(acceptanceButton.dataset.customerAcceptance);
+        if (deleteRequirementButton) {
+          const requirementCode = deleteRequirementButton.dataset.deleteRequirement;
+          if (!window.confirm("删除后数据不可恢复，确认删除该开发需求及其关联开发任务、验证记录和站内消息吗？")) return;
+          apiRequest(`/requirements/${encodeURIComponent(requirementCode)}`, { method: "DELETE" })
+            .then(() => {
+              state.requirements = state.requirements.filter(item => item.id !== requirementCode);
+              state.development = state.development.filter(item => item.requirementId !== requirementCode);
+              state.validations = state.validations.filter(item => item.requirementId !== requirementCode);
+              state.siteMessages = state.siteMessages.filter(item => item.relatedId !== requirementCode);
+              if (currentWorkflowId === requirementCode && $("#workflowDialog").open) $("#workflowDialog").close();
+              saveState("开发需求已删除");
+              renderAll();
+            })
+            .catch(error => showToast(error.message));
+          return;
+        }
         if (messageButton) {
           const message = state.siteMessages.find(item => item.id === messageButton.dataset.openMessage);
           if (!message) return;

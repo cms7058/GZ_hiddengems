@@ -1,5 +1,6 @@
 import unittest
 import json
+from datetime import date
 from unittest.mock import PropertyMock, patch
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.admin import AdminRole, AdminUser
+from app.models.archive import ArchiveDevelopmentTask, ArchiveEvent, ArchiveInternalMessage, ArchiveRequirement
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag
@@ -196,6 +198,57 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("贵州秘境管理后台", response.text)
         self.assertNotIn('value="admin"', response.text)
+
+    def test_super_admin_can_delete_requirement_and_related_records(self):
+        db = self.SessionLocal()
+        requirement = ArchiveRequirement(
+            code="REQ-20260721-001",
+            title="待删除的开发需求",
+            module="开发需求",
+            category="缺陷",
+            source_date=date(2026, 7, 21),
+            source_text="删除测试数据。",
+            description="验证删除会清理关联记录。",
+            acceptance_criteria="需求及关联记录均被删除。",
+        )
+        db.add(requirement)
+        db.flush()
+        task = ArchiveDevelopmentTask(
+            code="DEV-20260721-001",
+            requirement_id=requirement.id,
+            sub_requirement_code=requirement.code,
+            title="删除测试任务",
+        )
+        event = ArchiveEvent(
+            requirement_id=requirement.id,
+            event_type="test",
+            actor_type="admin",
+            detail="删除测试事件",
+        )
+        message = ArchiveInternalMessage(
+            message_type="test",
+            title="删除测试消息",
+            content="关联开发需求的消息",
+            related_requirement_id=requirement.id,
+            target_role="admin",
+        )
+        db.add_all([task, event, message])
+        db.commit()
+        requirement_id, task_id, event_id, message_id = requirement.id, task.id, event.id, message.id
+        db.close()
+
+        response = self.client.delete(
+            f"/api/v1/admin/archive/requirements/{requirement.code}",
+            headers=self.login_headers(),
+        )
+
+        self.assertEqual(response.status_code, 204)
+        db = self.SessionLocal()
+        self.assertIsNone(db.get(ArchiveRequirement, requirement_id))
+        self.assertIsNone(db.get(ArchiveDevelopmentTask, task_id))
+        self.assertIsNone(db.get(ArchiveEvent, event_id))
+        self.assertIsNone(db.get(ArchiveInternalMessage, message_id))
+        db.close()
 
     def test_map_spots_mask_protected_location_for_regular_user(self):
         response = self.client.get("/api/v1/spots/map?tag_ids=1&lang=zh-CN&explore_points=120")
