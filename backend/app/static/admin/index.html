@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260722-checkin-risk-inline" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260722-checkin-review" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -330,6 +330,7 @@
                   <th>路线风控</th>
                   <th>打卡时间</th>
                   <th>结果</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody id="checkinsTable"></tbody>
@@ -858,13 +859,14 @@
       </form>
     </dialog>
 
-    <dialog id="checkinDialog" class="dialog">
+    <dialog id="checkinDialog" class="dialog wide-dialog">
       <form id="checkinForm" method="dialog" class="dialog-body">
         <header>
           <h2 id="checkinDialogTitle">打卡审核</h2>
           <button type="button" class="icon-btn" data-close-dialog="checkinDialog">×</button>
         </header>
-        <div class="form-stack">
+        <div id="checkinReviewDetails" class="checkin-review-details"></div>
+        <div class="form-grid">
           <label>
             <span>审核状态</span>
             <select name="status">
@@ -873,7 +875,15 @@
               <option value="rejected">拒绝</option>
             </select>
           </label>
-          <label><span>审核备注</span><textarea name="review_note" rows="4" maxlength="512"></textarea></label>
+          <label>
+            <span>用户打卡风险评级</span>
+            <select name="user_risk_level">
+              <option value="low">低风险</option>
+              <option value="medium">中风险</option>
+              <option value="high">高风险</option>
+            </select>
+          </label>
+          <label class="full"><span>审核备注</span><textarea name="review_note" rows="4" maxlength="512"></textarea></label>
         </div>
         <footer>
           <button type="button" class="secondary-btn" data-close-dialog="checkinDialog">取消</button>
@@ -975,6 +985,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260722-checkin-risk-inline"></script>
+    <script src="/admin/static/app.js?v=20260722-checkin-review"></script>
   </body>
 </html>

@@ -84,6 +84,7 @@ def ensure_runtime_columns() -> None:
             "checkin_suspicious_count": "INT NOT NULL DEFAULT 0",
             "checkin_watch_count": "INT NOT NULL DEFAULT 0",
             "checkin_risk_status": "VARCHAR(32) NOT NULL DEFAULT 'normal'",
+            "checkin_risk_level": "VARCHAR(16) NOT NULL DEFAULT 'low'",
             "checkin_permission_disabled_at": "DATETIME NULL",
         },
         "checkin_records": {

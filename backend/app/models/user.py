@@ -39,6 +39,7 @@ class MiniProgramUser(Base):
     checkin_suspicious_count = Column(Integer, default=0, nullable=False)
     checkin_watch_count = Column(Integer, default=0, nullable=False)
     checkin_risk_status = Column(String(32), default="normal", nullable=False)
+    checkin_risk_level = Column(String(16), default="low", nullable=False)
     checkin_permission_disabled_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

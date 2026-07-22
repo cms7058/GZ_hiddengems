@@ -478,6 +478,28 @@ input.color-hex-input {
   min-width: 0;
 }
 
+.checkin-review-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.checkin-review-detail {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbf8;
+}
+
+.checkin-review-detail strong,
+.checkin-review-detail span {
+  display: block;
+}
+
+.checkin-review-detail strong { margin-bottom: 5px; }
+.checkin-review-detail span { color: var(--muted); font-size: 13px; line-height: 1.55; word-break: break-word; }
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;

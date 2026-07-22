@@ -77,6 +77,7 @@ class MiniProgramUserOut(BaseModel):
     checkin_suspicious_count: int = 0
     checkin_watch_count: int = 0
     checkin_risk_status: str = "normal"
+    checkin_risk_level: str = "low"
     checkin_permission_disabled_at: Optional[datetime] = None
 
     class Config:
@@ -186,6 +187,7 @@ class UserMembershipOut(BaseModel):
 class CheckinReviewUpdate(BaseModel):
     status: str = Field(..., pattern="^(pending|approved|rejected)$")
     review_note: Optional[str] = Field(default=None, max_length=512)
+    user_risk_level: Optional[str] = Field(default=None, pattern="^(low|medium|high)$")
 
 
 class CheckinCreate(BaseModel):

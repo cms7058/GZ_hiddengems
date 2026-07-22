@@ -56,6 +56,30 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
     )
 
 
+def checkin_detail_out(record: CheckinRecord) -> dict:
+    return {
+        "checkin": checkin_to_out(record).model_dump(mode="json"),
+        "user": {
+            "id": record.user.id,
+            "nickname": record.user.nickname,
+            "openid": record.user.openid,
+            "explore_points": record.user.explore_points,
+            "checkin_risk_level": record.user.checkin_risk_level,
+            "checkin_risk_status": record.user.checkin_risk_status,
+            "checkin_warning_count": record.user.checkin_warning_count,
+            "checkin_suspicious_count": record.user.checkin_suspicious_count,
+            "checkin_watch_count": record.user.checkin_watch_count,
+        },
+        "spot": {
+            "id": record.spot.id,
+            "name_zh": record.spot.name_zh,
+            "latitude": record.spot.latitude,
+            "longitude": record.spot.longitude,
+            "checkin_radius_meters": record.spot.checkin_radius_meters,
+        },
+    }
+
+
 class CheckinRiskSettingsUpdate(BaseModel):
     tencent_lbs_web_service_key: Optional[str] = Field(default=None, max_length=256)
     tencent_lbs_base_url: str = Field(default="https://apis.map.qq.com", max_length=256)
@@ -165,6 +189,22 @@ def list_checkins(
     )
 
 
+@router.get("/{checkin_id}")
+def get_checkin_detail(
+    checkin_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    record = db.scalar(
+        select(CheckinRecord)
+        .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
+        .where(CheckinRecord.id == checkin_id)
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Checkin record not found")
+    return checkin_detail_out(record)
+
+
 @router.patch("/{checkin_id}/review", response_model=CheckinRecordOut)
 def review_checkin(
     checkin_id: int,
@@ -184,6 +224,8 @@ def review_checkin(
     record.status = payload.status
     record.review_note = payload.review_note
     record.reviewed_at = datetime.utcnow()
+    if payload.user_risk_level is not None:
+        record.user.checkin_risk_level = payload.user_risk_level
 
     if payload.status == "approved" and not was_approved:
         record.user.checkin_count += 1

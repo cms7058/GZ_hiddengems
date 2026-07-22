@@ -976,6 +976,7 @@ function renderUsers() {
               <span>${t("留言权限")}：${user.can_comment ? t("允许") : t("不允许")}</span>
               <span>${t("打卡权限")}：${user.can_checkin ? t("允许") : t("不允许")}</span>
               <span>${t("路线风险")}：${escapeHtml(user.checkin_risk_status || "normal")} / ${t("警告")} ${Number(user.checkin_warning_count || 0)} / ${t("可疑")} ${Number(user.checkin_suspicious_count || 0)} / ${t("关注")} ${Number(user.checkin_watch_count || 0)}</span>
+              <span>${t("打卡风险评级")}：${({ low: "低风险", medium: "中风险", high: "高风险" }[user.checkin_risk_level] || "低风险")}</span>
               <span>推荐：${user.can_recommend_spot ? t("允许") : t("不允许")} / 点赞：${user.can_like_comment ? t("允许") : t("不允许")}</span>
               <span>分享：${user.can_share ? t("允许") : t("不允许")}</span>
             </div>
@@ -1101,6 +1102,10 @@ function renderCheckins() {
           <td><span class="pill ${checkin.risk_status === "normal" ? "" : "warning"}">${escapeHtml(checkin.risk_status || "normal")}</span>${checkin.risk_reason ? `<br><span class="muted">${escapeHtml(checkin.risk_reason)}</span>` : ""}</td>
           <td>${escapeHtml(checkin.created_at ? new Date(checkin.created_at).toLocaleString() : "-")}</td>
           <td>${statusPill(checkin.status)}</td>
+          <td><div class="row-actions">
+            ${can("checkins", "read") ? `<button class="small-btn" data-view-checkin="${checkin.id}">查看</button>` : ""}
+            ${can("checkins", "delete") ? `<button class="small-btn danger" data-delete-checkin="${checkin.id}">删除</button>` : ""}
+          </div></td>
         </tr>
       `,
     )
@@ -2104,13 +2109,40 @@ function fillMembershipPlanForm(plan = null) {
   form.elements.is_active.checked = Boolean(plan.is_active);
 }
 
-function fillCheckinForm(checkin) {
+function formatCheckinCoordinate(latitude, longitude) {
+  if (latitude == null || longitude == null) return "未记录";
+  return `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`;
+}
+
+function formatRouteDuration(seconds) {
+  if (seconds == null) return "未完成路线核验";
+  const minutes = Math.max(0, Math.round(Number(seconds) / 60));
+  return minutes >= 60 ? `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分钟` : `${minutes} 分钟`;
+}
+
+function fillCheckinForm(detail) {
+  const checkin = detail.checkin || detail;
   const form = $("#checkinForm");
   form.reset();
   state.editingCheckinId = checkin.id;
   $("#checkinDialogTitle").textContent = `${t("审核")}：${checkin.nickname} / ${checkin.spot_name_zh}`;
   form.elements.status.value = checkin.status;
   form.elements.review_note.value = checkin.review_note || "";
+  form.elements.user_risk_level.value = detail.user?.checkin_risk_level || "low";
+  const spot = detail.spot || {};
+  const user = detail.user || {};
+  $("#checkinReviewDetails").innerHTML = [
+    ["用户", `${escapeHtml(user.nickname || checkin.nickname || "-")} / ${escapeHtml(user.openid || "-")}`],
+    ["用户打卡位置", formatCheckinCoordinate(checkin.latitude, checkin.longitude)],
+    ["打卡景点", escapeHtml(spot.name_zh || checkin.spot_name_zh || "-")],
+    ["景点位置", formatCheckinCoordinate(spot.latitude, spot.longitude)],
+    ["景点打卡半径", spot.checkin_radius_meters == null ? "-" : `${spot.checkin_radius_meters} 米`],
+    ["打卡时间", checkin.created_at ? new Date(checkin.created_at).toLocaleString() : "-"],
+    ["驾车路线", checkin.route_distance_meters == null ? "未完成路线核验" : `${checkin.route_distance_meters} 米 / 预计 ${formatRouteDuration(checkin.route_duration_seconds)}`],
+    ["实际间隔", formatRouteDuration(checkin.elapsed_seconds)],
+    ["系统结论", escapeHtml(checkin.risk_reason || checkin.review_note || "未记录")],
+    ["风险统计", `警告 ${Number(user.checkin_warning_count || 0)} / 可疑 ${Number(user.checkin_suspicious_count || 0)} / 关注 ${Number(user.checkin_watch_count || 0)}`],
+  ].map(([label, value]) => `<article class="checkin-review-detail"><strong>${label}</strong><span>${value}</span></article>`).join("");
 }
 
 function fillRecommendationForm(item = null) {
@@ -2862,7 +2894,26 @@ $("#membershipPlansTable").addEventListener("click", async (event) => {
 });
 
 $("#checkinsTable").addEventListener("click", async (event) => {
-  event.preventDefault();
+  const viewButton = event.target.closest("[data-view-checkin]");
+  const deleteButton = event.target.closest("[data-delete-checkin]");
+  if (viewButton) {
+    try {
+      const detail = await request(`/admin/checkins/${viewButton.dataset.viewCheckin}`);
+      fillCheckinForm(detail);
+      $("#checkinDialog").showModal();
+    } catch (error) {
+      showToast(`${t("加载失败")}：${error.message}`);
+    }
+  }
+  if (deleteButton && confirmDeletion()) {
+    try {
+      await request(`/admin/checkins/${deleteButton.dataset.deleteCheckin}`, { method: "DELETE" });
+      await loadData();
+      showToast("打卡记录已删除");
+    } catch (error) {
+      showToast(`${t("删除失败")}：${error.message}`);
+    }
+  }
 });
 
 document.addEventListener("click", async (event) => {
@@ -3616,6 +3667,7 @@ $("#checkinForm").addEventListener("submit", async (event) => {
     body: JSON.stringify({
       status: data.status,
       review_note: data.review_note || null,
+      user_risk_level: data.user_risk_level,
     }),
   });
   $("#checkinDialog").close();
