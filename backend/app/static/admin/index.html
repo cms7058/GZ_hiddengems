@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260722-checkin-review" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20260722-checkin-risk-levels" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -876,12 +876,8 @@
             </select>
           </label>
           <label>
-            <span>用户打卡风险评级</span>
-            <select name="user_risk_level">
-              <option value="low">低风险</option>
-              <option value="medium">中风险</option>
-              <option value="high">高风险</option>
-            </select>
+            <span>系统风险评级</span>
+            <output id="checkinAutoRiskLevel" class="readonly-field">正常</output>
           </label>
           <label class="full"><span>审核备注</span><textarea name="review_note" rows="4" maxlength="512"></textarea></label>
         </div>
@@ -985,6 +981,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260722-checkin-review"></script>
+    <script src="/admin/static/app.js?v=20260722-checkin-risk-levels"></script>
   </body>
 </html>

@@ -976,7 +976,7 @@ function renderUsers() {
               <span>${t("留言权限")}：${user.can_comment ? t("允许") : t("不允许")}</span>
               <span>${t("打卡权限")}：${user.can_checkin ? t("允许") : t("不允许")}</span>
               <span>${t("路线风险")}：${escapeHtml(user.checkin_risk_status || "normal")} / ${t("警告")} ${Number(user.checkin_warning_count || 0)} / ${t("可疑")} ${Number(user.checkin_suspicious_count || 0)} / ${t("关注")} ${Number(user.checkin_watch_count || 0)}</span>
-              <span>${t("打卡风险评级")}：${({ low: "低风险", medium: "中风险", high: "高风险" }[user.checkin_risk_level] || "低风险")}</span>
+              <span>${t("打卡风险评级")}：${({ normal: "正常", watch: "重点关注", suspicious: "可疑", warning: "警告" }[user.checkin_risk_level] || "正常")}</span>
               <span>推荐：${user.can_recommend_spot ? t("允许") : t("不允许")} / 点赞：${user.can_like_comment ? t("允许") : t("不允许")}</span>
               <span>分享：${user.can_share ? t("允许") : t("不允许")}</span>
             </div>
@@ -2120,6 +2120,10 @@ function formatRouteDuration(seconds) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分钟` : `${minutes} 分钟`;
 }
 
+function checkinRiskLevelName(level) {
+  return ({ normal: "正常", watch: "重点关注", suspicious: "可疑", warning: "警告" }[level] || "正常");
+}
+
 function fillCheckinForm(detail) {
   const checkin = detail.checkin || detail;
   const form = $("#checkinForm");
@@ -2128,7 +2132,8 @@ function fillCheckinForm(detail) {
   $("#checkinDialogTitle").textContent = `${t("审核")}：${checkin.nickname} / ${checkin.spot_name_zh}`;
   form.elements.status.value = checkin.status;
   form.elements.review_note.value = checkin.review_note || "";
-  form.elements.user_risk_level.value = detail.user?.checkin_risk_level || "low";
+  const riskRating = detail.risk_rating || {};
+  $("#checkinAutoRiskLevel").textContent = checkinRiskLevelName(riskRating.level || detail.user?.checkin_risk_level);
   const spot = detail.spot || {};
   const user = detail.user || {};
   $("#checkinReviewDetails").innerHTML = [
@@ -2141,7 +2146,8 @@ function fillCheckinForm(detail) {
     ["驾车路线", checkin.route_distance_meters == null ? "未完成路线核验" : `${checkin.route_distance_meters} 米 / 预计 ${formatRouteDuration(checkin.route_duration_seconds)}`],
     ["实际间隔", formatRouteDuration(checkin.elapsed_seconds)],
     ["系统结论", escapeHtml(checkin.risk_reason || checkin.review_note || "未记录")],
-    ["风险统计", `警告 ${Number(user.checkin_warning_count || 0)} / 可疑 ${Number(user.checkin_suspicious_count || 0)} / 关注 ${Number(user.checkin_watch_count || 0)}`],
+    ["风险统计", `警告 ${Number(user.checkin_warning_count || 0)} / 可疑 ${Number(user.checkin_suspicious_count || 0)} / 重点关注 ${Number(user.checkin_watch_count || 0)}`],
+    ["评级规则", (riskRating.rules || []).map((item) => `${escapeHtml(item.name)}：${escapeHtml(item.rule)}`).join("<br>") || "暂无规则说明"],
   ].map(([label, value]) => `<article class="checkin-review-detail"><strong>${label}</strong><span>${value}</span></article>`).join("");
 }
 
@@ -3667,7 +3673,6 @@ $("#checkinForm").addEventListener("submit", async (event) => {
     body: JSON.stringify({
       status: data.status,
       review_note: data.review_note || null,
-      user_risk_level: data.user_risk_level,
     }),
   });
   $("#checkinDialog").close();

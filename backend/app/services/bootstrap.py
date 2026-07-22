@@ -84,7 +84,7 @@ def ensure_runtime_columns() -> None:
             "checkin_suspicious_count": "INT NOT NULL DEFAULT 0",
             "checkin_watch_count": "INT NOT NULL DEFAULT 0",
             "checkin_risk_status": "VARCHAR(32) NOT NULL DEFAULT 'normal'",
-            "checkin_risk_level": "VARCHAR(16) NOT NULL DEFAULT 'low'",
+            "checkin_risk_level": "VARCHAR(16) NOT NULL DEFAULT 'normal'",
             "checkin_permission_disabled_at": "DATETIME NULL",
         },
         "checkin_records": {
@@ -130,6 +130,18 @@ def ensure_runtime_columns() -> None:
             for column_name, column_type in specs.items():
                 if column_name not in existing_columns:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
+        if "mini_program_users" in table_names:
+            connection.execute(
+                text(
+                    "UPDATE mini_program_users "
+                    "SET checkin_risk_level = CASE checkin_risk_level "
+                    "WHEN 'low' THEN 'normal' "
+                    "WHEN 'medium' THEN 'suspicious' "
+                    "WHEN 'high' THEN 'watch' "
+                    "ELSE checkin_risk_level END "
+                    "WHERE checkin_risk_level IN ('low', 'medium', 'high')"
+                )
+            )
 
 
 def seed_initial_data() -> None:

@@ -54,6 +54,48 @@ class RiskEvaluation:
     notice: Optional[str] = None
 
 
+USER_RISK_LEVEL_NORMAL = "normal"
+USER_RISK_LEVEL_WATCH = "watch"
+USER_RISK_LEVEL_SUSPICIOUS = "suspicious"
+USER_RISK_LEVEL_WARNING = "warning"
+
+
+def derive_user_checkin_risk_level(
+    user: MiniProgramUser,
+    risk_status: Optional[str] = None,
+) -> str:
+    """Return the user-facing four-tier rating from recorded route-risk events."""
+    status = (risk_status or user.checkin_risk_status or "normal").strip().lower()
+    if status == "warning" or user.checkin_warning_count > 0:
+        return USER_RISK_LEVEL_WARNING
+    if status == "suspicious" or user.checkin_suspicious_count > 0:
+        return USER_RISK_LEVEL_SUSPICIOUS
+    if status == "watch" or user.checkin_watch_count > 0:
+        return USER_RISK_LEVEL_WATCH
+    return USER_RISK_LEVEL_NORMAL
+
+
+def checkin_risk_level_rules(config: CheckinRiskConfig) -> list[dict[str, str]]:
+    """Descriptions shown to admins alongside the system-generated rating."""
+    return [
+        {
+            "level": USER_RISK_LEVEL_WATCH,
+            "name": "重点关注",
+            "rule": f"同一秘境在 {config.repeat_window_hours} 小时内重复打卡时标记；累计 {config.watch_limit} 次自动暂停打卡权限。",
+        },
+        {
+            "level": USER_RISK_LEVEL_SUSPICIOUS,
+            "name": "可疑",
+            "rule": f"两次打卡间隔低于驾车预计时间的 {config.suspicious_ratio:.0%}、且不低于 {config.warn_ratio:.0%} 时标记；累计 {config.suspicious_limit} 次自动暂停打卡权限。",
+        },
+        {
+            "level": USER_RISK_LEVEL_WARNING,
+            "name": "警告",
+            "rule": f"两次打卡间隔低于驾车预计时间的 {config.warn_ratio:.0%} 时标记；累计 {config.warning_limit} 次自动暂停打卡权限。",
+        },
+    ]
+
+
 def _number(config: dict[str, str], key: str, default: float, minimum: float, maximum: float) -> float:
     try:
         value = float(config.get(key, default))

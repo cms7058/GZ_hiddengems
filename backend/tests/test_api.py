@@ -1420,7 +1420,7 @@ class ApiTest(unittest.TestCase):
         approve_response = self.client.patch(
             "/api/v1/admin/checkins/1/review",
             headers=headers,
-            json={"status": "approved", "review_note": "定位和图片通过。", "user_risk_level": "medium"},
+            json={"status": "approved", "review_note": "定位和图片通过。"},
         )
         self.assertEqual(approve_response.status_code, 200)
         self.assertEqual(approve_response.json()["status"], "approved")
@@ -1430,7 +1430,9 @@ class ApiTest(unittest.TestCase):
         checkin_detail = self.client.get("/api/v1/admin/checkins/1", headers=headers)
         self.assertEqual(checkin_detail.status_code, 200)
         self.assertEqual(checkin_detail.json()["spot"]["name_zh"], "加榜梯田晨雾点")
-        self.assertEqual(checkin_detail.json()["user"]["checkin_risk_level"], "medium")
+        self.assertEqual(checkin_detail.json()["user"]["checkin_risk_level"], "normal")
+        self.assertEqual(checkin_detail.json()["risk_rating"]["level"], "normal")
+        self.assertEqual(len(checkin_detail.json()["risk_rating"]["rules"]), 3)
 
         spot_checkins_response = self.client.get("/api/v1/admin/spots/1/checkins", headers=headers)
         self.assertEqual(spot_checkins_response.status_code, 200)
@@ -1444,7 +1446,7 @@ class ApiTest(unittest.TestCase):
         user_response = self.client.get("/api/v1/admin/users/1", headers=headers)
         self.assertEqual(user_response.json()["checkin_count"], 9)
         self.assertEqual(user_response.json()["explore_points"], 130)
-        self.assertEqual(user_response.json()["checkin_risk_level"], "medium")
+        self.assertEqual(user_response.json()["checkin_risk_level"], "normal")
 
         approve_again_response = self.client.patch(
             "/api/v1/admin/checkins/1/review",

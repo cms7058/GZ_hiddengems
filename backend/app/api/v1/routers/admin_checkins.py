@@ -19,7 +19,7 @@ from app.services.pagination import build_page, paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 from app.services.points import award_points, revoke_points
 from app.services.media_storage import MediaStorageError, delete_media
-from app.services.checkin_risk import get_checkin_risk_config
+from app.services.checkin_risk import checkin_risk_level_rules, derive_user_checkin_risk_level, get_checkin_risk_config
 from app.services.integrations import seed_integration_settings
 
 
@@ -56,7 +56,9 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
     )
 
 
-def checkin_detail_out(record: CheckinRecord) -> dict:
+def checkin_detail_out(record: CheckinRecord, db: Session) -> dict:
+    config = get_checkin_risk_config(db)
+    automatic_level = derive_user_checkin_risk_level(record.user, record.risk_status)
     return {
         "checkin": checkin_to_out(record).model_dump(mode="json"),
         "user": {
@@ -64,7 +66,7 @@ def checkin_detail_out(record: CheckinRecord) -> dict:
             "nickname": record.user.nickname,
             "openid": record.user.openid,
             "explore_points": record.user.explore_points,
-            "checkin_risk_level": record.user.checkin_risk_level,
+            "checkin_risk_level": automatic_level,
             "checkin_risk_status": record.user.checkin_risk_status,
             "checkin_warning_count": record.user.checkin_warning_count,
             "checkin_suspicious_count": record.user.checkin_suspicious_count,
@@ -76,6 +78,10 @@ def checkin_detail_out(record: CheckinRecord) -> dict:
             "latitude": record.spot.latitude,
             "longitude": record.spot.longitude,
             "checkin_radius_meters": record.spot.checkin_radius_meters,
+        },
+        "risk_rating": {
+            "level": automatic_level,
+            "rules": checkin_risk_level_rules(config),
         },
     }
 
@@ -202,7 +208,7 @@ def get_checkin_detail(
     )
     if record is None:
         raise HTTPException(status_code=404, detail="Checkin record not found")
-    return checkin_detail_out(record)
+    return checkin_detail_out(record, db)
 
 
 @router.patch("/{checkin_id}/review", response_model=CheckinRecordOut)
@@ -224,8 +230,7 @@ def review_checkin(
     record.status = payload.status
     record.review_note = payload.review_note
     record.reviewed_at = datetime.utcnow()
-    if payload.user_risk_level is not None:
-        record.user.checkin_risk_level = payload.user_risk_level
+    record.user.checkin_risk_level = derive_user_checkin_risk_level(record.user, record.risk_status)
 
     if payload.status == "approved" and not was_approved:
         record.user.checkin_count += 1

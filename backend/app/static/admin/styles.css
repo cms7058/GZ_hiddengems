@@ -500,6 +500,18 @@ input.color-hex-input {
 .checkin-review-detail strong { margin-bottom: 5px; }
 .checkin-review-detail span { color: var(--muted); font-size: 13px; line-height: 1.55; word-break: break-word; }
 
+.readonly-field {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbf8;
+  color: var(--ink);
+  font-weight: 700;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;

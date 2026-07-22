@@ -20,7 +20,7 @@ from app.schemas.growth import SpotRecommendationCreate, SpotRecommendationOut
 from app.schemas.mini_assistant import MiniAssistantQuery
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
-from app.services.checkin_risk import evaluate_checkin_risk
+from app.services.checkin_risk import derive_user_checkin_risk_level, evaluate_checkin_risk
 from app.services.geo import distance_km_between
 from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
@@ -461,6 +461,7 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
         user.checkin_permission_disabled_at = datetime.utcnow()
     elif risk.status in {"warning", "suspicious", "watch"}:
         user.checkin_risk_status = risk.status
+    user.checkin_risk_level = derive_user_checkin_risk_level(user, risk.status)
 
     passed = passed and not risk.disable_permission
     review_note = (
