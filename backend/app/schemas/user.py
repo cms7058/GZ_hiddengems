@@ -73,6 +73,11 @@ class MiniProgramUserOut(BaseModel):
     can_recommend_spot: bool = True
     can_like_comment: bool = True
     can_share: bool = True
+    checkin_warning_count: int = 0
+    checkin_suspicious_count: int = 0
+    checkin_watch_count: int = 0
+    checkin_risk_status: str = "normal"
+    checkin_permission_disabled_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -209,5 +214,12 @@ class CheckinRecordOut(BaseModel):
     awarded_explore_points: int = 0
     promoted_spot_image_id: Optional[int] = None
     checkin_distance_meters: Optional[int] = None
+    route_distance_meters: Optional[int] = None
+    route_duration_seconds: Optional[int] = None
+    elapsed_seconds: Optional[int] = None
+    travel_time_ratio: Optional[float] = None
+    risk_status: str = "normal"
+    risk_reason: Optional[str] = None
+    previous_checkin_id: Optional[int] = None
     created_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None

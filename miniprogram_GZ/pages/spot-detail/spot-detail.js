@@ -857,7 +857,7 @@ Page({
         wx.showToast({ title: this.data.copy.locationFailed, icon: "none" })
         return
       }
-      await request("/mini/checkins", {
+      const record = await request("/mini/checkins", {
         method: "POST",
         data: {
           user_id: this.data.user.id,
@@ -872,7 +872,11 @@ Page({
       })
       this.setData({ checkinNote: "", checkinMedia: null })
       await this.loadDetail()
-      wx.showToast({ title: this.data.copy.submitted, icon: "none" })
+      wx.showModal({
+        title: record.status === "approved" ? this.data.copy.checkin : this.data.copy.reviewRejected,
+        content: record.review_note || this.data.copy.submitted,
+        showCancel: false,
+      })
     } catch (error) {
       if (isServiceClosedError(error)) return
       wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })

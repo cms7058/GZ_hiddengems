@@ -49,6 +49,14 @@ def checkin_to_admin_out(record: CheckinRecord) -> CheckinRecordOut:
         review_note=record.review_note,
         awarded_explore_points=record.awarded_explore_points,
         promoted_spot_image_id=record.promoted_spot_image_id,
+        checkin_distance_meters=record.checkin_distance_meters,
+        route_distance_meters=record.route_distance_meters,
+        route_duration_seconds=record.route_duration_seconds,
+        elapsed_seconds=record.elapsed_seconds,
+        travel_time_ratio=record.travel_time_ratio,
+        risk_status=record.risk_status,
+        risk_reason=record.risk_reason,
+        previous_checkin_id=record.previous_checkin_id,
     )
 
 

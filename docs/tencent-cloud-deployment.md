@@ -68,6 +68,21 @@ nano .env
 
 该限制只作用于 `/api/v1` 下的小程序公共数据和提交接口，管理后台 `/admin`、后台管理接口 `/api/v1/admin`、小程序时间配置接口及 `/health` 健康检查保持全天可用。管理员保存新时间后立即生效，无需重启容器。
 
+打卡路线风控可在后台“打卡审核”顶部直接配置。也可先在 `.env` 中提供默认值；首次启动会写入后台配置，之后以后台保存的值为准：
+
+```env
+TENCENT_LBS_WEB_SERVICE_KEY=你的腾讯地图服务端WebServiceKey
+TENCENT_LBS_BASE_URL=https://apis.map.qq.com
+CHECKIN_ROUTE_WARN_RATIO=0.70
+CHECKIN_ROUTE_SUSPICIOUS_RATIO=0.90
+CHECKIN_WARNING_LIMIT=3
+CHECKIN_SUSPICIOUS_LIMIT=5
+CHECKIN_WATCH_LIMIT=10
+CHECKIN_REPEAT_WINDOW_HOURS=48
+```
+
+该 Key 仅由服务器调用腾讯地图驾车路线接口，绝不返回给小程序。景点后台录入的 WGS84、BD09 坐标会在保存时转换为 GCJ-02，和微信定位及腾讯路线服务保持一致。
+
 国内服务器构建镜像时默认使用腾讯云 Debian / PyPI 镜像源。如遇到包源不可用，可在 `.env` 中改成其他镜像：
 
 ```env

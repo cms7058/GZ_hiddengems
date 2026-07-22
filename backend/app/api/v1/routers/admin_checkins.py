@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -9,6 +10,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.content import SpotImage
+from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot
 from app.models.user import CheckinRecord, MiniProgramUser
 from app.schemas.pagination import Page
@@ -17,6 +19,8 @@ from app.services.pagination import build_page, paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 from app.services.points import award_points, revoke_points
 from app.services.media_storage import MediaStorageError, delete_media
+from app.services.checkin_risk import get_checkin_risk_config
+from app.services.integrations import seed_integration_settings
 
 
 router = APIRouter()
@@ -40,9 +44,80 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         awarded_explore_points=record.awarded_explore_points,
         promoted_spot_image_id=record.promoted_spot_image_id,
         checkin_distance_meters=record.checkin_distance_meters,
+        route_distance_meters=record.route_distance_meters,
+        route_duration_seconds=record.route_duration_seconds,
+        elapsed_seconds=record.elapsed_seconds,
+        travel_time_ratio=record.travel_time_ratio,
+        risk_status=record.risk_status,
+        risk_reason=record.risk_reason,
+        previous_checkin_id=record.previous_checkin_id,
         created_at=record.created_at,
         reviewed_at=record.reviewed_at,
     )
+
+
+class CheckinRiskSettingsUpdate(BaseModel):
+    tencent_lbs_web_service_key: Optional[str] = Field(default=None, max_length=256)
+    tencent_lbs_base_url: str = Field(default="https://apis.map.qq.com", max_length=256)
+    route_warn_ratio: float = Field(default=0.70, gt=0, le=1)
+    route_suspicious_ratio: float = Field(default=0.90, gt=0, le=1)
+    warning_limit: int = Field(default=3, ge=1, le=999)
+    suspicious_limit: int = Field(default=5, ge=1, le=999)
+    watch_limit: int = Field(default=10, ge=1, le=999)
+    repeat_window_hours: int = Field(default=48, ge=1, le=720)
+
+
+def risk_settings_out(db: Session) -> dict:
+    config = get_checkin_risk_config(db)
+    return {
+        "web_service_key_configured": bool(config.web_service_key),
+        "tencent_lbs_base_url": config.base_url,
+        "route_warn_ratio": config.warn_ratio,
+        "route_suspicious_ratio": config.suspicious_ratio,
+        "warning_limit": config.warning_limit,
+        "suspicious_limit": config.suspicious_limit,
+        "watch_limit": config.watch_limit,
+        "repeat_window_hours": config.repeat_window_hours,
+    }
+
+
+@router.get("/risk-settings")
+def get_checkin_risk_settings(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    seed_integration_settings(db)
+    db.commit()
+    return risk_settings_out(db)
+
+
+@router.patch("/risk-settings")
+def update_checkin_risk_settings(
+    payload: CheckinRiskSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    if payload.route_warn_ratio >= payload.route_suspicious_ratio:
+        raise HTTPException(status_code=400, detail="路线时间警告阈值必须小于可疑阈值")
+    seed_integration_settings(db)
+    values = {
+        "TENCENT_LBS_BASE_URL": payload.tencent_lbs_base_url.strip().rstrip("/"),
+        "CHECKIN_ROUTE_WARN_RATIO": str(payload.route_warn_ratio),
+        "CHECKIN_ROUTE_SUSPICIOUS_RATIO": str(payload.route_suspicious_ratio),
+        "CHECKIN_WARNING_LIMIT": str(payload.warning_limit),
+        "CHECKIN_SUSPICIOUS_LIMIT": str(payload.suspicious_limit),
+        "CHECKIN_WATCH_LIMIT": str(payload.watch_limit),
+        "CHECKIN_REPEAT_WINDOW_HOURS": str(payload.repeat_window_hours),
+    }
+    if payload.tencent_lbs_web_service_key:
+        values["TENCENT_LBS_WEB_SERVICE_KEY"] = payload.tencent_lbs_web_service_key.strip()
+    rows = db.scalars(select(IntegrationSetting).where(IntegrationSetting.group == "checkin_risk")).all()
+    for row in rows:
+        if row.key in values:
+            row.value = values[row.key]
+            db.add(row)
+    db.commit()
+    return risk_settings_out(db)
 
 
 @router.get("", response_model=Page[CheckinRecordOut])
@@ -52,6 +127,7 @@ def list_checkins(
     spot_keyword: Optional[str] = Query(default=None, max_length=128),
     user_keyword: Optional[str] = Query(default=None, max_length=128),
     status: Optional[str] = Query(default=None, pattern="^(approved|rejected)$"),
+    risk_status: Optional[str] = Query(default=None, pattern="^(normal|warning|suspicious|watch|unavailable)$"),
     checked_at: Optional[str] = Query(default=None, max_length=10),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
@@ -67,6 +143,8 @@ def list_checkins(
         statement = statement.where(CheckinRecord.user.has(MiniProgramUser.nickname.ilike(f"%{user_keyword.strip()}%")))
     if status:
         statement = statement.where(CheckinRecord.status == status)
+    if risk_status:
+        statement = statement.where(CheckinRecord.risk_status == risk_status)
     if checked_at:
         try:
             date_value = datetime.strptime(checked_at, "%Y-%m-%d").date()

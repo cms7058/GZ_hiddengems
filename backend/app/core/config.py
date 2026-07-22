@@ -64,6 +64,15 @@ class Settings:
     wechat_mini_appid: str = os.getenv("WECHAT_MINI_APPID", "").strip()
     wechat_mini_secret: str = os.getenv("WECHAT_MINI_SECRET", "").strip()
 
+    tencent_lbs_web_service_key: str = os.getenv("TENCENT_LBS_WEB_SERVICE_KEY", "").strip()
+    tencent_lbs_base_url: str = os.getenv("TENCENT_LBS_BASE_URL", "https://apis.map.qq.com").strip().rstrip("/")
+    checkin_route_warn_ratio: float = float(os.getenv("CHECKIN_ROUTE_WARN_RATIO", "0.70"))
+    checkin_route_suspicious_ratio: float = float(os.getenv("CHECKIN_ROUTE_SUSPICIOUS_RATIO", "0.90"))
+    checkin_warning_limit: int = int(os.getenv("CHECKIN_WARNING_LIMIT", "3"))
+    checkin_suspicious_limit: int = int(os.getenv("CHECKIN_SUSPICIOUS_LIMIT", "5"))
+    checkin_watch_limit: int = int(os.getenv("CHECKIN_WATCH_LIMIT", "10"))
+    checkin_repeat_window_hours: int = int(os.getenv("CHECKIN_REPEAT_WINDOW_HOURS", "48"))
+
     cors_origins: list[str] = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "*").split(",")

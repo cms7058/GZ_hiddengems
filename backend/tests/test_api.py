@@ -754,6 +754,48 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(settings["QWEATHER_API_KEY"]["value"], "sec****456")
         self.assertTrue(settings["QWEATHER_API_KEY"]["is_configured"])
 
+    def test_admin_can_configure_checkin_route_risk_settings(self):
+        headers = self.login_headers()
+        response = self.client.patch(
+            "/api/v1/admin/checkins/risk-settings",
+            headers=headers,
+            json={
+                "tencent_lbs_web_service_key": "test-route-key",
+                "tencent_lbs_base_url": "https://apis.map.qq.com",
+                "route_warn_ratio": 0.65,
+                "route_suspicious_ratio": 0.85,
+                "warning_limit": 4,
+                "suspicious_limit": 6,
+                "watch_limit": 11,
+                "repeat_window_hours": 36,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["web_service_key_configured"])
+        self.assertEqual(response.json()["warning_limit"], 4)
+
+        response = self.client.get("/api/v1/admin/checkins/risk-settings", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["repeat_window_hours"], 36)
+
+    def test_repeated_checkin_is_recorded_as_watch_risk(self):
+        payload = {
+            "user_id": 1,
+            "spot_id": 1,
+            "latitude": "25.7436",
+            "longitude": "108.5062",
+            "image_url": "/media/checkins/test.jpg",
+        }
+        first = self.client.post("/api/v1/mini/checkins", json=payload)
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.json()["risk_status"], "normal")
+
+        second = self.client.post("/api/v1/mini/checkins", json=payload)
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual(second.json()["risk_status"], "watch")
+        self.assertIn("重点关注", second.json()["risk_reason"])
+
     def test_admin_can_test_weather_integration(self):
         headers = self.login_headers()
         db = self.SessionLocal()

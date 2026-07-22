@@ -440,6 +440,51 @@ input.color-hex-input {
   min-width: 176px;
 }
 
+.checkin-risk-card {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.risk-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.risk-settings-actions {
+  display: flex;
+  align-items: end;
+  min-height: 61px;
+}
+
+.checkin-filters {
+  margin: 0 0 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr)) auto auto;
+  gap: 8px;
+}
+
+.checkin-filters input,
+.checkin-filters select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .risk-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .checkin-filters { display: flex; }
+  .checkin-filters input, .checkin-filters select { flex: 1 1 150px; width: auto; }
+}
+
+@media (max-width: 640px) {
+  .risk-settings-grid { grid-template-columns: 1fr; }
+  .risk-settings-actions { min-height: auto; }
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.48;

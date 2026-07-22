@@ -20,6 +20,7 @@ from app.schemas.growth import SpotRecommendationCreate, SpotRecommendationOut
 from app.schemas.mini_assistant import MiniAssistantQuery
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
 from app.services.integrations import get_mini_program_service_hours
+from app.services.checkin_risk import evaluate_checkin_risk
 from app.services.geo import distance_km_between
 from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
 from app.services.memberships import sync_user_membership_by_points
@@ -292,6 +293,13 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         awarded_explore_points=record.awarded_explore_points,
         promoted_spot_image_id=record.promoted_spot_image_id,
         checkin_distance_meters=record.checkin_distance_meters,
+        route_distance_meters=record.route_distance_meters,
+        route_duration_seconds=record.route_duration_seconds,
+        elapsed_seconds=record.elapsed_seconds,
+        travel_time_ratio=record.travel_time_ratio,
+        risk_status=record.risk_status,
+        risk_reason=record.risk_reason,
+        previous_checkin_id=record.previous_checkin_id,
         created_at=record.created_at,
         reviewed_at=record.reviewed_at,
     )
@@ -440,17 +448,46 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=400, detail="Invalid check-in location") from error
     passed = distance <= spot.checkin_radius_meters
+    risk = evaluate_checkin_risk(
+        db,
+        user=user,
+        spot=spot,
+        latitude=float(payload.latitude),
+        longitude=float(payload.longitude),
+    )
+    if risk.disable_permission:
+        user.can_checkin = False
+        user.checkin_risk_status = "disabled"
+        user.checkin_permission_disabled_at = datetime.utcnow()
+    elif risk.status in {"warning", "suspicious", "watch"}:
+        user.checkin_risk_status = risk.status
+
+    passed = passed and not risk.disable_permission
+    review_note = (
+        f"系统定位通过：距景点 {distance} 米。{risk.reason}"
+        if passed
+        else (
+            f"打卡权限已因路线风控自动暂停。{risk.reason}"
+            if risk.disable_permission
+            else f"系统定位未通过：距景点 {distance} 米，打卡范围为 {spot.checkin_radius_meters} 米。"
+        )
+    )
+    if risk.notice:
+        review_note = f"{review_note} {risk.notice}"
     record = CheckinRecord(
         **payload.model_dump(),
         status="approved" if passed else "rejected",
         checkin_distance_meters=distance,
+        route_distance_meters=risk.route.distance_meters if risk.route else None,
+        route_duration_seconds=risk.route.duration_seconds if risk.route else None,
+        elapsed_seconds=risk.elapsed_seconds,
+        travel_time_ratio=risk.travel_time_ratio,
+        risk_status=risk.status,
+        risk_reason=risk.reason,
+        previous_checkin_id=risk.previous_checkin_id,
         awarded_explore_points=0,
         reviewed_at=datetime.utcnow(),
-        review_note=(
-            f"系统定位通过：距景点 {distance} 米，等待积分规则结算。"
-            if passed
-            else f"系统定位未通过：距景点 {distance} 米，打卡范围为 {spot.checkin_radius_meters} 米。"
-        ),
+        review_note=review_note,
     )
     db.add(record)
     db.flush()

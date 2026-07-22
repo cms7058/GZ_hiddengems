@@ -291,10 +291,31 @@
               <p class="muted">审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。</p>
             </div>
           </div>
-          <form id="checkinSearchForm" class="row-actions admin-filters">
+          <article class="checkin-risk-card">
+            <div class="section-head compact-head">
+              <div>
+                <h3>路线风控规则</h3>
+                <p class="muted">景点坐标录入时自动统一为 GCJ-02；路线核验仅在服务端调用腾讯地图，不向小程序暴露 Key。</p>
+              </div>
+              <span id="checkinRiskKeyStatus" class="pill warning">WebServiceKey 未配置</span>
+            </div>
+            <form id="checkinRiskSettingsForm" class="risk-settings-grid">
+              <label><span>腾讯地图 WebServiceKey</span><input name="tencent_lbs_web_service_key" type="password" autocomplete="new-password" placeholder="留空表示不修改" /></label>
+              <label><span>腾讯地图服务地址</span><input name="tencent_lbs_base_url" value="https://apis.map.qq.com" /></label>
+              <label><span>路线时间警告阈值</span><input name="route_warn_ratio" type="number" min="0.01" max="1" step="0.01" value="0.70" /></label>
+              <label><span>路线时间可疑阈值</span><input name="route_suspicious_ratio" type="number" min="0.01" max="1" step="0.01" value="0.90" /></label>
+              <label><span>警告后停用次数</span><input name="warning_limit" type="number" min="1" value="3" /></label>
+              <label><span>可疑后停用次数</span><input name="suspicious_limit" type="number" min="1" value="5" /></label>
+              <label><span>重点关注后停用次数</span><input name="watch_limit" type="number" min="1" value="10" /></label>
+              <label><span>重复打卡窗口（小时）</span><input name="repeat_window_hours" type="number" min="1" value="48" /></label>
+              <div class="risk-settings-actions"><button type="submit" class="primary-btn">保存路线风控规则</button></div>
+            </form>
+          </article>
+          <form id="checkinSearchForm" class="admin-filters checkin-filters">
             <input name="spot_keyword" placeholder="按秘境搜索" maxlength="128" />
             <input name="user_keyword" placeholder="按用户搜索" maxlength="128" />
             <select name="status"><option value="">全部状态</option><option value="approved">成功</option><option value="rejected">未通过</option></select>
+            <select name="risk_status"><option value="">全部风控</option><option value="normal">路线正常</option><option value="warning">路线警告</option><option value="suspicious">可疑</option><option value="watch">重点关注</option><option value="unavailable">未核验</option></select>
             <input name="checked_at" type="date" />
             <button type="submit" class="secondary-btn">查询</button>
             <button id="resetCheckinSearchBtn" type="button" class="small-btn">重置</button>
@@ -306,6 +327,7 @@
                   <th>用户</th>
                   <th>秘境</th>
                   <th>距离</th>
+                  <th>路线风控</th>
                   <th>打卡时间</th>
                   <th>结果</th>
                 </tr>
@@ -670,6 +692,11 @@
           <label><span>推荐通过次数</span><input name="approved_recommendation_count" type="number" readonly /></label>
           <label><span>获得点赞数</span><input name="like_received_count" type="number" readonly /></label>
           <label><span>点赞次数</span><input name="like_given_count" type="number" readonly /></label>
+          <label><span>路线警告次数</span><input name="checkin_warning_count" type="number" readonly /></label>
+          <label><span>可疑打卡次数</span><input name="checkin_suspicious_count" type="number" readonly /></label>
+          <label><span>重点关注次数</span><input name="checkin_watch_count" type="number" readonly /></label>
+          <label><span>打卡风控状态</span><input name="checkin_risk_status" readonly /></label>
+          <label><span>打卡权限停用时间</span><input name="checkin_permission_disabled_at" readonly /></label>
           <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
           <div class="full checks permission-checks">

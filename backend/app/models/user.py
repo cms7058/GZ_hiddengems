@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -35,6 +35,11 @@ class MiniProgramUser(Base):
     can_recommend_spot = Column(Boolean, default=True, nullable=False)
     can_like_comment = Column(Boolean, default=True, nullable=False)
     can_share = Column(Boolean, default=True, nullable=False)
+    checkin_warning_count = Column(Integer, default=0, nullable=False)
+    checkin_suspicious_count = Column(Integer, default=0, nullable=False)
+    checkin_watch_count = Column(Integer, default=0, nullable=False)
+    checkin_risk_status = Column(String(32), default="normal", nullable=False)
+    checkin_permission_disabled_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -165,6 +170,13 @@ class CheckinRecord(Base):
     note = Column(String(512), nullable=True)
     review_note = Column(String(512), nullable=True)
     checkin_distance_meters = Column(Integer, nullable=True)
+    route_distance_meters = Column(Integer, nullable=True)
+    route_duration_seconds = Column(Integer, nullable=True)
+    elapsed_seconds = Column(Integer, nullable=True)
+    travel_time_ratio = Column(Float, nullable=True)
+    risk_status = Column(String(32), default="normal", nullable=False)
+    risk_reason = Column(String(512), nullable=True)
+    previous_checkin_id = Column(Integer, ForeignKey("checkin_records.id"), nullable=True, index=True)
     awarded_explore_points = Column(Integer, default=0, nullable=False)
     promoted_spot_image_id = Column(Integer, ForeignKey("spot_images.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -42,6 +42,7 @@ const state = {
   editingRoleId: null,
   editingAdminAccountId: null,
   checkinFilters: {},
+  checkinRiskSettings: null,
   spotFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
@@ -481,6 +482,7 @@ function renderAll() {
   renderPassSettings();
   renderMemberships();
   renderCheckins();
+  renderCheckinRiskSettings();
   renderCommunity();
   renderRecommendations();
   renderIntegrations();
@@ -973,6 +975,7 @@ function renderUsers() {
               <span>${t("视频权限")}：${user.can_upload_video ? t("允许") : t("不允许")}</span>
               <span>${t("留言权限")}：${user.can_comment ? t("允许") : t("不允许")}</span>
               <span>${t("打卡权限")}：${user.can_checkin ? t("允许") : t("不允许")}</span>
+              <span>${t("路线风险")}：${escapeHtml(user.checkin_risk_status || "normal")} / ${t("警告")} ${Number(user.checkin_warning_count || 0)} / ${t("可疑")} ${Number(user.checkin_suspicious_count || 0)} / ${t("关注")} ${Number(user.checkin_watch_count || 0)}</span>
               <span>推荐：${user.can_recommend_spot ? t("允许") : t("不允许")} / 点赞：${user.can_like_comment ? t("允许") : t("不允许")}</span>
               <span>分享：${user.can_share ? t("允许") : t("不允许")}</span>
             </div>
@@ -1095,6 +1098,7 @@ function renderCheckins() {
           <td>${escapeHtml(checkin.nickname)}</td>
           <td>${escapeHtml(checkin.spot_name_zh)}</td>
           <td>${checkin.checkin_distance_meters == null ? "-" : `${checkin.checkin_distance_meters}m`}</td>
+          <td><span class="pill ${checkin.risk_status === "normal" ? "" : "warning"}">${escapeHtml(checkin.risk_status || "normal")}</span>${checkin.risk_reason ? `<br><span class="muted">${escapeHtml(checkin.risk_reason)}</span>` : ""}</td>
           <td>${escapeHtml(checkin.created_at ? new Date(checkin.created_at).toLocaleString() : "-")}</td>
           <td>${statusPill(checkin.status)}</td>
         </tr>
@@ -1102,6 +1106,23 @@ function renderCheckins() {
     )
     .join("");
   renderPagination("checkinsTable", "checkins");
+}
+
+function renderCheckinRiskSettings() {
+  const form = $("#checkinRiskSettingsForm");
+  if (!form || !state.checkinRiskSettings) return;
+  const settings = state.checkinRiskSettings;
+  form.elements.tencent_lbs_web_service_key.value = "";
+  form.elements.tencent_lbs_base_url.value = settings.tencent_lbs_base_url || "https://apis.map.qq.com";
+  form.elements.route_warn_ratio.value = settings.route_warn_ratio ?? 0.70;
+  form.elements.route_suspicious_ratio.value = settings.route_suspicious_ratio ?? 0.90;
+  form.elements.warning_limit.value = settings.warning_limit ?? 3;
+  form.elements.suspicious_limit.value = settings.suspicious_limit ?? 5;
+  form.elements.watch_limit.value = settings.watch_limit ?? 10;
+  form.elements.repeat_window_hours.value = settings.repeat_window_hours ?? 48;
+  const status = $("#checkinRiskKeyStatus");
+  status.textContent = settings.web_service_key_configured ? "WebServiceKey 已配置" : "WebServiceKey 未配置";
+  status.className = `pill ${settings.web_service_key_configured ? "" : "warning"}`;
 }
 
 function categoryText(category) {
@@ -1205,6 +1226,7 @@ function renderIntegrations() {
   const panel = $("#integrationsPanel");
   if (!panel) return;
   panel.innerHTML = state.integrations
+    .filter((group) => group.group !== "checkin_risk")
     .map(
       (group) => `
         <form class="integration-card" data-integration-form="${group.group}">
@@ -1688,6 +1710,7 @@ async function loadData() {
     safetyPolicies,
     spotRecommendations,
     shareStats,
+    checkinRiskSettings,
   ] = await Promise.all([
     can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
     requestPage("spots", spotListPath()),
@@ -1707,6 +1730,7 @@ async function loadData() {
     can("growth") ? request("/admin/growth/safety-policies") : Promise.resolve([]),
     can("growth") ? requestPage("spotRecommendations", "/admin/growth/spot-recommendations?status=pending") : Promise.resolve([]),
     can("growth") ? request("/admin/growth/share-stats") : Promise.resolve(null),
+    can("checkins") ? request("/admin/checkins/risk-settings") : Promise.resolve(null),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -1726,6 +1750,7 @@ async function loadData() {
   state.safetyPolicies = safetyPolicies;
   state.spotRecommendations = spotRecommendations;
   state.shareStats = shareStats;
+  state.checkinRiskSettings = checkinRiskSettings;
   renderAll();
 }
 
@@ -1940,6 +1965,11 @@ function fillUserForm(user) {
     "approved_recommendation_count",
     "like_received_count",
     "like_given_count",
+    "checkin_warning_count",
+    "checkin_suspicious_count",
+    "checkin_watch_count",
+    "checkin_risk_status",
+    "checkin_permission_disabled_at",
   ].forEach((field) => {
     form.elements[field].value = user[field] ?? "";
   });
@@ -2255,6 +2285,36 @@ $("#checkinSearchForm").addEventListener("submit", async (event) => {
   );
   state.pagination.checkins = { ...(state.pagination.checkins || {}), page: 1 };
   await loadData();
+});
+
+$("#checkinRiskSettingsForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!can("checkins", "update")) {
+    showToast("当前账号没有修改打卡风控规则的权限");
+    return;
+  }
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const payload = {
+    tencent_lbs_web_service_key: String(data.tencent_lbs_web_service_key || "").trim() || null,
+    tencent_lbs_base_url: String(data.tencent_lbs_base_url || "").trim(),
+    route_warn_ratio: Number(data.route_warn_ratio),
+    route_suspicious_ratio: Number(data.route_suspicious_ratio),
+    warning_limit: Number(data.warning_limit),
+    suspicious_limit: Number(data.suspicious_limit),
+    watch_limit: Number(data.watch_limit),
+    repeat_window_hours: Number(data.repeat_window_hours),
+  };
+  try {
+    state.checkinRiskSettings = await request("/admin/checkins/risk-settings", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    renderCheckinRiskSettings();
+    showToast("路线风控规则已保存");
+  } catch (error) {
+    showToast(`保存失败：${error.message}`);
+  }
 });
 
 $("#resetCheckinSearchBtn").addEventListener("click", async () => {

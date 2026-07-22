@@ -38,6 +38,12 @@ GROUP_META = {
         "description_zh": "配置图片和视频的存储位置。AccessKey 仅从服务器环境变量读取，不会保存到后台数据库。",
         "description_en": "Configure media storage. Access keys are read only from server environment variables and are not saved in the admin database.",
     },
+    "checkin_risk": {
+        "title_zh": "打卡路线风控",
+        "title_en": "Check-in Route Risk Control",
+        "description_zh": "配置腾讯地图路线核验与异常打卡阈值。服务端 Key 不会下发到小程序。",
+        "description_en": "Configure Tencent route verification and anomalous check-in thresholds. The server key is never exposed to the mini program.",
+    },
 }
 
 
@@ -65,6 +71,14 @@ DEFAULT_SETTINGS = [
     ("object_storage", "ALIYUN_OSS_REGION", "OSS 地域 ID", "OSS Region ID", "text", False, 30),
     ("object_storage", "ALIYUN_OSS_BUCKET", "OSS Bucket", "OSS Bucket", "text", False, 40),
     ("object_storage", "ALIYUN_OSS_PUBLIC_BASE_URL", "媒体访问域名", "Media Delivery URL", "text", False, 50),
+    ("checkin_risk", "TENCENT_LBS_WEB_SERVICE_KEY", "腾讯地图服务端 WebServiceKey", "Tencent LBS WebService Key", "password", True, 10),
+    ("checkin_risk", "TENCENT_LBS_BASE_URL", "腾讯地图服务地址", "Tencent LBS Base URL", "text", False, 20),
+    ("checkin_risk", "CHECKIN_ROUTE_WARN_RATIO", "路线时间警告阈值", "Route Warning Ratio", "number", False, 30),
+    ("checkin_risk", "CHECKIN_ROUTE_SUSPICIOUS_RATIO", "路线时间可疑阈值", "Route Suspicious Ratio", "number", False, 40),
+    ("checkin_risk", "CHECKIN_WARNING_LIMIT", "警告后停用次数", "Warning Disable Limit", "number", False, 50),
+    ("checkin_risk", "CHECKIN_SUSPICIOUS_LIMIT", "可疑后停用次数", "Suspicious Disable Limit", "number", False, 60),
+    ("checkin_risk", "CHECKIN_WATCH_LIMIT", "重点关注后停用次数", "Watch Disable Limit", "number", False, 70),
+    ("checkin_risk", "CHECKIN_REPEAT_WINDOW_HOURS", "重复打卡时间窗口（小时）", "Repeat Check-in Window (Hours)", "number", False, 80),
 ]
 
 
@@ -82,6 +96,14 @@ def seed_integration_settings(db: Session) -> None:
             "PUBLIC_API_OPEN_HOUR": "8",
             "PUBLIC_API_CLOSE_HOUR": "24",
             "MEDIA_STORAGE_PROVIDER": "local",
+            "TENCENT_LBS_WEB_SERVICE_KEY": settings.tencent_lbs_web_service_key,
+            "TENCENT_LBS_BASE_URL": settings.tencent_lbs_base_url,
+            "CHECKIN_ROUTE_WARN_RATIO": str(settings.checkin_route_warn_ratio),
+            "CHECKIN_ROUTE_SUSPICIOUS_RATIO": str(settings.checkin_route_suspicious_ratio),
+            "CHECKIN_WARNING_LIMIT": str(settings.checkin_warning_limit),
+            "CHECKIN_SUSPICIOUS_LIMIT": str(settings.checkin_suspicious_limit),
+            "CHECKIN_WATCH_LIMIT": str(settings.checkin_watch_limit),
+            "CHECKIN_REPEAT_WINDOW_HOURS": str(settings.checkin_repeat_window_hours),
         }
         default_value = defaults.get(key, "")
         db.add(
