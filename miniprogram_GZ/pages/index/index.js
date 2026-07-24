@@ -23,6 +23,7 @@ const COPY = {
     allLevels: "全部等级",
     levelOverview: "秘境等级",
     unlockRuleTitle: "L{level}级别秘境解锁说明",
+    unlockRuleFallbackTitle: "L{selected}级别暂无已解锁秘境，参考L{level}级别解锁说明",
     filterSummaryPrefix: "已选择",
     filterSummaryCountPrefix: "共",
     filterSummaryCountSuffix: "个秘境",
@@ -75,6 +76,7 @@ const COPY = {
     allLevels: "All Levels",
     levelOverview: "Gem Levels",
     unlockRuleTitle: "L{level} Unlock Guide",
+    unlockRuleFallbackTitle: "No unlocked L{selected} gems. Refer to the L{level} unlock guide",
     filterSummaryPrefix: "Selected",
     filterSummaryCountPrefix: "",
     filterSummaryCountSuffix: " gems",
@@ -175,7 +177,7 @@ Page({
     allLevelsSelected: true,
     levelOptions: [],
     passLevelRules: [],
-    unlockRule: null,
+    unlockRules: [],
     filterSummary: {
       tags: "",
       levels: "",
@@ -409,7 +411,7 @@ Page({
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
       levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds),
-      unlockRule: this.buildUnlockRule(selectedLevelIds),
+      unlockRules: this.buildUnlockRules(selectedLevelIds, taggedSpots),
       allTagsSelected: selectedTagIds.length === 0,
       allLevelsSelected: selectedLevelIds.length === 0,
       filterSummary: this.buildFilterSummary(filteredCatalog, selectedTagIds, selectedLevelIds),
@@ -453,15 +455,42 @@ Page({
       }))
   },
 
-  buildUnlockRule(selectedLevelIds) {
-    if ((selectedLevelIds || []).length !== 1) return null
-    const level = Number(selectedLevelIds[0])
-    const rule = (this.data.passLevelRules || []).find((item) => Number(item.level) === level)
-    if (!rule || !rule.description) return null
-    return {
-      title: this.data.copy.unlockRuleTitle.replace("{level}", level),
-      description: rule.description,
-    }
+  buildUnlockRules(selectedLevelIds, spots) {
+    if (!(selectedLevelIds || []).length) return []
+    const unlockedByLevel = (spots || []).reduce((result, spot) => {
+      const level = Number(spot.recommendation_level)
+      if (!Number.isFinite(level) || spot.is_unlocked === false) return result
+      result[level] = (result[level] || 0) + 1
+      return result
+    }, {})
+    const rulesByLevel = (this.data.passLevelRules || []).reduce((result, rule) => {
+      const level = Number(rule.level)
+      if (Number.isFinite(level) && rule.description) result[level] = rule
+      return result
+    }, {})
+
+    return selectedLevelIds
+      .map(Number)
+      .filter((level, index, levels) => Number.isFinite(level) && levels.indexOf(level) === index)
+      .sort((left, right) => left - right)
+      .map((selectedLevel) => {
+        const hasUnlockedSpots = Boolean(unlockedByLevel[selectedLevel])
+        let ruleLevel = hasUnlockedSpots ? selectedLevel : selectedLevel - 1
+        while (ruleLevel >= 0 && (!rulesByLevel[ruleLevel] || !unlockedByLevel[ruleLevel])) ruleLevel -= 1
+        if (ruleLevel < 0) return null
+        const isFallback = !hasUnlockedSpots
+        return {
+          level: ruleLevel,
+          selectedLevel,
+          title: isFallback
+            ? this.data.copy.unlockRuleFallbackTitle
+              .replace("{selected}", selectedLevel)
+              .replace("{level}", ruleLevel)
+            : this.data.copy.unlockRuleTitle.replace("{level}", ruleLevel),
+          description: rulesByLevel[ruleLevel].description,
+        }
+      })
+      .filter(Boolean)
   },
 
   buildFilterSummary(spots, selectedTagIds, selectedLevelIds, options = {}) {

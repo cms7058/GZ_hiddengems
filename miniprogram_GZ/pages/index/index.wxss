@@ -246,8 +246,14 @@ page {
   box-sizing: border-box;
 }
 
-.unlock-rule-card {
+.unlock-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
   margin-top: 16rpx;
+}
+
+.unlock-rule-card {
   padding: 18rpx 20rpx;
   border: 1rpx solid #c9dfcd;
   border-radius: 8rpx;
