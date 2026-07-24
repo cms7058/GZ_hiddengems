@@ -83,12 +83,20 @@
         </view>
       </view>
     </view>
-    <view wx:if="{{unlockRules.length}}" class="unlock-rule-list">
+    <view wx:if="{{unlockRules.length === 1}}" class="unlock-rule-list">
       <view wx:for="{{unlockRules}}" wx:key="selectedLevel" class="unlock-rule-card">
         <text class="unlock-rule-title">{{item.title}}</text>
         <text class="unlock-rule-body">{{item.description}}</text>
       </view>
     </view>
+    <scroll-view wx:elif="{{unlockRules.length > 1}}" class="unlock-rule-list unlock-rule-scroll" scroll-y show-scrollbar="{{true}}">
+      <view class="unlock-rule-list-inner">
+        <view wx:for="{{unlockRules}}" wx:key="selectedLevel" class="unlock-rule-card">
+          <text class="unlock-rule-title">{{item.title}}</text>
+          <text class="unlock-rule-body">{{item.description}}</text>
+        </view>
+      </view>
+    </scroll-view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>
 

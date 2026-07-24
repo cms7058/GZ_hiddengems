@@ -253,6 +253,20 @@ page {
   margin-top: 16rpx;
 }
 
+.unlock-rule-scroll {
+  height: 260rpx;
+  min-height: 0;
+  padding-right: 6rpx;
+  box-sizing: border-box;
+}
+
+.unlock-rule-list-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding-bottom: 4rpx;
+}
+
 .unlock-rule-card {
   padding: 18rpx 20rpx;
   border: 1rpx solid #c9dfcd;
