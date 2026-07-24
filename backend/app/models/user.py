@@ -118,6 +118,8 @@ class PassLevelSetting(Base):
     requires_membership = Column(Boolean, default=False, nullable=False)
     unlock_benefit_zh = Column(String(512), nullable=False)
     unlock_benefit_en = Column(String(512), nullable=False)
+    unlock_rule_zh = Column(String(1024), default="", nullable=False)
+    unlock_rule_en = Column(String(1024), default="", nullable=False)
     marker_color = Column(String(16), default="#2f6b4f", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

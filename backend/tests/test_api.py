@@ -1234,6 +1234,7 @@ class ApiTest(unittest.TestCase):
                 "checkin_points": 6,
                 "requires_membership": True,
                 "unlock_benefit_zh": "更新后的解锁权益。",
+                "unlock_rule_zh": "完成推荐和好友注册后可解锁。",
             },
         )
 
@@ -1242,6 +1243,12 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["checkin_points"], 6)
         self.assertTrue(data["requires_membership"])
         self.assertEqual(data["unlock_benefit_zh"], "更新后的解锁权益。")
+        self.assertEqual(data["unlock_rule_zh"], "完成推荐和好友注册后可解锁。")
+
+        rules_response = self.client.get("/api/v1/spots/pass-level-rules?lang=zh-CN")
+        self.assertEqual(rules_response.status_code, 200)
+        level_rule = next(item for item in rules_response.json() if item["level"] == 2)
+        self.assertEqual(level_rule["description"], "完成推荐和好友注册后可解锁。")
 
     def test_admin_can_change_pass_level_without_duplicates(self):
         headers = self.login_headers()

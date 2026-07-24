@@ -1,0 +1,22 @@
+<view class="page">
+  <navigation-bar title="{{title}}" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+
+  <swiper wx:if="{{mediaType === 'image' && imageUrls.length}}" class="image-swiper" current="{{currentIndex}}" circular indicator-dots>
+    <swiper-item wx:for="{{imageUrls}}" wx:key="*this">
+      <image class="viewer-image" src="{{item}}" mode="aspectFit"></image>
+    </swiper-item>
+  </swiper>
+
+  <video
+    wx:elif="{{mediaType === 'video' && currentUrl}}"
+    class="viewer-video"
+    src="{{currentUrl}}"
+    autoplay
+    controls
+    object-fit="contain"
+    direction="0"
+    enable-play-gesture
+  ></video>
+
+  <view class="floating-back" catchtap="onFloatingBackTap">←</view>
+</view>

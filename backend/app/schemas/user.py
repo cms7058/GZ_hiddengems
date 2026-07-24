@@ -101,6 +101,8 @@ class PassLevelSettingCreate(BaseModel):
     requires_membership: bool = False
     unlock_benefit_zh: str = Field(..., max_length=512)
     unlock_benefit_en: str = Field(..., max_length=512)
+    unlock_rule_zh: str = Field(default="", max_length=1024)
+    unlock_rule_en: str = Field(default="", max_length=1024)
     marker_color: str = Field(default="#2f6b4f", pattern=r"^#[0-9A-Fa-f]{6}$")
     is_active: bool = True
 
@@ -114,6 +116,8 @@ class PassLevelSettingUpdate(BaseModel):
     requires_membership: Optional[bool] = None
     unlock_benefit_zh: Optional[str] = Field(default=None, max_length=512)
     unlock_benefit_en: Optional[str] = Field(default=None, max_length=512)
+    unlock_rule_zh: Optional[str] = Field(default=None, max_length=1024)
+    unlock_rule_en: Optional[str] = Field(default=None, max_length=1024)
     marker_color: Optional[str] = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     is_active: Optional[bool] = None
 
@@ -128,6 +132,8 @@ class PassLevelSettingOut(BaseModel):
     requires_membership: bool
     unlock_benefit_zh: str
     unlock_benefit_en: str
+    unlock_rule_zh: str = ""
+    unlock_rule_en: str = ""
     marker_color: str
     is_active: bool
 

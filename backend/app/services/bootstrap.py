@@ -105,6 +105,8 @@ def ensure_runtime_columns() -> None:
             "marker_color": "VARCHAR(16) NOT NULL DEFAULT '#2f6b4f'",
             "required_explore_points": "INT NOT NULL DEFAULT 0",
             "checkin_points": "INT NOT NULL DEFAULT 0",
+            "unlock_rule_zh": "VARCHAR(1024) NOT NULL DEFAULT ''",
+            "unlock_rule_en": "VARCHAR(1024) NOT NULL DEFAULT ''",
         },
         "membership_plans": {
             "required_explore_points": "INT NOT NULL DEFAULT 0",
@@ -314,7 +316,13 @@ def seed_users(db: Session) -> None:
 
 
 def seed_pass_settings(db: Session) -> None:
-    if db.scalar(select(PassLevelSetting).limit(1)):
+    existing_settings = db.scalars(select(PassLevelSetting)).all()
+    if existing_settings:
+        level_one = next((setting for setting in existing_settings if setting.level == 1), None)
+        if level_one is not None and not level_one.unlock_rule_zh:
+            level_one.unlock_rule_zh = "需要用户推荐秘境并分享小程序给好友，好友关注并自动注册为用户后，可以解锁一个秘境。"
+            level_one.unlock_rule_en = "Recommend a gem and share the mini program. When a friend follows and registers automatically, one gem can be unlocked."
+            db.add(level_one)
         return
 
     db.add_all(
@@ -338,6 +346,8 @@ def seed_pass_settings(db: Session) -> None:
                 marker_color="#2f6b4f",
                 unlock_benefit_zh="解锁基础打卡任务和更多推荐理由。",
                 unlock_benefit_en="Unlock basic check-in tasks and richer recommendations.",
+                unlock_rule_zh="需要用户推荐秘境并分享小程序给好友，好友关注并自动注册为用户后，可以解锁一个秘境。",
+                unlock_rule_en="Recommend a gem and share the mini program. When a friend follows and registers automatically, one gem can be unlocked.",
             ),
             PassLevelSetting(
                 level=2,

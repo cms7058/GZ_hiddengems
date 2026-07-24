@@ -2072,6 +2072,8 @@ function fillPassSettingForm(setting) {
     "checkin_points",
     "unlock_benefit_zh",
     "unlock_benefit_en",
+    "unlock_rule_zh",
+    "unlock_rule_en",
   ].forEach((field) => {
     form.elements[field].value = setting[field] ?? "";
   });
@@ -3590,6 +3592,8 @@ $("#passSettingForm").addEventListener("submit", async (event) => {
     requires_membership: form.elements.requires_membership.checked,
     unlock_benefit_zh: data.unlock_benefit_zh,
     unlock_benefit_en: data.unlock_benefit_en,
+    unlock_rule_zh: data.unlock_rule_zh || "",
+    unlock_rule_en: data.unlock_rule_en || "",
     marker_color: markerColor,
     is_active: form.elements.is_active.checked,
   };

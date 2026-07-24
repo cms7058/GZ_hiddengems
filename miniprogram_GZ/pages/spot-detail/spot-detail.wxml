@@ -12,7 +12,7 @@
             <video
               wx:if="{{photo.media_type === 'video'}}"
               id="spotDetailVideo-{{photo.id}}"
-              data-video-id="spotDetailVideo-{{photo.id}}"
+              data-url="{{photo.display_url || photo.image_url}}"
               class="hero-image-thumb hero-video-thumb"
               src="{{photo.display_url || photo.image_url}}"
               object-fit="cover"

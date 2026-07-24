@@ -15,6 +15,12 @@ class LocalizedTag(BaseModel):
     icon: Optional[str] = None
 
 
+class PassLevelRuleOut(BaseModel):
+    level: int
+    name: str
+    description: str = ""
+
+
 class TagCreate(BaseModel):
     name_zh: str = Field(..., max_length=64)
     name_en: str = Field(..., max_length=64)

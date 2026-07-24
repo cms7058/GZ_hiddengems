@@ -83,6 +83,10 @@
         </view>
       </view>
     </view>
+    <view wx:if="{{unlockRule}}" class="unlock-rule-card">
+      <text class="unlock-rule-title">{{unlockRule.title}}</text>
+      <text class="unlock-rule-body">{{unlockRule.description}}</text>
+    </view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
   </view>
 

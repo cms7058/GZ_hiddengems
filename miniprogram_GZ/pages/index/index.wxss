@@ -246,6 +246,32 @@ page {
   box-sizing: border-box;
 }
 
+.unlock-rule-card {
+  margin-top: 16rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid #c9dfcd;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.unlock-rule-title,
+.unlock-rule-body {
+  display: block;
+}
+
+.unlock-rule-title {
+  color: #1f5f45;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.unlock-rule-body {
+  margin-top: 8rpx;
+  color: #536357;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
 .summary-copy {
   min-width: 0;
   flex: 1;

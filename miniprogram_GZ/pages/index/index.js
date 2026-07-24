@@ -22,6 +22,7 @@ const COPY = {
     allTags: "全部",
     allLevels: "全部等级",
     levelOverview: "秘境等级",
+    unlockRuleTitle: "L{level}级别秘境解锁说明",
     filterSummaryPrefix: "已选择",
     filterSummaryCountPrefix: "共",
     filterSummaryCountSuffix: "个秘境",
@@ -73,6 +74,7 @@ const COPY = {
     allTags: "All",
     allLevels: "All Levels",
     levelOverview: "Gem Levels",
+    unlockRuleTitle: "L{level} Unlock Guide",
     filterSummaryPrefix: "Selected",
     filterSummaryCountPrefix: "",
     filterSummaryCountSuffix: " gems",
@@ -172,6 +174,8 @@ Page({
     allTagsSelected: true,
     allLevelsSelected: true,
     levelOptions: [],
+    passLevelRules: [],
+    unlockRule: null,
     filterSummary: {
       tags: "",
       levels: "",
@@ -293,11 +297,12 @@ Page({
   async loadHomeData() {
     this.mapAutoFit = true
     this.setData({ loading: true, offlineDetail: "" })
-    const [tagsResult, spotsResult] = await Promise.allSettled([
+    const [tagsResult, spotsResult, rulesResult] = await Promise.allSettled([
         request(`/tags?lang=${this.data.lang}`),
         request(this.buildMapPath()),
+        request(`/spots/pass-level-rules?lang=${this.data.lang}`),
     ])
-    const initialErrors = [tagsResult, spotsResult]
+    const initialErrors = [tagsResult, spotsResult, rulesResult]
       .filter((result) => result.status === "rejected")
       .map((result) => result.reason)
     if (initialErrors.some((error) => isServiceClosedError(error))) {
@@ -306,6 +311,7 @@ Page({
     }
     const tags = tagsResult.status === "fulfilled" ? tagsResult.value : []
     const spots = spotsResult.status === "fulfilled" ? spotsResult.value : []
+    const passLevelRules = rulesResult.status === "fulfilled" ? rulesResult.value : []
     let homeCatalog = spots
     let catalogError = null
     try {
@@ -320,11 +326,12 @@ Page({
         tags,
         spots: this.normalizeSpots(spots),
         homeCatalog: this.normalizeSpots(homeCatalog),
+        passLevelRules,
         offline: false,
         serviceClosed: false,
         loading: false,
       })
-      wx.setStorageSync("gzHomeDataCache", { tags, spots, homeCatalog })
+      wx.setStorageSync("gzHomeDataCache", { tags, spots, homeCatalog, passLevelRules })
       this.applyFilters()
       return
     }
@@ -334,6 +341,7 @@ Page({
       tags: cached.tags || [],
       spots: this.normalizeSpots(cached.spots || []),
       homeCatalog: this.normalizeSpots(cached.homeCatalog || cached.spots || []),
+      passLevelRules: cached.passLevelRules || [],
       offline: true,
       offlineDetail: detailError?.message || detailError?.errMsg || "",
       serviceClosed: false,
@@ -401,6 +409,7 @@ Page({
       selectedSpotId: (selectedSpot && selectedSpot.id) || 0,
       tags: this.decorateTags(this.data.tags, selectedTagIds),
       levelOptions: this.buildLevelOptions(taggedSpots, selectedLevelIds),
+      unlockRule: this.buildUnlockRule(selectedLevelIds),
       allTagsSelected: selectedTagIds.length === 0,
       allLevelsSelected: selectedLevelIds.length === 0,
       filterSummary: this.buildFilterSummary(filteredCatalog, selectedTagIds, selectedLevelIds),
@@ -442,6 +451,17 @@ Page({
         label: `L${level}`,
         active: selectedLevelIds.includes(level),
       }))
+  },
+
+  buildUnlockRule(selectedLevelIds) {
+    if ((selectedLevelIds || []).length !== 1) return null
+    const level = Number(selectedLevelIds[0])
+    const rule = (this.data.passLevelRules || []).find((item) => Number(item.level) === level)
+    if (!rule || !rule.description) return null
+    return {
+      title: this.data.copy.unlockRuleTitle.replace("{level}", level),
+      description: rule.description,
+    }
   },
 
   buildFilterSummary(spots, selectedTagIds, selectedLevelIds, options = {}) {

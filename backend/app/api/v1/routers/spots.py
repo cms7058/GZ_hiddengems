@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.db.session import get_db
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
-from app.models.user import CheckinRecord, MiniProgramUser
-from app.schemas.spot import HomeSpotOut, LockedNearbySpotCountOut, LockedSpotDetailOut, LockedSpotPreviewOut, MapSpotOut, SpotDetailOut
+from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
+from app.schemas.spot import HomeSpotOut, LockedNearbySpotCountOut, LockedSpotDetailOut, LockedSpotPreviewOut, MapSpotOut, PassLevelRuleOut, SpotDetailOut
 from app.services.geo import distance_km_between
 from app.services.media_storage import MediaStorageError, cache_remote_image, is_managed_media_url
 from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
@@ -29,6 +29,25 @@ def resolve_user_context(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found")
     return user, user.explore_points
+
+
+@router.get("/pass-level-rules", response_model=list[PassLevelRuleOut])
+def list_pass_level_rules(
+    lang: str = Query(default="zh-CN"),
+    db: Session = Depends(get_db),
+) -> list[PassLevelRuleOut]:
+    return [
+        PassLevelRuleOut(
+            level=setting.level,
+            name=setting.name_en if lang == "en-US" else setting.name_zh,
+            description=setting.unlock_rule_en if lang == "en-US" else setting.unlock_rule_zh,
+        )
+        for setting in db.scalars(
+            select(PassLevelSetting)
+            .where(PassLevelSetting.is_active.is_(True))
+            .order_by(PassLevelSetting.level.asc())
+        ).all()
+    ]
 
 
 def cache_legacy_wechat_channel_covers(db: Session, spot: ScenicSpot) -> None:

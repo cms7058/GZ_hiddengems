@@ -423,23 +423,15 @@ Page({
   onPreviewSpotPhoto(event) {
     const current = event.currentTarget.dataset.url
     if (event.currentTarget.dataset.mediaType === "video") return
-    const urls = this.data.spotPhotos
-      .filter((item) => (item.media_type || "image") === "image")
-      .map((item) => item.display_url || item.image_url)
-      .filter(Boolean)
-    if (current && urls.length) wx.previewImage({ current, urls })
+    this.openSpotMedia("image", current)
   },
 
   onSpotVideoPlay(event) {
-    this.openSpotVideoFullscreen(event.currentTarget.dataset.videoId || event.currentTarget.id)
+    this.openSpotMedia("video", event.currentTarget.dataset.url)
   },
 
   onSpotVideoTap(event) {
-    const videoId = event.currentTarget.dataset.videoId || event.currentTarget.id
-    if (!videoId) return
-    const video = wx.createVideoContext(videoId, this)
-    video.play()
-    this.openSpotVideoFullscreen(videoId)
+    this.openSpotMedia("video", event.currentTarget.dataset.url)
   },
 
   onWechatChannelCoverTap(event) {
@@ -455,11 +447,27 @@ Page({
     this.setData({ photoSlides: remaining })
   },
 
-  openSpotVideoFullscreen(videoId) {
-    if (!videoId) return
-    const video = wx.createVideoContext(videoId, this)
-    // The native player ignores a fullscreen request until its play state is ready.
-    setTimeout(() => video.requestFullScreen({ direction: 0 }), 120)
+  openSpotMedia(mediaType, currentUrl) {
+    if (!currentUrl || this.openingSpotMedia) return
+    this.openingSpotMedia = true
+    const imageUrls = this.data.spotPhotos
+      .filter((item) => (item.media_type || "image") === "image")
+      .map((item) => item.display_url || item.image_url)
+      .filter(Boolean)
+
+    app.globalData.spotMediaViewer = {
+      mediaType,
+      currentUrl,
+      imageUrls,
+    }
+    wx.navigateTo({
+      url: "/pages/media-viewer/index",
+      complete: () => {
+        setTimeout(() => {
+          this.openingSpotMedia = false
+        }, 500)
+      },
+    })
   },
 
   onOpenVideoChannel(event) {
