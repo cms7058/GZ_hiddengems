@@ -23,6 +23,54 @@ page {
   display: block;
 }
 
+.list-filter-controls {
+  margin-top: 18rpx;
+}
+
+.keyword-input {
+  width: 100%;
+  height: 64rpx;
+  padding: 0 18rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #d8e2d7;
+  border-radius: 6rpx;
+  background: #fbfdf9;
+  color: #203e2e;
+  font-size: 24rpx;
+}
+
+.filter-select-row {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.filter-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-picker-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60rpx;
+  padding: 0 14rpx;
+  border: 1rpx solid #d8e2d7;
+  border-radius: 6rpx;
+  color: #55705d;
+  font-size: 22rpx;
+  background: #fbfdf9;
+}
+
+.picker-value {
+  max-width: 68%;
+  color: #203e2e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .context-title {
   color: #54705d;
   font-size: 22rpx;
@@ -58,16 +106,64 @@ page {
   background: #ffffff;
 }
 
-.spot-cover {
-  display: block;
-  width: 100%;
-  height: 256rpx;
-  margin-bottom: 18rpx;
+.spot-card-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 18rpx;
+}
+
+.spot-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.spot-cover-wrap {
+  position: relative;
   border-radius: 6rpx;
+  overflow: hidden;
+  background: #e7ece5;
+}
+
+.card-cover-right {
+  flex: none;
+  width: 196rpx;
+  height: 196rpx;
 }
 
 .spot-cover {
-  background: #e7ece5;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spot-cover-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  color: #5f7568;
+  font-size: 22rpx;
+  background: rgba(231, 236, 229, 0.92);
+}
+
+.spot-cover-error {
+  color: #8a6655;
+}
+
+.cover-spinner {
+  width: 28rpx;
+  height: 28rpx;
+  border: 4rpx solid #cbd8cc;
+  border-top-color: #2f6b4f;
+  border-radius: 50%;
+  animation: cover-spin 0.8s linear infinite;
+}
+
+@keyframes cover-spin {
+  to { transform: rotate(360deg); }
 }
 
 
@@ -109,7 +205,7 @@ page {
   font-size: 24rpx;
   line-height: 1.5;
   overflow: hidden;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 

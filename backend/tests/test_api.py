@@ -446,7 +446,11 @@ class ApiTest(unittest.TestCase):
         response = self.client.get("/api/v1/spots/map?lang=zh-CN&explore_points=120")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()[0]["cover_image_url"], "/api/v1/media/spots/2026/07/cover.jpg")
+        cover_url = response.json()[0]["cover_image_url"]
+        self.assertTrue(
+            cover_url.startswith("https://hiddengems.oss-cn-chengdu.aliyuncs.com/spots/2026/07/cover.jpg?")
+            or cover_url == "/api/v1/media/spots/2026/07/cover.jpg?v=1"
+        )
 
     @patch("app.api.v1.routers.admin_spots.cache_remote_image", side_effect=lambda _db, url: url)
     def test_spot_update_keeps_existing_wechat_channel_video(self, _cache_remote_image):

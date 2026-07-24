@@ -11,7 +11,7 @@ from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut
 from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
-from app.services.media_storage import get_media_proxy_path, is_managed_media_url
+from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
 from app.services.pass_levels import get_spot_unlock_state
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.user import CheckinRecordOut
@@ -133,13 +133,33 @@ def wechat_channel_video_to_out(video: WechatChannelVideo, db: Optional[Session]
     )
 
 
-def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Optional[str]:
+def _spot_card_media_url(image_url: str, image_id: int, db: Optional[Session], prefer_signed_url: bool) -> Optional[str]:
+    if db is not None and prefer_signed_url:
+        signed_url = get_media_display_url(db, image_url)
+        # get_media_display_url returns the original URL on a signing error.
+        # Do not expose a private OSS object without its signature; the API
+        # proxy remains a reliable fallback in that case.
+        if signed_url and signed_url != image_url:
+            return signed_url
+    display_url = get_media_proxy_path(db, image_url) if db else image_url
+    if not display_url:
+        return display_url
+    separator = "&" if "?" in display_url else "?"
+    return f"{display_url}{separator}v={image_id}"
+
+
+def spot_cover_image_url(
+    spot: ScenicSpot,
+    db: Optional[Session] = None,
+    *,
+    prefer_signed_url: bool = False,
+) -> Optional[str]:
     images = sorted(
         (image for image in getattr(spot, "spot_images", []) if image.is_active and image.media_type == "image"),
         key=lambda image: (not image.is_cover, image.sort_order, image.id),
     )
     if images:
-        return spot_image_to_out(images[0], db).display_url
+        return _spot_card_media_url(images[0].image_url, images[0].id, db, prefer_signed_url)
 
     # When no spot media is uploaded, Video Channel covers are the next visual
     # source for map/list cards. Their display URL is proxied through the API
@@ -155,8 +175,8 @@ def spot_cover_image_url(spot: ScenicSpot, db: Optional[Session] = None) -> Opti
     if channel_videos:
         if db is not None and not is_managed_media_url(db, channel_videos[0].cover_url):
             return None
-        channel_cover = wechat_channel_video_to_out(channel_videos[0], db)
-        return channel_cover.display_url or channel_cover.cover_url
+        channel_cover = channel_videos[0]
+        return _spot_card_media_url(channel_cover.cover_url, channel_cover.id, db, prefer_signed_url)
     return None
 
 
@@ -197,7 +217,7 @@ def spot_to_map_out(
         is_member=is_member,
         decimals=settings.coordinate_mask_decimals,
     )
-    cover_image_url = spot_cover_image_url(spot, db)
+    cover_image_url = spot_cover_image_url(spot, db, prefer_signed_url=True)
     return MapSpotOut(
         id=spot.id,
         name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",

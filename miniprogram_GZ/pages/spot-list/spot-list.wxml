@@ -4,6 +4,17 @@
   <view class="filter-context">
     <text class="context-title">{{copy.selected}}</text>
     <text class="context-body">{{summary.tags}} · {{summary.levels}} · {{summary.count}}{{copy.countSuffix}}</text>
+    <view class="list-filter-controls">
+      <input class="keyword-input" value="{{keyword}}" placeholder="{{copy.searchPlaceholder}}" confirm-type="search" bindinput="onKeywordInput" />
+      <view class="filter-select-row">
+        <picker class="filter-picker" mode="selector" range="{{tagOptions}}" range-key="label" value="{{selectedTagIndex}}" bindchange="onTagPickerChange">
+          <view class="filter-picker-value"><text>{{copy.tagFilter}}</text><text class="picker-value">{{tagOptions[selectedTagIndex].label}}</text></view>
+        </picker>
+        <picker class="filter-picker" mode="selector" range="{{regionOptions}}" range-key="label" value="{{selectedRegionIndex}}" bindchange="onRegionPickerChange">
+          <view class="filter-picker-value"><text>{{copy.regionFilter}}</text><text class="picker-value">{{regionOptions[selectedRegionIndex].label}}</text></view>
+        </picker>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{serviceClosed}}" class="notice">{{copy.serviceClosed}}</view>
@@ -13,19 +24,33 @@
 
   <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view wx:for="{{spots}}" wx:key="id" class="spot-card" data-id="{{item.id}}" bindtap="onSpotTap">
-      <image wx:if="{{item.cover_image_url}}" class="spot-cover" src="{{item.cover_image_url}}" mode="aspectFill"></image>
-      <view class="card-head">
-        <view class="marker" style="background: {{item.markerColor}};"></view>
-        <text class="spot-name">{{item.name}}</text>
-        <text class="spot-level">Lv.{{item.recommendation_level}}</text>
-      </view>
-      <text class="spot-summary">{{item.summary}}</text>
-      <view class="spot-meta">
-        <text>{{item.city}} / {{item.county}}</text>
-        <text>{{item.required_explore_points}}{{copy.points}}</text>
-      </view>
-      <view class="tag-row">
-        <text wx:for="{{item.tags}}" wx:key="id" class="tag">{{item.name}}</text>
+      <view class="spot-card-layout">
+        <view class="spot-card-main">
+          <view class="card-head">
+            <view class="marker" style="background: {{item.markerColor}};"></view>
+            <text class="spot-name">{{item.name}}</text>
+            <text class="spot-level">Lv.{{item.recommendation_level}}</text>
+          </view>
+          <text class="spot-summary">{{item.summary}}</text>
+          <view class="spot-meta">
+            <text>{{item.city}} / {{item.county}}</text>
+            <text>{{item.required_explore_points}}{{copy.points}}</text>
+          </view>
+          <view class="tag-row">
+            <text wx:for="{{item.tags}}" wx:key="id" class="tag">{{item.name}}</text>
+          </view>
+        </view>
+        <view wx:if="{{item.cover_image_url}}" class="spot-cover-wrap card-cover-right">
+          <image wx:if="{{item.cover_display_url}}" class="spot-cover" src="{{item.cover_display_url}}" mode="aspectFill" data-index="{{index}}" bindload="onCoverLoad" binderror="onCoverError"></image>
+          <image wx:elif="{{!item.cover_loading && !item.cover_failed}}" class="spot-cover" src="{{item.cover_image_url}}" mode="aspectFill" data-index="{{index}}" bindload="onCoverLoad" binderror="onCoverError"></image>
+          <view wx:if="{{item.cover_loading}}" class="spot-cover-state">
+            <view class="cover-spinner"></view>
+            <text>{{copy.imageLoading}}</text>
+          </view>
+          <view wx:if="{{item.cover_failed}}" class="spot-cover-state spot-cover-error">
+            <text>{{copy.imageFailed}}</text>
+          </view>
+        </view>
       </view>
     </view>
   </scroll-view>
