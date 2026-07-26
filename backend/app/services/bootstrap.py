@@ -108,6 +108,9 @@ def ensure_runtime_columns() -> None:
             "unlock_rule_zh": "VARCHAR(1024) NOT NULL DEFAULT ''",
             "unlock_rule_en": "VARCHAR(1024) NOT NULL DEFAULT ''",
         },
+        "share_events": {
+            "is_confirmed": "BOOLEAN NOT NULL DEFAULT FALSE",
+        },
         "membership_plans": {
             "required_explore_points": "INT NOT NULL DEFAULT 0",
         },

@@ -144,6 +144,10 @@
               <text class="explore-action-title">{{copy.leaveComment}}</text>
               <text class="explore-action-arrow">›</text>
             </view>
+            <button wx:if="{{user.can_share}}" class="explore-action share-action" open-type="share" disabled="{{!shareToken}}" bindtap="onShareButtonTap">
+              <text class="explore-action-title">{{shareToken ? copy.share : copy.preparingShare}}</text>
+              <text class="explore-action-arrow">›</text>
+            </button>
           </view>
           <text wx:if="{{user.can_comment && !spot.has_successful_checkin}}" class="explore-action-hint">{{copy.checkinRequired}}</text>
         </view>

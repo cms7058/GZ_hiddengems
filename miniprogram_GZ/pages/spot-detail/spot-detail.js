@@ -56,6 +56,8 @@ const COPY = {
     checkin: "提交打卡",
     writeNote: "发布游记",
     leaveComment: "发表留言",
+    share: "分享给好友",
+    preparingShare: "正在准备分享",
     currentLocation: "我的实时位置",
     chooseMedia: "上传图片/视频",
     mediaReady: "素材已上传",
@@ -133,6 +135,8 @@ const COPY = {
     checkin: "Check In",
     writeNote: "Write Note",
     leaveComment: "Leave Comment",
+    share: "Share to Friends",
+    preparingShare: "Preparing Share",
     currentLocation: "My Live Location",
     chooseMedia: "Upload Photo/Video",
     mediaReady: "Media uploaded",
@@ -197,6 +201,7 @@ Page({
     },
     watermarkCanvasWidth: 1,
     watermarkCanvasHeight: 1,
+    shareToken: "",
     submitting: false,
   },
 
@@ -273,6 +278,7 @@ Page({
       })
       this.refreshMarkerIcon(spot)
       this.loadSafety()
+      this.prepareShare()
     } catch (error) {
       if (isServiceClosedError(error)) {
         this.setData({
@@ -671,6 +677,52 @@ Page({
 
   onActionTap(event) {
     this.openAction(event.currentTarget.dataset.action)
+  },
+
+  async prepareShare() {
+    const user = this.data.user || {}
+    if (!user.id || user.can_share === false) return
+    try {
+      const result = await request(`/mini/shares/prepare?user_id=${user.id}`, { method: "POST" })
+      this.setData({ shareToken: result.share_token || "" })
+    } catch (error) {
+      console.warn("share preparation failed", error)
+      this.setData({ shareToken: "" })
+    }
+  },
+
+  onShareButtonTap() {
+    if (!this.data.shareToken) {
+      wx.showToast({ title: this.data.copy.preparingShare, icon: "none" })
+    }
+  },
+
+  onShareAppMessage() {
+    const spot = this.data.spot || {}
+    const shareToken = this.data.shareToken
+    return {
+      title: spot.name || this.data.copy.navTitle,
+      path: `/pages/spot-detail/spot-detail?id=${spot.id || this.data.id}${shareToken ? `&ref=${encodeURIComponent(shareToken)}` : ""}`,
+      success: () => this.confirmShare(shareToken),
+    }
+  },
+
+  async confirmShare(shareToken) {
+    const user = this.data.user || {}
+    if (!shareToken || !user.id) return
+    try {
+      const result = await request(`/mini/shares/${encodeURIComponent(shareToken)}/confirm?user_id=${user.id}`, { method: "POST" })
+      const shareCount = Number(result.share_count)
+      if (Number.isFinite(shareCount)) {
+        const nextUser = { ...app.globalData.user, share_count: shareCount }
+        app.globalData.user = nextUser
+        wx.setStorageSync("gzHiddenGemsUser", nextUser)
+        this.setData({ user: nextUser })
+      }
+      this.prepareShare()
+    } catch (error) {
+      console.warn("share confirmation failed", error)
+    }
   },
 
   openAction(action) {

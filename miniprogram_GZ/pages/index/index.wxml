@@ -22,7 +22,7 @@
     </view>
   </view>
 
-  <view class="sheet">
+  <scroll-view class="sheet" scroll-y show-scrollbar="{{true}}">
     <view class="tag-row">
       <view class="tag {{allTagsSelected ? 'active' : ''}}" catchtouchstart="onClearTags">{{copy.allTags}}</view>
       <view
@@ -83,22 +83,14 @@
         </view>
       </view>
     </view>
-    <view wx:if="{{unlockRules.length === 1}}" class="unlock-rule-list">
+    <view wx:if="{{unlockRules.length}}" class="unlock-rule-list">
       <view wx:for="{{unlockRules}}" wx:key="selectedLevel" class="unlock-rule-card">
         <text class="unlock-rule-title">{{item.title}}</text>
         <text class="unlock-rule-body">{{item.description}}</text>
       </view>
     </view>
-    <scroll-view wx:elif="{{unlockRules.length > 1}}" class="unlock-rule-list unlock-rule-scroll" scroll-y show-scrollbar="{{true}}">
-      <view class="unlock-rule-list-inner">
-        <view wx:for="{{unlockRules}}" wx:key="selectedLevel" class="unlock-rule-card">
-          <text class="unlock-rule-title">{{item.title}}</text>
-          <text class="unlock-rule-body">{{item.description}}</text>
-        </view>
-      </view>
-    </scroll-view>
     <view wx:if="{{!loading && filteredSpots.length === 0}}" class="empty-filter">{{copy.noEligibleSpots}}</view>
-  </view>
+  </scroll-view>
 
   <view wx:if="{{showProfileAuth}}" class="agreement-mask">
     <view class="agreement-panel">

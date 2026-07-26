@@ -26,7 +26,6 @@ from app.services.media_storage import MediaStorageError, get_media_display_url,
 from app.services.memberships import sync_user_membership_by_points
 from app.services.points import award_points
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
-from app.services.safety_levels import apply_safety_level_policy
 from app.services.localization import choose_text, normalize_language
 from app.services.archive import handle_mini_archive_query
 from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, travel_note_to_out
@@ -393,7 +392,7 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
                 user.invited_by_user_id = inviter.id
                 inviter.referral_registered_count += 1
                 award_points(db, user=inviter, rule_code="share_registration", reference_type="share_registration", reference_id=user.id, note="分享带来新用户注册")
-    apply_safety_level_policy(db, user)
+    # Login must not reset permissions explicitly configured by an administrator.
     sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
@@ -615,18 +614,55 @@ def create_spot_recommendation(payload: SpotRecommendationCreate, db: Session = 
     return recommendation_to_out(db, item)
 
 
-@router.post("/shares")
-def record_share(user_id: int, db: Session = Depends(get_db)) -> dict:
+def create_share_event(db: Session, user: MiniProgramUser) -> ShareEvent:
     import secrets
 
-    user = ensure_active_user(db, user_id)
-    ensure_user_permission(user, "can_share")
     token = secrets.token_urlsafe(18)
     event = ShareEvent(user_id=user.id, share_token=token)
     db.add(event)
     db.flush()
+    return event
+
+
+def confirm_share_event(db: Session, user: MiniProgramUser, event: ShareEvent) -> int:
+    if event.is_confirmed:
+        return 0
+    event.is_confirmed = True
     user.share_count += 1
     awarded = award_points(db, user=user, rule_code="share", reference_type="share", reference_id=event.id, note="发起小程序分享")
     sync_user_membership_by_points(db, user)
+    return awarded
+
+
+@router.post("/shares/prepare")
+def prepare_share(user_id: int, db: Session = Depends(get_db)) -> dict:
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_share")
+    event = create_share_event(db, user)
     db.commit()
-    return {"share_token": token, "awarded_points": awarded}
+    return {"share_token": event.share_token}
+
+
+@router.post("/shares/{share_token}/confirm")
+def confirm_share(share_token: str, user_id: int, db: Session = Depends(get_db)) -> dict:
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_share")
+    event = db.scalar(select(ShareEvent).where(ShareEvent.share_token == share_token))
+    if event is None:
+        raise HTTPException(status_code=404, detail="Share event not found")
+    if event.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Share event does not belong to user")
+    awarded = confirm_share_event(db, user, event)
+    db.commit()
+    return {"share_token": event.share_token, "awarded_points": awarded, "share_count": user.share_count}
+
+
+@router.post("/shares")
+def record_share(user_id: int, db: Session = Depends(get_db)) -> dict:
+    """Compatibility endpoint for existing clients that count on tap."""
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_share")
+    event = create_share_event(db, user)
+    awarded = confirm_share_event(db, user, event)
+    db.commit()
+    return {"share_token": event.share_token, "awarded_points": awarded}

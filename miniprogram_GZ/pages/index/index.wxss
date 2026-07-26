@@ -84,8 +84,6 @@ page {
   box-shadow: 0 -12rpx 40rpx rgba(31, 49, 39, 0.12);
   box-sizing: border-box;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
 }
 
 .tag-row {
@@ -251,20 +249,6 @@ page {
   flex-direction: column;
   gap: 12rpx;
   margin-top: 16rpx;
-}
-
-.unlock-rule-scroll {
-  height: 260rpx;
-  min-height: 0;
-  padding-right: 6rpx;
-  box-sizing: border-box;
-}
-
-.unlock-rule-list-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  padding-bottom: 4rpx;
 }
 
 .unlock-rule-card {

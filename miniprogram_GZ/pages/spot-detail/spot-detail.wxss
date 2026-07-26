@@ -409,12 +409,13 @@ page {
   padding-top: 18rpx;
   border-top: 1rpx solid #ece7dc;
   display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
 }
 
 .explore-action {
   flex: 1;
-  min-width: 0;
+  min-width: 180rpx;
   min-height: 64rpx;
   padding: 0 12rpx;
   border-radius: 8rpx;
@@ -424,6 +425,21 @@ page {
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
+}
+
+button.share-action {
+  margin: 0;
+  border: 0;
+  text-align: left;
+  line-height: normal;
+}
+
+button.share-action::after {
+  border: 0;
+}
+
+button.share-action[disabled] {
+  opacity: 0.58;
 }
 
 .explore-action-hint {

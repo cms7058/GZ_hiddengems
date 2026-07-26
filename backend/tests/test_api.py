@@ -1204,6 +1204,14 @@ class ApiTest(unittest.TestCase):
                 "avatar_url": "/media/avatars/test.jpg",
                 "is_member": False,
                 "is_active": False,
+                "safety_level": "general",
+                "can_upload_image": False,
+                "can_upload_video": False,
+                "can_comment": False,
+                "can_checkin": False,
+                "can_recommend_spot": False,
+                "can_like_comment": False,
+                "can_share": False,
             },
         )
         self.assertEqual(update_response.status_code, 200)
@@ -1212,6 +1220,13 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["avatar_url"], "/media/avatars/test.jpg")
         self.assertTrue(data["is_member"])
         self.assertFalse(data["is_active"])
+        self.assertFalse(data["can_upload_image"])
+        self.assertFalse(data["can_upload_video"])
+        self.assertFalse(data["can_comment"])
+        self.assertFalse(data["can_checkin"])
+        self.assertFalse(data["can_recommend_spot"])
+        self.assertFalse(data["can_like_comment"])
+        self.assertFalse(data["can_share"])
 
         create_response = self.client.post(
             "/api/v1/admin/users",
@@ -1254,6 +1269,19 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(rules_response.status_code, 200)
         level_rule = next(item for item in rules_response.json() if item["level"] == 2)
         self.assertEqual(level_rule["description"], "完成推荐和好友注册后可解锁。")
+
+    def test_mini_share_is_counted_after_confirmation(self):
+        prepared = self.client.post("/api/v1/mini/shares/prepare?user_id=1")
+        self.assertEqual(prepared.status_code, 200)
+        token = prepared.json()["share_token"]
+
+        confirmed = self.client.post(f"/api/v1/mini/shares/{token}/confirm?user_id=1")
+        self.assertEqual(confirmed.status_code, 200)
+        self.assertEqual(confirmed.json()["share_count"], 1)
+
+        duplicate_confirmation = self.client.post(f"/api/v1/mini/shares/{token}/confirm?user_id=1")
+        self.assertEqual(duplicate_confirmation.status_code, 200)
+        self.assertEqual(duplicate_confirmation.json()["share_count"], 1)
 
     def test_admin_can_change_pass_level_without_duplicates(self):
         headers = self.login_headers()

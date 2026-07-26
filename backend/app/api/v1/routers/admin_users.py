@@ -16,6 +16,16 @@ from app.services.safety_levels import apply_safety_level_policy
 
 router = APIRouter()
 
+USER_PERMISSION_FIELDS = (
+    "can_upload_image",
+    "can_upload_video",
+    "can_comment",
+    "can_checkin",
+    "can_recommend_spot",
+    "can_like_comment",
+    "can_share",
+)
+
 
 def user_to_out(db: Session, user: MiniProgramUser) -> MiniProgramUserOut:
     result = MiniProgramUserOut.model_validate(user)
@@ -80,7 +90,9 @@ def create_admin_user(
         exists.is_active = True
         db.add(exists)
         db.flush()
-        apply_safety_level_policy(db, exists)
+        # Explicit permissions from the form take precedence over safety-level presets.
+        if not any(field in payload.model_fields_set for field in USER_PERMISSION_FIELDS):
+            apply_safety_level_policy(db, exists)
         sync_user_membership_by_points(db, exists)
         db.commit()
         db.refresh(exists)
@@ -89,7 +101,10 @@ def create_admin_user(
     user = MiniProgramUser(**payload.model_dump())
     db.add(user)
     db.flush()
-    apply_safety_level_policy(db, user)
+    # New users default to all permissions. A preset is applied only when no
+    # explicit permission values were provided by the administrator.
+    if not any(field in payload.model_fields_set for field in USER_PERMISSION_FIELDS):
+        apply_safety_level_policy(db, user)
     sync_user_membership_by_points(db, user)
     db.commit()
     db.refresh(user)
@@ -107,12 +122,13 @@ def update_admin_user(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(user, field, value)
 
-    if "explore_points" in payload.model_dump(exclude_unset=True):
+    if "explore_points" in update_data:
         sync_user_membership_by_points(db, user)
-    if "safety_level" in payload.model_dump(exclude_unset=True):
+    if "safety_level" in update_data and not any(field in update_data for field in USER_PERMISSION_FIELDS):
         apply_safety_level_policy(db, user)
     db.add(user)
     db.commit()

@@ -1936,6 +1936,7 @@ function fillTagForm(tag = null) {
 
 function fillUserForm(user) {
   const form = $("#userForm");
+  const permissionFields = ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"];
   form.reset();
   state.editingUserId = user?.id || null;
   $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
@@ -1948,10 +1949,7 @@ function fillUserForm(user) {
     form.elements.eco_credit.value = 100;
     form.elements.is_member.checked = false;
     form.elements.is_active.checked = true;
-    form.elements.can_upload_image.checked = true;
-    form.elements.can_upload_video.checked = true;
-    form.elements.can_comment.checked = true;
-    form.elements.can_checkin.checked = true;
+    permissionFields.forEach((field) => { form.elements[field].checked = true; });
     return;
   }
   [
@@ -1981,13 +1979,7 @@ function fillUserForm(user) {
   $("#userAvatarPreview").innerHTML = userAvatarCell(user.avatar_url, user.nickname);
   form.elements.is_member.checked = Boolean(user.is_member);
   form.elements.is_active.checked = Boolean(user.is_active);
-  form.elements.can_upload_image.checked = user.can_upload_image !== false;
-  form.elements.can_upload_video.checked = user.can_upload_video !== false;
-  form.elements.can_comment.checked = user.can_comment !== false;
-  form.elements.can_checkin.checked = user.can_checkin !== false;
-  form.elements.can_recommend_spot.checked = user.can_recommend_spot !== false;
-  form.elements.can_like_comment.checked = user.can_like_comment !== false;
-  form.elements.can_share.checked = user.can_share !== false;
+  permissionFields.forEach((field) => { form.elements[field].checked = user[field] !== false; });
 }
 
 function fillTravelNoteForm(note = null) {
@@ -3520,16 +3512,22 @@ $("#userForm").addEventListener("submit", async (event) => {
   const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
   const method = state.editingUserId ? "PATCH" : "POST";
   try {
-    await request(path, {
+    const savedUser = await request(path, {
       method,
       body: JSON.stringify(payload),
     });
+    state.users = state.users.map((user) => user.id === savedUser.id ? savedUser : user);
     if (!state.editingUserId) {
       state.pagination.users = { ...(state.pagination.users || {}), page: 1 };
+      state.users = [savedUser, ...state.users];
     }
     $("#userDialog").close();
-    await loadData();
     showToast("用户已保存");
+    try {
+      await loadData();
+    } catch (refreshError) {
+      console.warn("User saved but list refresh failed", refreshError);
+    }
   } catch (error) {
     showToast(`${t("保存失败")}：${error.message}`);
   }
