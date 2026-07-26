@@ -262,7 +262,9 @@ def spot_to_locked_preview_out(
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         distance_km=round(distance_km, 1),
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
-        images=[spot_image_to_out(image, db) for image in spot.spot_images if image.is_active and image.media_type == "image"],
+        # Locked spots never expose media. Even a generic-looking photo can
+        # reveal a sensitive trailhead or landmark when combined with context.
+        images=[],
     )
 
 
@@ -310,12 +312,6 @@ def spot_to_locked_detail_out(
     normalized_lang = normalize_language(lang, settings.default_language)
     blocked_terms = tuple(term for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points)) if term)
     intro = locked_spot_intro(spot, normalized_lang)
-    images = []
-    for image in spot.spot_images:
-        if not image.is_active or image.media_type != "image":
-            continue
-        image_out = spot_image_to_out(image, db)
-        images.append(image_out.model_copy(update={"caption": remove_location_text(image_out.caption, blocked_terms)}))
     return LockedSpotDetailOut(
         id=spot.id,
         name=locked_spot_name(spot, normalized_lang),
@@ -326,7 +322,7 @@ def spot_to_locked_detail_out(
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         tags=[tag_to_localized(tag, normalized_lang) for tag in spot.tags if tag.is_active],
-        images=images,
+        images=[],
     )
 
 

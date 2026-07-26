@@ -513,7 +513,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"]["required_explore_points"], 100)
 
-    def test_locked_nearby_spots_hide_coordinates_and_include_preview_media(self):
+    def test_locked_nearby_spots_hide_coordinates_and_media(self):
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)
         user.explore_points = 20
@@ -538,7 +538,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data[0]["id"], 1)
         self.assertNotIn("latitude", data[0])
         self.assertNotIn("longitude", data[0])
-        self.assertEqual(data[0]["images"][0]["image_url"], "/media/spots/demo.jpg")
+        self.assertEqual(data[0]["images"], [])
 
         count_response = self.client.get(
             "/api/v1/spots/locked-nearby/count?user_id=1&latitude=25.7436&longitude=108.5062&radius_km=5"
@@ -550,9 +550,8 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(detail_response.status_code, 200)
         detail = detail_response.json()
         self.assertEqual(detail["id"], 1)
-        self.assertEqual(detail["images"][0]["image_url"], "/media/spots/demo.jpg")
-        self.assertIsNone(detail["images"][0]["caption"])
-        self.assertEqual(detail["summary"], "云海景观很适合远观。")
+        self.assertEqual(detail["images"], [])
+        self.assertEqual(detail["summary"], "请尊重自然环境。")
         self.assertEqual(detail["description"], "请尊重自然环境。")
         self.assertNotIn("latitude", detail)
         self.assertNotIn("longitude", detail)

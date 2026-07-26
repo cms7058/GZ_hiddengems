@@ -13,25 +13,23 @@
 
   <scroll-view wx:if="{{spots.length}}" class="spot-list" scroll-y refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view wx:for="{{spots}}" wx:for-item="spot" wx:key="id" class="spot-card" data-id="{{spot.id}}" bindtap="onSpotTap">
-      <scroll-view wx:if="{{spot.images.length}}" class="photo-row" scroll-x>
-        <view wx:for="{{spot.images}}" wx:for-item="photo" wx:key="id" class="photo-wrap">
-          <image class="spot-photo" src="{{photo.display_url || photo.image_url}}" mode="aspectFill" data-current="{{photo.display_url || photo.image_url}}" data-urls="{{spot.image_urls}}" catchtap="onPreviewImage"></image>
+      <view class="spot-card-layout">
+        <view class="spot-card-main">
+          <view class="card-head">
+            <view class="marker" style="background: {{spot.marker_color}};"></view>
+            <text class="spot-name">{{spot.name}}</text>
+            <text class="spot-level">Lv.{{spot.recommendation_level}}</text>
+          </view>
+          <text class="spot-summary">{{spot.summary}}</text>
+          <view class="spot-meta">
+            <text wx:if="{{!catalogMode}}">{{copy.distance}} {{spot.distance_km}} km</text>
+            <text wx:else>{{copy.protected}}</text>
+            <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
+          </view>
+          <view class="tag-row">
+            <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
+          </view>
         </view>
-      </scroll-view>
-      <view wx:else class="photo-empty">{{copy.noPhotos}}</view>
-      <view class="card-head">
-        <view class="marker" style="background: {{spot.marker_color}};"></view>
-        <text class="spot-name">{{spot.name}}</text>
-        <text class="spot-level">Lv.{{spot.recommendation_level}}</text>
-      </view>
-      <text class="spot-summary">{{spot.summary}}</text>
-      <view class="spot-meta">
-        <text wx:if="{{!catalogMode}}">{{copy.distance}} {{spot.distance_km}} km</text>
-        <text wx:else>{{copy.protected}}</text>
-        <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
-      </view>
-      <view class="tag-row">
-        <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
       </view>
     </view>
   </scroll-view>

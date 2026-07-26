@@ -1,4 +1,4 @@
-const { isServiceClosedError, request, resolveMediaUrl } = require("../../utils/request")
+const { isServiceClosedError, request } = require("../../utils/request")
 
 const app = getApp()
 
@@ -79,15 +79,11 @@ Page({
   async loadSpots() {
     if (this.catalogMode) {
       const spots = (app.globalData.lockedSpotListCache || []).map((spot) => {
-        const images = (spot.images || []).map((image) => ({
-          ...image,
-          display_url: resolveMediaUrl(image.display_url || image.image_url),
-        }))
         return {
-        ...spot,
-        images,
-        image_urls: images.map((image) => image.display_url || image.image_url).filter(Boolean),
-        need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
+          ...spot,
+          images: [],
+          image_urls: [],
+          need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
         }
       })
       this.setData({ spots, loading: false, offline: false, serviceClosed: false, radiusKm: 0, catalogMode: true })
@@ -111,15 +107,10 @@ Page({
       ;(search.tagIds || []).forEach((id) => params.push(`tag_ids=${Number(id)}`))
       ;(search.levelIds || []).forEach((level) => params.push(`level_ids=${Number(level)}`))
       const spots = (await request(`/spots/locked-nearby?${params.join("&")}`)).map((spot) => {
-        const images = (spot.images || []).map((image) => ({
-          ...image,
-          display_url: resolveMediaUrl(image.display_url || image.image_url),
-        }))
-        const imageUrls = images.map((image) => image.display_url || image.image_url).filter(Boolean)
         return {
           ...spot,
-          images,
-          image_urls: imageUrls,
+          images: [],
+          image_urls: [],
           need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
         }
       })

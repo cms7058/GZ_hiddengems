@@ -1,4 +1,4 @@
-const { isServiceClosedError, request, resolveMediaUrl } = require("../../utils/request")
+const { isServiceClosedError, request } = require("../../utils/request")
 
 const app = getApp()
 
@@ -69,16 +69,11 @@ Page({
   showCachedSpot() {
     const cached = (app.globalData.lockedSpotDetailCache || {})[this.spotId]
     if (!cached) return false
-    const images = (cached.images || []).map((image) => ({
-      ...image,
-      display_url: resolveMediaUrl(image.display_url || image.image_url),
-    }))
-    const imageUrls = images.map((image) => image.display_url || image.image_url).filter(Boolean)
     this.setData({
       spot: {
         ...cached,
-        images,
-        image_urls: imageUrls,
+        images: [],
+        image_urls: [],
         description: cached.description || cached.summary || "",
         need_points: Math.max(Number(cached.required_explore_points || 0) - Number(cached.user_explore_points || 0), 0),
       },
@@ -98,16 +93,11 @@ Page({
     this.setData({ loading: !hasCachedSpot, offline: false, serviceClosed: false })
     try {
       const spot = await request(`/spots/locked-preview/${this.spotId}?lang=${this.data.lang}&user_id=${user.id}`)
-      const images = (spot.images || []).map((image) => ({
-        ...image,
-        display_url: resolveMediaUrl(image.display_url || image.image_url),
-      }))
-      const imageUrls = images.map((image) => image.display_url || image.image_url).filter(Boolean)
       this.setData({
         spot: {
           ...spot,
-          images,
-          image_urls: imageUrls,
+          images: [],
+          image_urls: [],
           need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
         },
         loading: false,
