@@ -1544,6 +1544,17 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["media_url"].startswith("/media/avatars/"))
 
+    def test_mini_login_without_profile_fields_preserves_saved_nickname(self):
+        with self.SessionLocal() as db:
+            db.add(MiniProgramUser(id=99, openid="saved-profile-openid", nickname="已保存昵称"))
+            db.commit()
+
+        with patch("app.api.v1.routers.mini.resolve_wechat_openid", return_value="saved-profile-openid"):
+            response = self.client.post("/api/v1/mini/login", json={"code": "login-code"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["nickname"], "已保存昵称")
+
     def test_admin_can_review_notes_and_comments(self):
         headers = self.login_headers()
         notes_response = self.client.get("/api/v1/admin/content/travel-notes", headers=headers)

@@ -702,7 +702,10 @@ Page({
     const shareToken = this.data.shareToken
     return {
       title: spot.name || this.data.copy.navTitle,
-      path: `/pages/spot-detail/spot-detail?id=${spot.id || this.data.id}${shareToken ? `&ref=${encodeURIComponent(shareToken)}` : ""}`,
+      // This action invites friends into the mini program itself. Sharing a
+      // protected spot URL could reveal an entry point the sender did not
+      // intend to expose, so recipients always start from the home page.
+      path: `/pages/index/index${shareToken ? `?ref=${encodeURIComponent(shareToken)}` : ""}`,
       success: () => this.confirmShare(shareToken),
     }
   },

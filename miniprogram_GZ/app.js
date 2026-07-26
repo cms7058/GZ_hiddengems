@@ -60,8 +60,14 @@ App({
           }
           const loginPayload = {
             code,
-            nickname: profile.nickname || this.globalData.user.nickname,
             language: this.globalData.lang || "zh-CN",
+          }
+          // A normal launch/refresh only identifies the user. Do not send the
+          // local placeholder nickname here, otherwise it overwrites a profile
+          // the user previously saved on another launch or device.
+          if (Object.prototype.hasOwnProperty.call(profile, "nickname")) {
+            const nickname = (profile.nickname || "").trim()
+            if (nickname) loginPayload.nickname = nickname
           }
           if (profile.referrer_token) loginPayload.referrer_token = profile.referrer_token
           if (Object.prototype.hasOwnProperty.call(profile, "avatar_url")) {

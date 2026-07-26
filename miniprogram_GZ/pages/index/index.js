@@ -213,12 +213,13 @@ Page({
     profileLoading: false,
     showProfileAuth: false,
     showSafetyAgreement: false,
+    shareToken: "",
   },
 
   onLoad() {
     this.mapAutoFit = true
     this.markerCanvasReady = false
-    this.hideShareMenu()
+    this.configureHomeShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
     this.bootstrapLogin()
@@ -247,6 +248,7 @@ Page({
     app.applyTabBarLanguage()
     this.restoreNearbyTabBar()
     app.rememberTab("pages/index/index")
+    this.configureHomeShareMenu()
     if (this.data.lang !== (app.globalData.lang || "zh-CN")) this.onLanguageChanged()
   },
 
@@ -273,6 +275,8 @@ Page({
   async bootstrapLogin() {
     const user = await app.bootstrapUser()
     this.setData({ user })
+    this.configureHomeShareMenu()
+    this.prepareHomeShare()
     this.showNextAgreementStep()
     this.loadHomeData()
   },
@@ -919,14 +923,57 @@ Page({
     })
   },
 
-  hideShareMenu() {
-    if (wx.hideShareMenu) {
-      wx.hideShareMenu({
-        menus: ["shareAppMessage", "shareTimeline"],
+  configureHomeShareMenu() {
+    const user = this.data.user || app.globalData.user || {}
+    if (user.can_share === false) {
+      if (wx.hideShareMenu) wx.hideShareMenu({ menus: ["shareAppMessage", "shareTimeline"] })
+      return
+    }
+    if (wx.showOptionMenu) wx.showOptionMenu()
+    if (wx.showShareMenu) {
+      wx.showShareMenu({
+        withShareTicket: false,
+        menus: ["shareAppMessage"],
       })
     }
-    if (wx.hideOptionMenu) {
-      wx.hideOptionMenu()
+  },
+
+  async prepareHomeShare() {
+    const user = this.data.user || app.globalData.user || {}
+    if (!user.id || user.can_share === false) return
+    try {
+      const result = await request(`/mini/shares/prepare?user_id=${user.id}`, { method: "POST" })
+      this.setData({ shareToken: result.share_token || "" })
+    } catch (error) {
+      console.warn("home share preparation failed", error)
+      this.setData({ shareToken: "" })
+    }
+  },
+
+  onShareAppMessage() {
+    const shareToken = this.data.shareToken
+    return {
+      title: this.data.copy.navTitle,
+      path: `/pages/index/index${shareToken ? `?ref=${encodeURIComponent(shareToken)}` : ""}`,
+      success: () => this.confirmHomeShare(shareToken),
+    }
+  },
+
+  async confirmHomeShare(shareToken) {
+    const user = this.data.user || app.globalData.user || {}
+    if (!shareToken || !user.id) return
+    try {
+      const result = await request(`/mini/shares/${encodeURIComponent(shareToken)}/confirm?user_id=${user.id}`, { method: "POST" })
+      const shareCount = Number(result.share_count)
+      if (Number.isFinite(shareCount)) {
+        const nextUser = { ...app.globalData.user, share_count: shareCount }
+        app.globalData.user = nextUser
+        wx.setStorageSync("gzHiddenGemsUser", nextUser)
+        this.setData({ user: nextUser })
+      }
+      this.prepareHomeShare()
+    } catch (error) {
+      console.warn("home share confirmation failed", error)
     }
   },
 
