@@ -2844,12 +2844,16 @@ $("#usersTable").addEventListener("click", async (event) => {
   }
 
   if (deleteId && confirmDeletion()) {
-    await request(`/admin/users/${deleteId}`, { method: "DELETE" });
-    state.users = state.users.filter((user) => user.id !== Number(deleteId));
-    renderUsers();
-    renderMetrics();
-    await loadData();
-    showToast("用户已删除");
+    try {
+      await request(`/admin/users/${deleteId}`, { method: "DELETE" });
+      state.users = state.users.filter((user) => user.id !== Number(deleteId));
+      renderUsers();
+      renderMetrics();
+      await loadData();
+      showToast("用户已删除");
+    } catch (error) {
+      showToast(`${t("删除失败")}：${error.message}`);
+    }
   }
 });
 

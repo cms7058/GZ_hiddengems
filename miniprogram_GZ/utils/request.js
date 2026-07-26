@@ -191,7 +191,13 @@ function miniLogin(payload) {
   })
 }
 
-function uploadMedia(filePath, mediaType = "") {
+function uploadMedia(filePath, mediaType = "", purpose = "") {
+  // Older recommendation code passed (filePath, userId, mediaType). Keep it
+  // compatible while all uploads derive the user ID from global state.
+  if (typeof mediaType === "number") {
+    mediaType = purpose || ""
+    purpose = ""
+  }
   return preloadServiceHours().then(() => {
     const serviceClosedError = checkServiceHours()
     if (serviceClosedError) return Promise.reject(serviceClosedError)
@@ -204,6 +210,7 @@ function uploadMedia(filePath, mediaType = "") {
         formData: {
           user_id: getApp().globalData.user.id,
           media_type: mediaType,
+          purpose,
         },
         success(res) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -215,17 +222,16 @@ function uploadMedia(filePath, mediaType = "") {
             return
           }
           let detail = ""
+          let responseData = null
           try {
-            const responseData = typeof res.data === "string" ? JSON.parse(res.data) : res.data
+            responseData = typeof res.data === "string" ? JSON.parse(res.data) : res.data
             detail = responseData && (responseData.detail || responseData.message || "")
-            if (responseData && responseData.code === SERVICE_CLOSED_CODE) {
-              error.code = SERVICE_CLOSED_CODE
-              applyServiceHoursFromError(responseData)
-            }
+            if (responseData && responseData.code === SERVICE_CLOSED_CODE) applyServiceHoursFromError(responseData)
           } catch (parseError) {
             // Keep the original upload error when the response is not JSON.
           }
           const error = new Error(detail || `upload failed: ${res.statusCode}`)
+          if (responseData && responseData.code === SERVICE_CLOSED_CODE) error.code = SERVICE_CLOSED_CODE
           reject(error)
         },
         fail: reject,

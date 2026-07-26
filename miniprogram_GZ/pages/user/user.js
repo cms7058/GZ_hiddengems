@@ -193,7 +193,7 @@ Page({
     try {
       let avatarUrl = this.data.profileForm.avatar_url
       if (this.data.avatarNeedsUpload && avatarUrl) {
-        const uploaded = await uploadMedia(avatarUrl, "image")
+        const uploaded = await uploadMedia(avatarUrl, "image", "avatar")
         avatarUrl = uploaded.image_url || uploaded.media_url || ""
         if (!avatarUrl) throw new Error(this.data.copy.avatarUploadFailed)
       }

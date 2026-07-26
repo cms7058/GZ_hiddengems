@@ -1239,7 +1239,9 @@ class ApiTest(unittest.TestCase):
         delete_response = self.client.delete(f"/api/v1/admin/users/{user_id}", headers=headers)
         self.assertEqual(delete_response.status_code, 204)
         deleted_response = self.client.get(f"/api/v1/admin/users/{user_id}", headers=headers)
-        self.assertFalse(deleted_response.json()["is_active"])
+        self.assertEqual(deleted_response.status_code, 404)
+        all_users_response = self.client.get("/api/v1/admin/users?include_inactive=true", headers=headers)
+        self.assertNotIn(user_id, [item["id"] for item in all_users_response.json()["items"]])
 
     def test_admin_can_update_pass_settings(self):
         response = self.client.patch(
@@ -1527,6 +1529,20 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["media_type"], "image")
         self.assertTrue(response.json()["media_url"].startswith("/media/mini-shares/"))
+
+    def test_mini_avatar_upload_does_not_require_content_image_permission(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.can_upload_image = False
+            db.commit()
+
+        response = self.client.post(
+            "/api/v1/mini/uploads",
+            data={"user_id": "1", "media_type": "image", "purpose": "avatar"},
+            files={"file": ("avatar.png", b"fake-image", "image/png")},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["media_url"].startswith("/media/avatars/"))
 
     def test_admin_can_review_notes_and_comments(self):
         headers = self.login_headers()

@@ -404,6 +404,7 @@ async def upload_mini_media(
     file: UploadFile = File(...),
     user_id: int = Form(...),
     media_type: Optional[str] = Form(None),
+    purpose: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ) -> dict:
     user = ensure_active_user(db, user_id)
@@ -415,7 +416,14 @@ async def upload_mini_media(
         raise HTTPException(status_code=400, detail="Unsupported media type")
     if not detected_media_type:
         suffix = ".mp4" if resolved_media_type == "video" else ".jpg"
-    ensure_user_permission(user, "can_upload_video" if resolved_media_type == "video" else "can_upload_image")
+    # A profile avatar is account data rather than contributed scenic media.  A
+    # user who is not allowed to publish images must still be able to maintain
+    # their own avatar and nickname.
+    is_avatar_upload = (purpose or "").strip().lower() == "avatar"
+    if is_avatar_upload and resolved_media_type != "image":
+        raise HTTPException(status_code=400, detail="Avatar must be an image")
+    if not is_avatar_upload:
+        ensure_user_permission(user, "can_upload_video" if resolved_media_type == "video" else "can_upload_image")
 
     content = await file.read()
     max_bytes = MAX_VIDEO_UPLOAD_BYTES if resolved_media_type == "video" else MAX_IMAGE_UPLOAD_BYTES
@@ -423,7 +431,14 @@ async def upload_mini_media(
         limit = "8 MB" if resolved_media_type == "video" else "2 MB"
         raise HTTPException(status_code=400, detail=f"{resolved_media_type.capitalize()} must not exceed {limit}")
     try:
-        media_url = await run_in_threadpool(save_media, db, "mini-shares", suffix, content, file.content_type)
+        media_url = await run_in_threadpool(
+            save_media,
+            db,
+            "avatars" if is_avatar_upload else "mini-shares",
+            suffix,
+            content,
+            file.content_type,
+        )
     except MediaStorageError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     return {

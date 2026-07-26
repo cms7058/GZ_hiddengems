@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
-from app.models.user import MiniProgramUser
+from app.models.archive import ArchiveRequirement
+from app.models.content import CommentLike, ContentMedia, SpotRecommendation, TravelNote, UserComment
+from app.models.user import CheckinRecord, MiniProgramUser, PointLedger, ShareEvent, UserMembership
 from app.schemas.pagination import Page
 from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
-from app.services.media_storage import get_media_display_url
+from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 from app.services.safety_levels import apply_safety_level_policy
@@ -145,6 +147,59 @@ def delete_admin_user(
     user = db.get(MiniProgramUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    user.is_active = False
-    db.add(user)
+
+    # “停用” is handled by the PATCH endpoint. The explicit delete action must
+    # remove the account from the list and clear its dependent records so a
+    # later refresh cannot resurrect it through include_inactive=true.
+    notes = db.scalars(select(TravelNote).where(TravelNote.user_id == user.id)).all()
+    comments = db.scalars(select(UserComment).where(UserComment.user_id == user.id)).all()
+    recommendations = db.scalars(select(SpotRecommendation).where(SpotRecommendation.user_id == user.id)).all()
+    checkins = db.scalars(select(CheckinRecord).where(CheckinRecord.user_id == user.id)).all()
+    note_ids = [item.id for item in notes]
+    comment_ids = [item.id for item in comments]
+    recommendation_ids = [item.id for item in recommendations]
+    checkin_ids = [item.id for item in checkins]
+
+    media = []
+    if note_ids:
+        media.extend(db.scalars(select(ContentMedia).where(ContentMedia.owner_type == "travel_note", ContentMedia.owner_id.in_(note_ids))).all())
+    if comment_ids:
+        media.extend(db.scalars(select(ContentMedia).where(ContentMedia.owner_type == "comment", ContentMedia.owner_id.in_(comment_ids))).all())
+    if recommendation_ids:
+        media.extend(db.scalars(select(ContentMedia).where(ContentMedia.owner_type == "spot_recommendation", ContentMedia.owner_id.in_(recommendation_ids))).all())
+
+    urls_to_delete = {url for url in [user.avatar_url] if url}
+    urls_to_delete.update(item.image_url for item in notes if item.image_url)
+    urls_to_delete.update(item.image_url for item in comments if item.image_url)
+    urls_to_delete.update(item.image_url for item in recommendations if getattr(item, "image_url", None))
+    urls_to_delete.update(item.image_url for item in checkins if item.image_url)
+    urls_to_delete.update(item.media_url for item in checkins if item.media_url)
+    urls_to_delete.update(item.media_url for item in media if item.media_url)
+    try:
+        for url in urls_to_delete:
+            delete_media(db, url)
+    except MediaStorageError as error:
+        raise HTTPException(status_code=502, detail=f"User media deletion failed: {error}") from error
+
+    if checkin_ids:
+        db.query(CheckinRecord).filter(CheckinRecord.previous_checkin_id.in_(checkin_ids)).update(
+            {CheckinRecord.previous_checkin_id: None}, synchronize_session=False
+        )
+    db.query(MiniProgramUser).filter(MiniProgramUser.invited_by_user_id == user.id).update(
+        {MiniProgramUser.invited_by_user_id: None}, synchronize_session=False
+    )
+    db.query(ArchiveRequirement).filter(ArchiveRequirement.requester_user_id == user.id).update(
+        {ArchiveRequirement.requester_user_id: None}, synchronize_session=False
+    )
+    if comment_ids:
+        db.query(CommentLike).filter(CommentLike.comment_id.in_(comment_ids)).delete(synchronize_session=False)
+    db.query(CommentLike).filter(CommentLike.user_id == user.id).delete(synchronize_session=False)
+    for item in media:
+        db.delete(item)
+    for item in notes + comments + recommendations + checkins:
+        db.delete(item)
+    db.query(PointLedger).filter(PointLedger.user_id == user.id).delete(synchronize_session=False)
+    db.query(ShareEvent).filter(ShareEvent.user_id == user.id).delete(synchronize_session=False)
+    db.query(UserMembership).filter(UserMembership.user_id == user.id).delete(synchronize_session=False)
+    db.delete(user)
     db.commit()
