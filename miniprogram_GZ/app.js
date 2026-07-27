@@ -1,16 +1,21 @@
 const DEFAULT_USER = {
-  id: 1,
-  nickname: "秘境探索者",
+  id: null,
+  openid: "",
+  nickname: "微信用户",
   avatar_url: "",
-  explore_points: 80,
+  explore_points: 0,
+  benefit_points: 0,
+  checkin_count: 0,
+  contribution_count: 0,
+  eco_credit: 100,
   is_member: false,
-  can_upload_image: true,
-  can_upload_video: true,
-  can_comment: true,
-  can_checkin: true,
-  can_recommend_spot: true,
-  can_like_comment: true,
-  can_share: true,
+  can_upload_image: false,
+  can_upload_video: false,
+  can_comment: false,
+  can_checkin: false,
+  can_recommend_spot: false,
+  can_like_comment: false,
+  can_share: false,
   safety_level: "general",
 }
 
@@ -33,7 +38,9 @@ App({
       wx.hideOptionMenu()
     }
     const savedUser = wx.getStorageSync("gzHiddenGemsUser")
-    if (savedUser) {
+    // Old builds stored a hard-coded demo user without an OpenID. Never use it
+    // as an authenticated account, otherwise its data can mask the real user.
+    if (savedUser && savedUser.openid) {
       this.globalData.user = {
         ...this.globalData.user,
         ...savedUser,
@@ -75,7 +82,7 @@ App({
           }
           miniLogin(loginPayload)
             .then((user) => {
-              if (profile.force && (!user || !user.openid)) {
+              if (!user || !user.openid) {
                 reject(new Error("mini login returned no openid"))
                 return
               }
@@ -88,6 +95,7 @@ App({
             })
             .catch((error) => {
               console.warn("mini login failed", error)
+              this.globalData.userLoginPromise = null
               if (profile.force) {
                 reject(error)
                 return

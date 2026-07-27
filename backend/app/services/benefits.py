@@ -8,6 +8,42 @@ from sqlalchemy.orm import Session
 from app.models.user import BenefitCatalog, BenefitPointLedger, MiniProgramUser, UserBenefitRedemption, UserSpotUnlock
 
 
+def ensure_spot_unlock_benefit(
+    db: Session,
+    *,
+    spot_id: int,
+    name_zh: str,
+    name_en: str,
+    summary_zh: str,
+    summary_en: str,
+    points_cost: int,
+) -> BenefitCatalog:
+    """Return an admin-defined unlock benefit, or create the default one."""
+    benefit = db.scalar(
+        select(BenefitCatalog)
+        .where(BenefitCatalog.category == "spot_unlock", BenefitCatalog.spot_id == spot_id)
+        .order_by(BenefitCatalog.id.asc())
+    )
+    if benefit is not None:
+        return benefit
+    benefit = BenefitCatalog(
+        category="spot_unlock",
+        benefit_type="spot_unlock",
+        name_zh=name_zh,
+        name_en=name_en or name_zh,
+        description_zh=summary_zh or "使用权益积分解锁该秘境。",
+        description_en=summary_en or "Use benefit points to unlock this hidden gem.",
+        points_cost=points_cost,
+        spot_id=spot_id,
+        stock=0,
+        valid_days=3650,
+        is_active=True,
+    )
+    db.add(benefit)
+    db.flush()
+    return benefit
+
+
 def backfill_legacy_benefit_points(db: Session, user: MiniProgramUser) -> int:
     """Migrate pre-benefit accounts once without restoring spent balances."""
     if user.explore_points <= 0 or user.benefit_points > 0:

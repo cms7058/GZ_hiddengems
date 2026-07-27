@@ -534,6 +534,27 @@ class ApiTest(unittest.TestCase):
         account = self.client.get("/api/v1/benefits/me/1").json()
         self.assertEqual(account["benefit_points"], 20)
 
+    def test_benefit_page_lists_affordable_locked_spots_for_user_choice(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.explore_points = 120
+            user.benefit_points = 120
+            db.commit()
+
+        response = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        candidate = response.json()[0]
+        self.assertEqual(candidate["spot_id"], 1)
+        self.assertEqual(candidate["points_cost"], 100)
+
+        redeemed = self.client.post(
+            "/api/v1/benefits/redeem",
+            json={"user_id": 1, "benefit_id": candidate["benefit_id"]},
+        )
+        self.assertEqual(redeemed.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json(), [])
+
     def test_locked_nearby_spots_hide_coordinates_and_media(self):
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)

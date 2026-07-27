@@ -25,6 +25,16 @@ class BenefitCatalogOut(BenefitCatalogIn):
         from_attributes = True
 
 
+class SpotUnlockCandidateOut(BaseModel):
+    benefit_id: int
+    spot_id: int
+    name: str
+    summary: str = ""
+    recommendation_level: int
+    points_cost: int
+    valid_days: int
+
+
 class RedemptionCreate(BaseModel):
     user_id: int
     benefit_id: int
