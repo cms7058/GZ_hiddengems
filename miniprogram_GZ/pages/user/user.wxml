@@ -6,42 +6,52 @@
   <view class="profile-card">
     <image wx:if="{{user.avatar_url}}" class="avatar image-avatar" src="{{user.avatar_url}}" mode="aspectFill"></image>
     <view wx:else class="avatar">{{copy.defaultAvatar}}</view>
-    <view>
+    <view class="profile-summary">
       <text class="name">{{user.nickname}}</text>
-      <text class="subtitle">{{copy.subtitle}}</text>
     </view>
+    <view class="edit-button" role="button" bindtap="onToggleProfileEdit">{{copy.editProfile}}</view>
   </view>
 
-  <view class="profile-form">
-    <text class="form-title">{{copy.editProfile}}</text>
-    <view class="profile-edit-row">
-      <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image wx:if="{{profileForm.avatar_url}}" class="form-avatar" src="{{profileForm.avatar_url}}" mode="aspectFill"></image>
-        <text wx:else>{{copy.chooseAvatar}}</text>
-      </button>
-      <input
-        class="nickname-input"
-        type="nickname"
-        value="{{profileForm.nickname}}"
-        placeholder="{{copy.nicknamePlaceholder}}"
-        bindinput="onNicknameInput"
-      />
+  <view wx:if="{{editing}}" class="profile-modal-mask" catchtap="onCloseProfileEdit">
+    <view class="profile-modal" catchtap="onProfileModalTap">
+      <view class="profile-modal-head">
+        <text>{{copy.editProfileTitle}}</text>
+        <button class="modal-close" bindtap="onCloseProfileEdit">×</button>
+      </view>
+      <view class="profile-edit-row">
+        <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{profileForm.avatar_url}}" class="form-avatar" src="{{profileForm.avatar_url}}" mode="aspectFill"></image>
+          <text wx:else>{{copy.chooseAvatar}}</text>
+        </button>
+        <input
+          class="nickname-input"
+          type="nickname"
+          value="{{profileForm.nickname}}"
+          placeholder="{{copy.nicknamePlaceholder}}"
+          bindinput="onNicknameInput"
+        />
+      </view>
+      <view class="save-row"><button class="save-button" loading="{{saving}}" bindtap="onSaveProfile">{{saving ? copy.saving : copy.saveProfile}}</button></view>
     </view>
-    <view class="save-row"><button class="save-button" loading="{{saving}}" bindtap="onSaveProfile">{{saving ? copy.saving : copy.saveProfile}}</button></view>
   </view>
 
   <view class="stats-grid">
-    <view class="stat">
+    <view class="stat stat-tap" bindtap="onOpenBenefits">
       <text>{{copy.points}}</text>
-      <text class="value">{{user.explore_points}}</text>
+      <text class="value">{{user.benefit_points || 0}}</text>
     </view>
     <view class="stat">
       <text>{{copy.member}}</text>
       <text class="value small">{{user.is_member ? copy.activeMember : copy.regular}}</text>
     </view>
-    <view class="stat">
+    <view class="stat stat-tap checkin-stat" bindtap="onOpenCheckinHistory">
       <text>{{copy.checkins}}</text>
       <text class="value">{{user.checkin_count || 0}}</text>
+      <view class="checkin-risk-tags" wx:if="{{user.checkin_warning_count || user.checkin_suspicious_count || user.checkin_watch_count}}">
+        <text wx:if="{{user.checkin_warning_count}}" class="risk-tag warning">{{copy.warningShort}} {{user.checkin_warning_count}}</text>
+        <text wx:if="{{user.checkin_suspicious_count}}" class="risk-tag suspicious">{{copy.suspiciousShort}} {{user.checkin_suspicious_count}}</text>
+        <text wx:if="{{user.checkin_watch_count}}" class="risk-tag watch">{{copy.watchShort}} {{user.checkin_watch_count}}</text>
+      </view>
     </view>
     <view class="stat">
       <text>{{copy.contributions}}</text>

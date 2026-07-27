@@ -15,6 +15,7 @@ class MiniProgramUser(Base):
     phone_verified_at = Column(DateTime(timezone=True), nullable=True)
     language = Column(String(16), default="zh-CN", nullable=False)
     explore_points = Column(Integer, default=0, nullable=False)
+    benefit_points = Column(Integer, default=0, nullable=False)
     checkin_count = Column(Integer, default=0, nullable=False)
     contribution_count = Column(Integer, default=0, nullable=False)
     eco_credit = Column(Integer, default=100, nullable=False)
@@ -92,6 +93,69 @@ class PointLedger(Base):
     reference_id = Column(Integer, nullable=False, index=True)
     points = Column(Integer, nullable=False)
     status = Column(String(16), default="active", nullable=False)
+    note = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class BenefitCatalog(Base):
+    __tablename__ = "benefit_catalogs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(32), nullable=False, index=True)  # spot_unlock / food / advanced
+    benefit_type = Column(String(32), nullable=False, default="generic")
+    name_zh = Column(String(128), nullable=False)
+    name_en = Column(String(128), nullable=False)
+    description_zh = Column(String(1024), nullable=False, default="")
+    description_en = Column(String(1024), nullable=False, default="")
+    points_cost = Column(Integer, nullable=False, default=0)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=True, index=True)
+    stock = Column(Integer, nullable=False, default=0)  # 0 means unlimited
+    valid_days = Column(Integer, nullable=False, default=30)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class UserBenefitRedemption(Base):
+    __tablename__ = "user_benefit_redemptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    benefit_id = Column(Integer, ForeignKey("benefit_catalogs.id"), nullable=False, index=True)
+    points_cost = Column(Integer, nullable=False)
+    status = Column(String(24), nullable=False, default="confirmed")  # confirmed / used / expired / revoked / refunded
+    verification_code = Column(String(32), nullable=True, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("MiniProgramUser")
+    benefit = relationship("BenefitCatalog")
+
+
+class UserSpotUnlock(Base):
+    __tablename__ = "user_spot_unlocks"
+    __table_args__ = (UniqueConstraint("user_id", "spot_id", name="uq_user_spot_unlock"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=False, index=True)
+    redemption_id = Column(Integer, ForeignKey("user_benefit_redemptions.id"), nullable=True, index=True)
+    status = Column(String(24), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class BenefitPointLedger(Base):
+    __tablename__ = "benefit_point_ledgers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    change_points = Column(Integer, nullable=False)
+    action = Column(String(32), nullable=False)  # earn / redeem / refund / admin_adjust
+    reference_type = Column(String(64), nullable=False)
+    reference_id = Column(Integer, nullable=False)
     note = Column(String(512), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

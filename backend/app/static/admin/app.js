@@ -43,6 +43,7 @@ const state = {
   editingAdminAccountId: null,
   checkinFilters: {},
   checkinRiskSettings: null,
+  benefitCatalog: [],
   spotFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
@@ -1685,6 +1686,10 @@ function renderGrowth() {
   pointRulesTable.innerHTML = state.pointRules.length
     ? state.pointRules.map((rule) => `<tr><td>${escapeHtml(rule.name_zh)}<br><span class="muted">${escapeHtml(rule.code)}</span></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="points" type="number" min="0" value="${rule.points}" /></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="daily_limit" type="number" min="0" value="${rule.daily_limit}" /></td><td><input class="growth-input" data-rule-id="${rule.id}" data-field="total_limit" type="number" min="0" value="${rule.total_limit}" /></td><td><label><input class="growth-input" data-rule-id="${rule.id}" data-field="is_enabled" type="checkbox" ${rule.is_enabled ? "checked" : ""} /> 启用</label></td><td><button class="secondary-btn growth-save-rule" data-id="${rule.id}">保存</button></td></tr>`).join("")
     : '<tr><td colspan="6" class="muted">暂无积分规则</td></tr>';
+  const benefitCatalogTable = $("#benefitCatalogTable");
+  if (benefitCatalogTable) benefitCatalogTable.innerHTML = state.benefitCatalog.length
+    ? state.benefitCatalog.map((item) => `<tr><td>${escapeHtml(item.category)}</td><td>${escapeHtml(item.name_zh)}<br><span class="muted">${escapeHtml(item.description_zh || "")}</span></td><td>${item.points_cost}</td><td>${item.spot_id || "-"}</td><td>${item.stock || "不限"}</td><td>${item.valid_days} 天</td><td>${activePill(item.is_active)}</td></tr>`).join("")
+    : '<tr><td colspan="7" class="muted">暂无权益，请通过权益管理接口新增。</td></tr>';
   $("#safetyPoliciesTable").innerHTML = state.safetyPolicies.length
     ? state.safetyPolicies.map((policy) => `<tr><td>${escapeHtml(policy.level)}</td><td>${escapeHtml(policy.name_zh)}</td><td>${policy.can_upload_image ? "图片" : "-"} / ${policy.can_upload_video ? "视频" : "-"}</td><td>${policy.can_comment ? "留言" : "-"} / ${policy.can_checkin ? "打卡" : "-"}</td><td>${policy.can_recommend_spot ? "推荐" : "-"} / ${policy.can_like_comment ? "点赞" : "-"} / ${policy.can_share ? "分享" : "-"}</td><td>${activePill(policy.is_active)}</td><td><button class="secondary-btn growth-edit-policy" data-id="${policy.id}">编辑权限</button></td></tr>`).join("")
     : '<tr><td colspan="7" class="muted">暂无安全等级策略</td></tr>';
@@ -1716,6 +1721,7 @@ async function loadData() {
     spotRecommendations,
     shareStats,
     checkinRiskSettings,
+    benefitCatalog,
   ] = await Promise.all([
     can("tags") ? requestPage("tags", "/admin/tags") : Promise.resolve([]),
     requestPage("spots", spotListPath()),
@@ -1736,6 +1742,7 @@ async function loadData() {
     can("growth") ? requestPage("spotRecommendations", "/admin/growth/spot-recommendations?status=pending") : Promise.resolve([]),
     can("growth") ? request("/admin/growth/share-stats") : Promise.resolve(null),
     can("checkins") ? request("/admin/checkins/risk-settings") : Promise.resolve(null),
+    can("growth") ? request("/admin/benefits/catalog") : Promise.resolve([]),
   ]);
   state.tags = tags;
   state.spots = spots;
@@ -1756,6 +1763,7 @@ async function loadData() {
   state.spotRecommendations = spotRecommendations;
   state.shareStats = shareStats;
   state.checkinRiskSettings = checkinRiskSettings;
+  state.benefitCatalog = benefitCatalog;
   renderAll();
 }
 
@@ -1944,6 +1952,7 @@ function fillUserForm(user) {
     $("#userAvatarPreview").innerHTML = '<span class="default-avatar">用</span><span class="muted">系统默认头像</span>';
     form.elements.language.value = "zh-CN";
     form.elements.explore_points.value = 0;
+    form.elements.benefit_points.value = 0;
     form.elements.checkin_count.value = 0;
     form.elements.contribution_count.value = 0;
     form.elements.eco_credit.value = 100;
@@ -1958,6 +1967,7 @@ function fillUserForm(user) {
     "phone",
     "language",
     "explore_points",
+    "benefit_points",
     "checkin_count",
     "contribution_count",
     "eco_credit",
@@ -3501,6 +3511,7 @@ $("#userForm").addEventListener("submit", async (event) => {
     phone: data.phone || null,
     language: data.language,
     explore_points: Number(data.explore_points),
+    benefit_points: Number(data.benefit_points),
     checkin_count: Number(data.checkin_count),
     is_member: form.elements.is_member.checked,
     is_active: form.elements.is_active.checked,

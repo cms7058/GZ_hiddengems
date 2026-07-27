@@ -4,6 +4,7 @@ from app.api.v1.routers import (
     admin_checkins,
     admin_assistant,
     admin_archive,
+    admin_benefits,
     admin_content,
     admin_integrations,
     admin_growth,
@@ -14,6 +15,7 @@ from app.api.v1.routers import (
     admin_tags,
     admin_users,
     auth,
+    benefits,
     mini,
     mini_archive,
     media,
@@ -28,6 +30,7 @@ api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(spots.router, prefix="/spots", tags=["spots"])
 api_router.include_router(mini.router, prefix="/mini", tags=["mini-program"])
+api_router.include_router(benefits.router, prefix="/benefits", tags=["benefits"])
 api_router.include_router(mini_archive.router, prefix="/mini/archive", tags=["mini-archive"])
 api_router.include_router(media.router, prefix="/media", tags=["media"])
 api_router.include_router(safety.router, tags=["safety"])
@@ -47,6 +50,7 @@ api_router.include_router(
 )
 api_router.include_router(admin_checkins.router, prefix="/admin/checkins", tags=["admin-checkins"])
 api_router.include_router(admin_growth.router, prefix="/admin/growth", tags=["admin-growth"])
+api_router.include_router(admin_benefits.router, prefix="/admin/benefits", tags=["admin-benefits"])
 api_router.include_router(admin_assistant.router, prefix="/admin/assistant", tags=["admin-assistant"])
 api_router.include_router(admin_archive.router, prefix="/admin/archive", tags=["admin-archive"])
 api_router.include_router(admin_content.router, prefix="/admin/content", tags=["admin-content"])

@@ -12,6 +12,7 @@ class MiniProgramUserUpdate(BaseModel):
     safety_level: Optional[str] = Field(default=None, pattern="^(general|risk|quality)$")
     language: Optional[str] = Field(default=None, max_length=16)
     explore_points: Optional[int] = Field(default=None, ge=0)
+    benefit_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: Optional[int] = Field(default=None, ge=0)
     is_member: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -55,6 +56,7 @@ class MiniProgramUserOut(BaseModel):
     phone_verified_at: Optional[datetime] = None
     language: str
     explore_points: int
+    benefit_points: int = 0
     checkin_count: int
     contribution_count: int
     eco_credit: int

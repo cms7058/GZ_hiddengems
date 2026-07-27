@@ -5,12 +5,15 @@ const COPY = {
   "zh-CN": {
     title: "我的",
     defaultAvatar: "旅",
-    subtitle: "查看探秘积分和解锁进度",
-    points: "探秘积分",
+    points: "积分权益",
+    benefitPoints: "可用权益积分",
     member: "会员状态",
     activeMember: "已开通",
     regular: "普通用户",
     checkins: "打卡次数",
+    warningShort: "警告",
+    suspiciousShort: "可疑",
+    watchShort: "关注",
     contributions: "贡献内容",
     ecoCredit: "环保信用",
     shares: "分享次数",
@@ -44,7 +47,9 @@ const COPY = {
     denied: "不允许",
     next: "下一阶段",
     tip: "完成打卡、发布优质游记后可继续累积探秘积分。",
-    editProfile: "获取微信用户信息",
+    editProfile: "编辑",
+    cancelEdit: "取消",
+    editProfileTitle: "编辑用户信息",
     nicknamePlaceholder: "请输入微信昵称",
     chooseAvatar: "选择头像",
     saveProfile: "保存",
@@ -55,12 +60,15 @@ const COPY = {
   "en-US": {
     title: "My Profile",
     defaultAvatar: "G",
-    subtitle: "Track explore points and unlock progress",
-    points: "Explore Points",
+    points: "Benefits",
+    benefitPoints: "Available Points",
     member: "Membership",
     activeMember: "Active",
     regular: "Regular",
     checkins: "Check-ins",
+    warningShort: "Warning",
+    suspiciousShort: "Suspicious",
+    watchShort: "Watch",
     contributions: "Contributions",
     ecoCredit: "Eco Credit",
     shares: "Shares",
@@ -94,7 +102,9 @@ const COPY = {
     denied: "Denied",
     next: "Next Stage",
     tip: "Earn more points by completing check-ins and sharing useful notes.",
-    editProfile: "Get WeChat Profile",
+    editProfile: "Edit",
+    cancelEdit: "Cancel",
+    editProfileTitle: "Edit profile",
     nicknamePlaceholder: "Enter WeChat nickname",
     chooseAvatar: "Choose Avatar",
     saveProfile: "Save",
@@ -115,6 +125,7 @@ Page({
       avatar_url: app.globalData.user.avatar_url || "",
     },
     avatarNeedsUpload: false,
+    editing: false,
     saving: false,
     refreshing: false,
   },
@@ -122,6 +133,9 @@ Page({
   onShow() {
     app.rememberTab("pages/user/user")
     this.refreshUserView()
+    // Account data such as permissions, balances, and redeemed benefits is
+    // server-authoritative. Refresh it whenever the user returns to this tab.
+    this.reloadUser()
   },
 
   refreshUserView() {
@@ -186,6 +200,31 @@ Page({
     })
   },
 
+  onToggleProfileEdit() {
+    this.setData({
+      editing: true,
+      profileForm: {
+        nickname: this.data.user.nickname || "",
+        avatar_url: this.data.user.avatar_url || "",
+      },
+      avatarNeedsUpload: false,
+    })
+  },
+
+  onCloseProfileEdit() {
+    if (!this.data.saving) this.setData({ editing: false, avatarNeedsUpload: false })
+  },
+
+  onProfileModalTap() {},
+
+  onOpenBenefits() {
+    wx.navigateTo({ url: "/pages/benefits/benefits" })
+  },
+
+  onOpenCheckinHistory() {
+    wx.navigateTo({ url: "/pages/checkin-history/checkin-history" })
+  },
+
   async onSaveProfile() {
     if (this.data.saving) return
     const nickname = (this.data.profileForm.nickname || "").trim() || this.data.user.nickname
@@ -210,6 +249,7 @@ Page({
         avatarInitial: (nextUser.nickname || "秘").slice(0, 1),
         profileForm: { nickname: nextUser.nickname, avatar_url: nextUser.avatar_url || "" },
         avatarNeedsUpload: false,
+        editing: false,
       })
       wx.showToast({ title: this.data.copy.saved, icon: "success" })
     } catch (error) {

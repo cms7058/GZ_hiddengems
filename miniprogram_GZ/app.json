@@ -9,6 +9,8 @@
     "pages/media-viewer/index",
     "pages/spot-submit/spot-submit",
     "pages/user/user",
+    "pages/checkin-history/checkin-history",
+    "pages/benefits/benefits",
     "pages/assistant/assistant",
     "pages/language/index"
   ],

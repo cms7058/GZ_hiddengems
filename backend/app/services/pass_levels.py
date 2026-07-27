@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
-from app.models.user import MiniProgramUser, PassLevelSetting
+from app.models.user import MiniProgramUser, PassLevelSetting, UserSpotUnlock
 
 
 def ensure_pass_level_marker_color_column(db: Session) -> None:
@@ -64,9 +64,18 @@ def get_spot_unlock_state(
     user: Optional[MiniProgramUser],
     fallback_explore_points: int = 0,
     settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
+    spot_id: Optional[int] = None,
+    db: Optional[Session] = None,
 ) -> tuple[bool, int]:
     setting = (settings_by_level or {}).get(recommendation_level)
     required_points = required_explore_points_for_spot(spot_required_explore_points, setting)
-    if user is None:
-        return fallback_explore_points >= required_points, required_points
-    return user.explore_points >= required_points, required_points
+    if required_points <= 0:
+        return True, required_points
+    if user is None or spot_id is None or db is None:
+        return False, required_points
+    unlocked = db.scalar(select(UserSpotUnlock.id).where(
+        UserSpotUnlock.user_id == user.id,
+        UserSpotUnlock.spot_id == spot_id,
+        UserSpotUnlock.status == "active",
+    ))
+    return unlocked is not None, required_points

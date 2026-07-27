@@ -208,6 +208,8 @@ def spot_to_map_out(
         user=user,
         fallback_explore_points=user_explore_points,
         settings_by_level=pass_settings_by_level,
+        spot_id=spot.id,
+        db=db,
     )
     coordinate = mask_coordinate(
         spot.latitude,
@@ -276,6 +278,7 @@ def spot_to_home_out(
     user_explore_points: int,
     marker_colors_by_level: Optional[dict[int, str]] = None,
     pass_settings_by_level: Optional[dict[int, PassLevelSetting]] = None,
+    db: Optional[Session] = None,
 ) -> HomeSpotOut:
     normalized_lang = normalize_language(lang, settings.default_language)
     is_unlocked, required_explore_points = get_spot_unlock_state(
@@ -284,6 +287,8 @@ def spot_to_home_out(
         user=user,
         fallback_explore_points=user_explore_points,
         settings_by_level=pass_settings_by_level,
+        spot_id=spot.id,
+        db=db,
     )
     full_name = choose_text(normalized_lang, spot.name_zh, spot.name_en) or ""
     safe_locked_name = locked_spot_name(spot, normalized_lang)

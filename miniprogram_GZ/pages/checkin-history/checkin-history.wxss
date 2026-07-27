@@ -1,0 +1,21 @@
+page, .page { height: 100vh; background: #f4f1e8; }
+.page { display: flex; flex-direction: column; }
+.history-scroll { flex: 1; min-height: 0; }
+.content { padding: 28rpx 24rpx calc(64rpx + env(safe-area-inset-bottom)); }
+.record, .empty { margin-bottom: 18rpx; padding: 24rpx; border-radius: 8rpx; background: #ffffff; box-shadow: 0 8rpx 24rpx rgba(31, 49, 39, 0.07); }
+.empty { color: #667369; font-size: 27rpx; text-align: center; }
+.record-head, .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.spot-name, .time, .review text { display: block; }
+.spot-name { color: #193127; font-size: 30rpx; font-weight: 800; }
+.time { margin-top: 8rpx; color: #718076; font-size: 22rpx; }
+.status, .risk { padding: 5rpx 10rpx; border-radius: 6rpx; font-size: 21rpx; font-weight: 700; }
+.status.approved { background: #e1f0e4; color: #27633e; }
+.status.rejected { background: #fae4df; color: #a14137; }
+.status.pending { background: #fff1d5; color: #805d35; }
+.meta-row { margin-top: 16rpx; color: #617068; font-size: 24rpx; }
+.risk.normal { background: #edf3ea; color: #456351; }
+.risk.warning { background: #f8d8d4; color: #a63831; }
+.risk.suspicious { background: #ffe5c9; color: #a75b1f; }
+.risk.watch { background: #fff0bd; color: #80600e; }
+.reason, .review { margin-top: 16rpx; padding: 16rpx; border-radius: 6rpx; background: #f5f6f0; color: #5d6b62; font-size: 23rpx; line-height: 1.55; }
+.review text:first-child { margin-bottom: 4rpx; color: #274c39; font-weight: 800; }

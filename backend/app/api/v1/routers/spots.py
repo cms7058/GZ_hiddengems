@@ -99,6 +99,8 @@ def find_locked_spots_nearby(
             user=user,
             fallback_explore_points=user_explore_points,
             settings_by_level=pass_settings_by_level,
+            spot_id=spot.id,
+            db=db,
         )
         if is_unlocked:
             continue
@@ -220,6 +222,7 @@ def list_home_catalog(
             user_explore_points=user_explore_points,
             marker_colors_by_level=marker_colors,
             pass_settings_by_level=pass_settings,
+            db=db,
         )
         for spot in db.scalars(statement).all()
     ]
@@ -280,6 +283,8 @@ def get_locked_spot_preview(
         user=user,
         fallback_explore_points=user_explore_points,
         settings_by_level=pass_settings_by_level,
+        spot_id=spot.id,
+        db=db,
     )
     if is_unlocked:
         raise HTTPException(status_code=403, detail="Spot is already unlocked")
@@ -333,6 +338,8 @@ def get_spot_detail(
         user=user,
         fallback_explore_points=user_explore_points,
         settings_by_level=pass_settings_by_level,
+        spot_id=spot.id,
+        db=db,
     )
     if not is_unlocked:
         raise HTTPException(

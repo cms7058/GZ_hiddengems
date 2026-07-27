@@ -513,6 +513,27 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"]["required_explore_points"], 100)
 
+    def test_spot_unlock_is_redeemed_per_user(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.explore_points = 120
+            user.benefit_points = 120
+            db.add(MiniProgramUser(id=2, openid="benefit-user-2", nickname="第二位用户", benefit_points=120))
+            db.commit()
+
+        benefit = self.client.post(
+            "/api/v1/admin/benefits/catalog",
+            headers=self.login_headers(),
+            json={"category": "spot_unlock", "benefit_type": "spot", "name_zh": "解锁测试秘境", "name_en": "Unlock Test", "points_cost": 100, "spot_id": 1},
+        )
+        self.assertEqual(benefit.status_code, 201)
+        redeemed = self.client.post("/api/v1/benefits/redeem", json={"user_id": 1, "benefit_id": benefit.json()["id"]})
+        self.assertEqual(redeemed.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=2").status_code, 403)
+        account = self.client.get("/api/v1/benefits/me/1").json()
+        self.assertEqual(account["benefit_points"], 20)
+
     def test_locked_nearby_spots_hide_coordinates_and_media(self):
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)
@@ -1553,6 +1574,27 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["nickname"], "已保存昵称")
+
+    def test_mini_user_can_view_own_checkin_history_with_risk_detail(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            record = db.get(CheckinRecord, 1)
+            user.checkin_warning_count = 2
+            user.checkin_suspicious_count = 1
+            user.checkin_watch_count = 3
+            record.status = "approved"
+            record.risk_status = "warning"
+            record.risk_reason = "路线时间低于安全阈值"
+            record.review_note = "系统定位通过，已记录路线风险。"
+            record.awarded_explore_points = 5
+            db.commit()
+
+        user_response = self.client.get("/api/v1/mini/users/1/checkins")
+        self.assertEqual(user_response.status_code, 200)
+        self.assertEqual(len(user_response.json()), 1)
+        self.assertEqual(user_response.json()[0]["risk_status"], "warning")
+        self.assertEqual(user_response.json()[0]["risk_reason"], "路线时间低于安全阈值")
+        self.assertEqual(user_response.json()[0]["awarded_explore_points"], 5)
 
     def test_admin_can_review_notes_and_comments(self):
         headers = self.login_headers()

@@ -1,0 +1,21 @@
+<view class="page">
+  <navigation-bar title="{{copy.title}}" back="true" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+  <scroll-view class="history-scroll" scroll-y enable-back-to-top>
+    <view class="content">
+      <view wx:if="{{!records.length && !loading}}" class="empty">{{copy.empty}}</view>
+      <view wx:for="{{records}}" wx:key="id" class="record">
+        <view class="record-head">
+          <view>
+            <text class="spot-name">{{item.spot_name_zh}}</text>
+            <text class="time">{{item.createdText}}</text>
+          </view>
+          <text class="status {{item.status}}">{{item.statusText}}</text>
+        </view>
+        <view class="meta-row"><text>{{copy.points}}</text><text>+{{item.awarded_explore_points || 0}}</text></view>
+        <view class="meta-row"><text>{{copy.risk}}</text><text class="risk {{item.risk_status}}">{{item.riskText}}</text></view>
+        <view wx:if="{{item.risk_reason}}" class="reason">{{item.risk_reason}}</view>
+        <view wx:if="{{item.review_note}}" class="review"><text>{{copy.review}}</text><text>{{item.review_note}}</text></view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

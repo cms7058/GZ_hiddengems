@@ -64,6 +64,7 @@ def ensure_runtime_columns() -> None:
         "mini_program_users": {
             "avatar_url": "VARCHAR(512) NULL",
             "explore_points": "INT NOT NULL DEFAULT 0",
+            "benefit_points": "INT NOT NULL DEFAULT 0",
             "can_upload_image": "BOOLEAN NOT NULL DEFAULT TRUE",
             "can_upload_video": "BOOLEAN NOT NULL DEFAULT TRUE",
             "can_comment": "BOOLEAN NOT NULL DEFAULT TRUE",
@@ -136,6 +137,13 @@ def ensure_runtime_columns() -> None:
                 if column_name not in existing_columns:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
         if "mini_program_users" in table_names:
+            connection.execute(
+                text(
+                    "UPDATE mini_program_users "
+                    "SET benefit_points = explore_points "
+                    "WHERE benefit_points = 0 AND explore_points > 0"
+                )
+            )
             connection.execute(
                 text(
                     "UPDATE mini_program_users "

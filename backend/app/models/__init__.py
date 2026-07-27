@@ -4,6 +4,8 @@ from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag, WechatChannelVideo
 from app.models.user import (
     CheckinRecord,
+    BenefitCatalog,
+    BenefitPointLedger,
     MembershipPlan,
     MiniProgramUser,
     PassLevelSetting,
@@ -12,10 +14,14 @@ from app.models.user import (
     ShareEvent,
     UserSafetyLevelPolicy,
     UserMembership,
+    UserBenefitRedemption,
+    UserSpotUnlock,
 )
 
 __all__ = [
     "AdminUser",
+    "BenefitCatalog",
+    "BenefitPointLedger",
     "CheckinRecord",
     "CommentLike",
     "ContentMedia",
@@ -37,5 +43,7 @@ __all__ = [
     "UserComment",
     "UserSafetyLevelPolicy",
     "UserMembership",
+    "UserBenefitRedemption",
+    "UserSpotUnlock",
     "WechatChannelVideo",
 ]

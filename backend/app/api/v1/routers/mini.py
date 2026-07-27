@@ -118,6 +118,8 @@ def assistant_spot_reply(
         user=user,
         fallback_explore_points=user.explore_points,
         settings_by_level=get_active_pass_settings_by_level(db),
+        spot_id=spot.id,
+        db=db,
     )
     lower_query = payload.query.lower()
     wants_route = any(token in lower_query for token in ("路线", "路径", "导航", "怎么去", "前往", "route", "path", "navigate", "directions"))
@@ -225,6 +227,8 @@ def query_mini_assistant(payload: MiniAssistantQuery, db: Session = Depends(get_
             user=user,
             fallback_explore_points=user.explore_points,
             settings_by_level=get_active_pass_settings_by_level(db),
+            spot_id=spot.id,
+            db=db,
         )
         if not is_unlocked:
             name = locked_spot_name(spot, normalize_language(payload.lang, settings.default_language))
@@ -446,6 +450,20 @@ async def upload_mini_media(
         "media_type": resolved_media_type,
         "image_url": media_url if resolved_media_type == "image" else None,
     }
+
+
+@router.get("/users/{user_id}/checkins", response_model=list[CheckinRecordOut])
+def list_user_checkins(user_id: int, db: Session = Depends(get_db)) -> list[CheckinRecordOut]:
+    """Return a user's own recent check-ins and route-risk outcomes."""
+    ensure_active_user(db, user_id)
+    records = db.scalars(
+        select(CheckinRecord)
+        .options(selectinload(CheckinRecord.user), selectinload(CheckinRecord.spot))
+        .where(CheckinRecord.user_id == user_id)
+        .order_by(CheckinRecord.created_at.desc(), CheckinRecord.id.desc())
+        .limit(100)
+    ).all()
+    return [checkin_to_out(record) for record in records]
 
 
 @router.post("/checkins", response_model=CheckinRecordOut, status_code=201)

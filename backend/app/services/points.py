@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.user import MiniProgramUser, PointLedger, PointRule
+from app.models.user import BenefitPointLedger, MiniProgramUser, PointLedger, PointRule
 
 
 DEFAULT_POINT_RULES = (
@@ -77,6 +77,15 @@ def award_points(
         )
     )
     user.explore_points += rule.points
+    user.benefit_points += rule.points
+    db.add(BenefitPointLedger(
+        user_id=user.id,
+        change_points=rule.points,
+        action="earn",
+        reference_type=reference_type,
+        reference_id=reference_id,
+        note=note or rule.name_zh,
+    ))
     return rule.points
 
 
@@ -101,4 +110,13 @@ def revoke_points(
         return 0
     ledger.status = "revoked"
     user.explore_points = max(0, user.explore_points - ledger.points)
+    user.benefit_points = max(0, user.benefit_points - ledger.points)
+    db.add(BenefitPointLedger(
+        user_id=user.id,
+        change_points=-ledger.points,
+        action="revoke",
+        reference_type=reference_type,
+        reference_id=reference_id,
+        note="积分奖励已撤销",
+    ))
     return ledger.points
