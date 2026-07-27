@@ -53,6 +53,7 @@ class MiniProgramUserOut(BaseModel):
     openid: str
     nickname: str
     avatar_url: Optional[str] = None
+    avatar_display_url: Optional[str] = None
     phone: Optional[str] = None
     phone_verified_at: Optional[datetime] = None
     language: str

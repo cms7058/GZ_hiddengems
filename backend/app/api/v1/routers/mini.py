@@ -22,7 +22,7 @@ from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn
 from app.services.integrations import get_mini_program_service_hours
 from app.services.checkin_risk import derive_user_checkin_risk_level, evaluate_checkin_risk
 from app.services.geo import distance_km_between
-from app.services.media_storage import MediaStorageError, get_media_display_url, save_media
+from app.services.media_storage import MediaStorageError, get_media_display_url, get_media_proxy_path, save_media
 from app.services.memberships import sync_user_membership_by_points
 from app.services.points import award_points
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
@@ -50,7 +50,13 @@ MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 def user_to_out(db: Session, user: MiniProgramUser) -> MiniProgramUserOut:
     result = MiniProgramUserOut.model_validate(user)
-    return result.model_copy(update={"avatar_url": get_media_display_url(db, user.avatar_url)})
+    return result.model_copy(
+        update={
+            # Keep the stored source untouched for profile updates, while the
+            # mini program renders media through its configured API domain.
+            "avatar_display_url": get_media_proxy_path(db, user.avatar_url),
+        }
+    )
 
 
 @router.get("/service-hours")

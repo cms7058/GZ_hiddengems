@@ -1,5 +1,5 @@
 const app = getApp()
-const { isServiceClosedError, uploadMedia } = require("../../utils/request")
+const { isServiceClosedError, resolveMediaUrl, uploadMedia } = require("../../utils/request")
 
 const COPY = {
   "zh-CN": {
@@ -159,7 +159,7 @@ Page({
 
   buildUserView(user = {}, copy = COPY["zh-CN"]) {
     const safetyLevel = user.safety_level || "general"
-    const avatarUrl = user.avatar_url || ""
+    const avatarUrl = resolveMediaUrl(user.avatar_display_url || user.avatar_url || "")
     return {
       ...user,
       safetyLevelLabel: copy[safetyLevel] || safetyLevel,
@@ -239,17 +239,14 @@ Page({
     const nickname = (this.data.profileForm.nickname || "").trim() || this.data.user.nickname
     this.setData({ saving: true })
     try {
-      let avatarUrl = this.data.profileForm.avatar_url
-      if (this.data.avatarNeedsUpload && avatarUrl) {
-        const uploaded = await uploadMedia(avatarUrl, "image", "avatar")
-        avatarUrl = uploaded.image_url || uploaded.media_url || ""
+      const profile = { force: true, nickname }
+      if (this.data.avatarNeedsUpload && this.data.profileForm.avatar_url) {
+        const uploaded = await uploadMedia(this.data.profileForm.avatar_url, "image", "avatar")
+        const avatarUrl = uploaded.image_url || uploaded.media_url || ""
         if (!avatarUrl) throw new Error(this.data.copy.avatarUploadFailed)
+        profile.avatar_url = avatarUrl
       }
-      const nextUser = await app.bootstrapUser({
-        force: true,
-        nickname,
-        avatar_url: avatarUrl,
-      })
+      const nextUser = await app.bootstrapUser(profile)
       app.globalData.user = nextUser
       const displayUser = this.buildUserView(nextUser, this.data.copy)
       wx.setStorageSync("gzHiddenGemsUser", nextUser)

@@ -1647,6 +1647,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["nickname"], "已保存昵称")
         self.assertEqual(response.json()["avatar_url"], "/media/avatars/saved-avatar.png")
+        self.assertEqual(response.json()["avatar_display_url"], "/media/avatars/saved-avatar.png")
 
     def test_legacy_explore_points_are_backfilled_once_as_benefit_points(self):
         with self.SessionLocal() as db:
