@@ -33,6 +33,7 @@ class SpotUnlockCandidateOut(BaseModel):
     recommendation_level: int
     points_cost: int
     valid_days: int
+    is_unlocked: bool = False
 
 
 class RedemptionCreate(BaseModel):

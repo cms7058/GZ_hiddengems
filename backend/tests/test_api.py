@@ -553,7 +553,9 @@ class ApiTest(unittest.TestCase):
             json={"user_id": 1, "benefit_id": candidate["benefit_id"]},
         )
         self.assertEqual(redeemed.status_code, 200)
-        self.assertEqual(self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json(), [])
+        unlocks = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json()
+        self.assertEqual(len(unlocks), 1)
+        self.assertTrue(unlocks[0]["is_unlocked"])
 
     def test_spot_unlocks_can_be_redeemed_as_one_batch(self):
         with self.SessionLocal() as db:
@@ -591,7 +593,9 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(redemption.status_code, 200)
         self.assertEqual(len(redemption.json()["redemptions"]), 2)
         self.assertEqual(redemption.json()["benefit_points"], 10)
-        self.assertEqual(self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json(), [])
+        unlocks = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json()
+        self.assertEqual(len(unlocks), 2)
+        self.assertTrue(all(item["is_unlocked"] for item in unlocks))
 
     def test_locked_nearby_spots_hide_coordinates_and_media(self):
         db = self.SessionLocal()
@@ -1625,7 +1629,14 @@ class ApiTest(unittest.TestCase):
 
     def test_mini_login_without_profile_fields_preserves_saved_nickname(self):
         with self.SessionLocal() as db:
-            db.add(MiniProgramUser(id=99, openid="saved-profile-openid", nickname="已保存昵称"))
+            db.add(
+                MiniProgramUser(
+                    id=99,
+                    openid="saved-profile-openid",
+                    nickname="已保存昵称",
+                    avatar_url="/media/avatars/saved-avatar.png",
+                )
+            )
             db.commit()
 
         with patch("app.api.v1.routers.mini.resolve_wechat_openid", return_value="saved-profile-openid"):
@@ -1633,6 +1644,7 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["nickname"], "已保存昵称")
+        self.assertEqual(response.json()["avatar_url"], "/media/avatars/saved-avatar.png")
 
     def test_legacy_explore_points_are_backfilled_once_as_benefit_points(self):
         with self.SessionLocal() as db:

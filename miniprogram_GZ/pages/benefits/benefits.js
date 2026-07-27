@@ -28,7 +28,7 @@ Page({
     try {
       user = await app.bootstrapUser({ force: true })
       if (!user || !user.id || !user.openid) throw new Error("用户信息尚未同步")
-      const summary = await request(`/benefits/me/${user.id}`)
+      const summary = this.normalizeSummary(await request(`/benefits/me/${user.id}`))
       app.globalData.user = {
         ...user,
         benefit_points: summary.benefit_points,
@@ -71,6 +71,26 @@ Page({
     })
   },
 
+  normalizeSummary(summary = {}) {
+    return {
+      ...summary,
+      ledgers: summary.ledgers || [],
+      redemptions: (summary.redemptions || []).map((item) => ({
+        ...item,
+        pointsText: `-${Math.abs(Number(item.points_cost || 0))}`,
+        redeemedAt: this.formatDate(item.created_at),
+      })),
+    }
+  },
+
+  formatDate(value) {
+    if (!value) return ""
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return String(value).replace("T", " ").slice(0, 16)
+    const pad = (number) => String(number).padStart(2, "0")
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  },
+
   onTab(event) {
     this.setData({ activeTab: event.currentTarget.dataset.key }, () => this.filter())
   },
@@ -78,7 +98,11 @@ Page({
   onToggleSpot(event) {
     const benefitId = Number(event.currentTarget.dataset.id)
     const item = this.data.spotUnlocks.find((entry) => entry.benefit_id === benefitId)
-    if (!item || item.isUnlocked || this.data.batchUnlocking) return
+    if (!item || this.data.batchUnlocking) return
+    if (item.isUnlocked) {
+      wx.navigateTo({ url: `/pages/spot-detail/spot-detail?id=${item.spot_id}` })
+      return
+    }
     const selectedIds = this.data.selectedIds.slice()
     const selectedIndex = selectedIds.indexOf(benefitId)
     if (selectedIndex >= 0) selectedIds.splice(selectedIndex, 1)
@@ -108,11 +132,11 @@ Page({
           const spotUnlocks = this.data.spotUnlocks.map((item) => (
             unlockedIds.has(item.benefit_id) ? { ...item, isUnlocked: true } : item
           ))
-          const summary = {
+          const summary = this.normalizeSummary({
             ...this.data.summary,
             benefit_points: data.benefit_points,
             redemptions: [...(data.redemptions || []), ...(this.data.summary.redemptions || [])],
-          }
+          })
           app.globalData.user = { ...app.globalData.user, benefit_points: data.benefit_points }
           wx.setStorageSync("gzHiddenGemsUser", app.globalData.user)
           this.setData({ spotUnlocks, summary, selectedIds: [], batchUnlocking: false }, () => this.filter())

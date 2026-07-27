@@ -402,7 +402,9 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
     backfill_legacy_benefit_points(db, user)
     db.commit()
     db.refresh(user)
-    return user
+    # Keep the mini program profile server-authoritative and return the same
+    # display-safe avatar URL used by the administrative user API.
+    return user_to_out(db, user)
 
 
 @router.post("/uploads")

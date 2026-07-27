@@ -8,6 +8,7 @@
         <text class="name">{{item.name}}</text>
         <text class="desc">{{item.summary}}</text>
         <text>L{{item.recommendation_level}} · {{item.points_cost}} 积分</text>
+        <text wx:if="{{item.isUnlocked}}" class="unlocked-hint">已解锁，点击查看详情</text>
         <view class="spot-choice">
           <text class="lock-icon">{{item.isUnlocked ? '🔓' : '🔒'}}</text>
           <view wx:if="{{!item.isUnlocked}}" class="check-box {{item.selected ? 'checked' : ''}}"><text wx:if="{{item.selected}}">✓</text></view>
@@ -21,7 +22,15 @@
       </view>
     </block>
     <view wx:if="{{!visible.length}}" class="empty">当前没有符合积分条件的权益</view>
-    <view class="records"><text class="title">积分与兑换记录</text><view wx:for="{{summary.ledgers}}" wx:key="id"><text>{{item.action}} {{item.change_points}} 分</text></view><view wx:for="{{summary.redemptions}}" wx:key="id"><text>{{item.benefit_name}} · {{item.status}}</text></view></view>
+    <view class="records">
+      <text class="title">积分与兑换记录</text>
+      <view wx:for="{{summary.redemptions}}" wx:key="id" class="redemption-record">
+        <text class="redemption-points">兑换使用积分 {{item.pointsText}} 分</text>
+        <text>{{item.benefit_name}}</text>
+        <text class="redemption-time">{{item.redeemedAt}}</text>
+      </view>
+      <view wx:if="{{!summary.redemptions.length}}" class="record-empty">暂无兑换记录</view>
+    </view>
   </scroll-view>
   <view wx:if="{{activeTab === 'spot_unlock' && selectedCount}}" class="unlock-summary">
     <text>已选 {{selectedCount}} 个秘境 · {{selectedPoints}} 积分</text>

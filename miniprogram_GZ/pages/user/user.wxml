@@ -4,7 +4,7 @@
   <scroll-view class="user-scroll" scroll-y enable-back-to-top refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onUserRefresh">
   <view class="user-content">
   <view class="profile-card">
-    <image wx:if="{{user.avatar_url}}" class="avatar image-avatar" src="{{user.avatar_url}}" mode="aspectFill"></image>
+    <image wx:if="{{user.avatarDisplayUrl}}" class="avatar image-avatar" src="{{user.avatarDisplayUrl}}" mode="aspectFill"></image>
     <view wx:else class="avatar">{{copy.defaultAvatar}}</view>
     <view class="profile-summary">
       <text class="name">{{user.nickname}}</text>

@@ -159,9 +159,13 @@ Page({
 
   buildUserView(user = {}, copy = COPY["zh-CN"]) {
     const safetyLevel = user.safety_level || "general"
+    const avatarUrl = user.avatar_url || ""
     return {
       ...user,
       safetyLevelLabel: copy[safetyLevel] || safetyLevel,
+      // Refresh the image URL after a successful profile save so WeChat does
+      // not keep displaying a previously cached avatar.
+      avatarDisplayUrl: avatarUrl ? `${avatarUrl}${avatarUrl.includes("?") ? "&" : "?"}v=${Date.now()}` : "",
     }
   },
 
@@ -255,7 +259,7 @@ Page({
         profileForm: { nickname: nextUser.nickname, avatar_url: nextUser.avatar_url || "" },
         avatarNeedsUpload: false,
         editing: false,
-      })
+      }, () => this.refreshUserView())
       wx.showToast({ title: this.data.copy.saved, icon: "success" })
     } catch (error) {
       if (!isServiceClosedError(error)) {

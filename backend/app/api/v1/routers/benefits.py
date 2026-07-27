@@ -45,7 +45,7 @@ def available_spot_unlocks(
             spot_id=spot.id,
             db=db,
         )
-        if is_unlocked or required_points <= 0:
+        if required_points <= 0:
             continue
         benefit = ensure_spot_unlock_benefit(
             db,
@@ -56,6 +56,20 @@ def available_spot_unlocks(
             summary_en=spot.summary_en,
             points_cost=required_points,
         )
+        if is_unlocked:
+            candidates.append(
+                SpotUnlockCandidateOut(
+                    benefit_id=benefit.id,
+                    spot_id=spot.id,
+                    name=choose_text(normalized_lang, spot.name_zh, spot.name_en),
+                    summary=choose_text(normalized_lang, spot.summary_zh, spot.summary_en),
+                    recommendation_level=spot.recommendation_level,
+                    points_cost=benefit.points_cost,
+                    valid_days=benefit.valid_days,
+                    is_unlocked=True,
+                )
+            )
+            continue
         if not benefit.is_active or benefit.points_cost > user.benefit_points:
             continue
         candidates.append(
@@ -67,6 +81,7 @@ def available_spot_unlocks(
                 recommendation_level=spot.recommendation_level,
                 points_cost=benefit.points_cost,
                 valid_days=benefit.valid_days,
+                is_unlocked=False,
             )
         )
     if changed or candidates:
