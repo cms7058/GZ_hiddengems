@@ -16,7 +16,7 @@ from app.models.archive import ArchiveDevelopmentTask, ArchiveEvent, ArchiveInte
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
-from app.models.user import BenefitPointLedger, CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
+from app.models.user import BenefitCatalog, BenefitPointLedger, CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserBenefitRedemption, UserMembership, UserSpotUnlock
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
 from app.services.bootstrap import seed_admin_roles
@@ -569,6 +569,33 @@ class ApiTest(unittest.TestCase):
         response = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
+
+    def test_redemption_history_repairs_missing_unlock_and_hides_pending_spot(self):
+        with self.SessionLocal() as db:
+            benefit = BenefitCatalog(
+                category="spot_unlock",
+                benefit_type="spot_unlock",
+                name_zh="历史兑换秘境",
+                name_en="Historic Redemption",
+                points_cost=100,
+                spot_id=1,
+                stock=0,
+                valid_days=3650,
+                is_active=True,
+            )
+            db.add(benefit)
+            db.flush()
+            db.add(UserBenefitRedemption(user_id=1, benefit_id=benefit.id, points_cost=100, status="confirmed"))
+            db.commit()
+
+        response = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertTrue(response.json()[0]["is_unlocked"])
+        with self.SessionLocal() as db:
+            self.assertIsNotNone(
+                db.scalar(select(UserSpotUnlock.id).where(UserSpotUnlock.user_id == 1, UserSpotUnlock.spot_id == 1))
+            )
 
     def test_spot_unlocks_can_be_redeemed_as_one_batch(self):
         with self.SessionLocal() as db:

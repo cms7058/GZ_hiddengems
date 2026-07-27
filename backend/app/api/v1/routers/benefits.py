@@ -29,6 +29,19 @@ def available_spot_unlocks(
     changed = bool(backfill_legacy_benefit_points(db, user))
     settings_by_level = get_active_pass_settings_by_level(db)
     normalized_lang = normalize_language(lang)
+    redeemed_by_spot = {
+        spot_id: redemption_id
+        for spot_id, redemption_id in db.execute(
+            select(BenefitCatalog.spot_id, UserBenefitRedemption.id)
+            .join(UserBenefitRedemption, UserBenefitRedemption.benefit_id == BenefitCatalog.id)
+            .where(
+                UserBenefitRedemption.user_id == user.id,
+                BenefitCatalog.category == "spot_unlock",
+                BenefitCatalog.spot_id.is_not(None),
+                UserBenefitRedemption.status.in_(("confirmed", "used")),
+            )
+        ).all()
+    }
     candidates: list[SpotUnlockCandidateOut] = []
     spots = db.scalars(
         select(ScenicSpot)
@@ -56,6 +69,28 @@ def available_spot_unlocks(
             summary_en=spot.summary_en,
             points_cost=required_points,
         )
+        # Some early redemptions were recorded before user_spot_unlocks was
+        # introduced. A valid redemption is authoritative: repair the missing
+        # relation and never return that spot as awaiting unlock again.
+        redeemed_id = redeemed_by_spot.get(spot.id)
+        if redeemed_id is not None and not is_unlocked:
+            existing_unlock = db.scalar(
+                select(UserSpotUnlock.id).where(
+                    UserSpotUnlock.user_id == user.id,
+                    UserSpotUnlock.spot_id == spot.id,
+                )
+            )
+            if existing_unlock is None:
+                db.add(
+                    UserSpotUnlock(
+                        user_id=user.id,
+                        spot_id=spot.id,
+                        redemption_id=redeemed_id,
+                        status="active",
+                    )
+                )
+                changed = True
+            is_unlocked = True
         if is_unlocked:
             candidates.append(
                 SpotUnlockCandidateOut(
