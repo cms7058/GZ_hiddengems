@@ -38,6 +38,7 @@
           </view>
           <view class="tag-row">
             <text wx:for="{{item.tags}}" wx:key="id" class="tag">{{item.name}}</text>
+            <text wx:if="{{item.is_points_redeemed}}" class="tag points-redeemed-tag">{{copy.pointsRedeemed}}</text>
           </view>
         </view>
         <view wx:if="{{item.cover_image_url}}" class="spot-cover-wrap card-cover-right">

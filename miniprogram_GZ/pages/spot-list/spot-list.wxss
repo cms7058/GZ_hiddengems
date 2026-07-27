@@ -232,6 +232,11 @@ page {
   font-size: 20rpx;
 }
 
+.points-redeemed-tag {
+  background: #2b73ad;
+  color: #ffffff;
+}
+
 .floating-back {
   position: fixed;
   left: 24rpx;

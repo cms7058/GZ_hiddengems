@@ -207,6 +207,7 @@ class MapSpotOut(BaseModel):
     required_explore_points: int
     user_explore_points: int = 0
     is_unlocked: bool
+    is_points_redeemed: bool = False
     is_precise_location: bool
     recommendation_level: int
     marker_color: str = "#2f6b4f"

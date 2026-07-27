@@ -2,6 +2,7 @@ import json
 import re
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -13,7 +14,7 @@ from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
 from app.services.pass_levels import get_spot_unlock_state
-from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
+from app.models.user import BenefitCatalog, CheckinRecord, MiniProgramUser, PassLevelSetting, UserBenefitRedemption, UserSpotUnlock
 from app.schemas.user import CheckinRecordOut
 
 
@@ -220,6 +221,20 @@ def spot_to_map_out(
         decimals=settings.coordinate_mask_decimals,
     )
     cover_image_url = spot_cover_image_url(spot, db, prefer_signed_url=True)
+    is_points_redeemed = False
+    if user is not None and db is not None:
+        is_points_redeemed = db.scalar(
+            select(UserSpotUnlock.id)
+            .join(UserBenefitRedemption, UserBenefitRedemption.id == UserSpotUnlock.redemption_id)
+            .join(BenefitCatalog, BenefitCatalog.id == UserBenefitRedemption.benefit_id)
+            .where(
+                UserSpotUnlock.user_id == user.id,
+                UserSpotUnlock.spot_id == spot.id,
+                UserSpotUnlock.status == "active",
+                BenefitCatalog.category == "spot_unlock",
+                UserBenefitRedemption.status.in_(("confirmed", "used")),
+            )
+        ) is not None
     return MapSpotOut(
         id=spot.id,
         name=choose_text(normalized_lang, spot.name_zh, spot.name_en) or "",
@@ -232,6 +247,7 @@ def spot_to_map_out(
         required_explore_points=required_explore_points,
         user_explore_points=user_explore_points,
         is_unlocked=is_unlocked,
+        is_points_redeemed=is_points_redeemed,
         is_precise_location=coordinate.is_precise,
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),

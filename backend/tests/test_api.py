@@ -531,6 +531,8 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(redeemed.status_code, 200)
         self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1").status_code, 200)
         self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=2").status_code, 403)
+        map_spots = self.client.get("/api/v1/spots/map?lang=zh-CN&user_id=1").json()
+        self.assertTrue(map_spots[0]["is_points_redeemed"])
         account = self.client.get("/api/v1/benefits/me/1").json()
         self.assertEqual(account["benefit_points"], 20)
 
