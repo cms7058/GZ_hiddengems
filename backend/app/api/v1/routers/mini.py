@@ -28,6 +28,7 @@ from app.services.points import award_points
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
 from app.services.localization import choose_text, normalize_language
 from app.services.archive import handle_mini_archive_query
+from app.services.benefits import backfill_legacy_benefit_points
 from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, travel_note_to_out
 
 
@@ -398,6 +399,7 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
                 award_points(db, user=inviter, rule_code="share_registration", reference_type="share_registration", reference_id=user.id, note="分享带来新用户注册")
     # Login must not reset permissions explicitly configured by an administrator.
     sync_user_membership_by_points(db, user)
+    backfill_legacy_benefit_points(db, user)
     db.commit()
     db.refresh(user)
     return user

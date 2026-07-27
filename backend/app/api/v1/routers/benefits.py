@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.models.user import BenefitCatalog, BenefitPointLedger, MiniProgramUser, UserBenefitRedemption, UserSpotUnlock
 from app.schemas.benefits import BenefitCatalogOut, RedemptionCreate, RedemptionOut, BenefitLedgerOut
-from app.services.benefits import redeem_benefit, redemption_out
+from app.services.benefits import backfill_legacy_benefit_points, redeem_benefit, redemption_out
 
 router = APIRouter()
 
@@ -17,6 +17,9 @@ def catalog(db: Session = Depends(get_db)):
 def my_benefits(user_id: int, db: Session = Depends(get_db)):
     user = db.get(MiniProgramUser, user_id)
     if user is None: raise HTTPException(status_code=404, detail="User not found")
+    if backfill_legacy_benefit_points(db, user):
+        db.commit()
+        db.refresh(user)
     redemptions = db.scalars(select(UserBenefitRedemption).options(joinedload(UserBenefitRedemption.benefit)).where(UserBenefitRedemption.user_id == user_id).order_by(UserBenefitRedemption.id.desc())).all()
     ledgers = db.scalars(select(BenefitPointLedger).where(BenefitPointLedger.user_id == user_id).order_by(BenefitPointLedger.id.desc()).limit(100)).all()
     unlocks = db.scalars(select(UserSpotUnlock).where(UserSpotUnlock.user_id == user_id, UserSpotUnlock.status == "active")).all()

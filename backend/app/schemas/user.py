@@ -33,6 +33,7 @@ class MiniProgramUserCreate(BaseModel):
     safety_level: str = Field(default="general", pattern="^(general|risk|quality)$")
     language: str = Field(default="zh-CN", max_length=16)
     explore_points: int = Field(default=0, ge=0)
+    benefit_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: int = Field(default=0, ge=0)
     contribution_count: int = Field(default=0, ge=0)
     eco_credit: int = Field(default=100, ge=0, le=100)

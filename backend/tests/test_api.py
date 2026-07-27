@@ -16,7 +16,7 @@ from app.models.archive import ArchiveDevelopmentTask, ArchiveEvent, ArchiveInte
 from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
-from app.models.user import CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
+from app.models.user import BenefitPointLedger, CheckinRecord, MembershipPlan, MiniProgramUser, PassLevelSetting, UserMembership
 from app.services.security import hash_password
 from app.services.integrations import seed_integration_settings
 from app.services.bootstrap import seed_admin_roles
@@ -1574,6 +1574,40 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["nickname"], "已保存昵称")
+
+    def test_legacy_explore_points_are_backfilled_once_as_benefit_points(self):
+        with self.SessionLocal() as db:
+            db.add(MiniProgramUser(id=98, openid="legacy-benefit-openid", nickname="历史用户", explore_points=10, benefit_points=0))
+            db.commit()
+
+        with patch("app.api.v1.routers.mini.resolve_wechat_openid", return_value="legacy-benefit-openid"):
+            response = self.client.post("/api/v1/mini/login", json={"code": "login-code"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["explore_points"], 10)
+        self.assertEqual(response.json()["benefit_points"], 10)
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 98)
+            ledger_count = db.query(BenefitPointLedger).filter(BenefitPointLedger.user_id == 98).count()
+            self.assertEqual(user.benefit_points, 10)
+            self.assertEqual(ledger_count, 1)
+
+    def test_admin_explore_point_adjustment_updates_available_benefit_balance(self):
+        headers = self.login_headers()
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.explore_points = 10
+            user.benefit_points = 10
+            db.commit()
+
+        response = self.client.patch(
+            "/api/v1/admin/users/1",
+            headers=headers,
+            json={"explore_points": 25, "benefit_points": 10},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["explore_points"], 25)
+        self.assertEqual(response.json()["benefit_points"], 25)
 
     def test_mini_user_can_view_own_checkin_history_with_risk_detail(self):
         with self.SessionLocal() as db:

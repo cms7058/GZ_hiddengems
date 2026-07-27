@@ -14,6 +14,7 @@ from app.services.media_storage import MediaStorageError, delete_media, get_medi
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 from app.services.safety_levels import apply_safety_level_policy
+from app.services.benefits import adjust_benefit_points_for_admin, backfill_legacy_benefit_points
 
 
 router = APIRouter()
@@ -87,7 +88,10 @@ def create_admin_user(
     if exists is not None and exists.is_active:
         raise HTTPException(status_code=409, detail="OpenID already exists")
     if exists is not None:
-        for field, value in payload.model_dump().items():
+        create_data = payload.model_dump()
+        if create_data.get("benefit_points") in {None, 0} and create_data.get("explore_points", 0) > 0:
+            create_data["benefit_points"] = create_data["explore_points"]
+        for field, value in create_data.items():
             setattr(exists, field, value)
         exists.is_active = True
         db.add(exists)
@@ -100,7 +104,10 @@ def create_admin_user(
         db.refresh(exists)
         return user_to_out(db, exists)
 
-    user = MiniProgramUser(**payload.model_dump())
+    create_data = payload.model_dump()
+    if create_data.get("benefit_points") in {None, 0} and create_data.get("explore_points", 0) > 0:
+        create_data["benefit_points"] = create_data["explore_points"]
+    user = MiniProgramUser(**create_data)
     db.add(user)
     db.flush()
     # New users default to all permissions. A preset is applied only when no
@@ -124,9 +131,20 @@ def update_admin_user(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
+    backfill_legacy_benefit_points(db, user)
+    previous_explore_points = user.explore_points
+    previous_benefit_points = user.benefit_points
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(user, field, value)
+
+    adjust_benefit_points_for_admin(
+        db,
+        user,
+        previous_explore_points,
+        previous_benefit_points,
+        update_data,
+    )
 
     if "explore_points" in update_data:
         sync_user_membership_by_points(db, user)
