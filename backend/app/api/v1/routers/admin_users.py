@@ -89,8 +89,6 @@ def create_admin_user(
         raise HTTPException(status_code=409, detail="OpenID already exists")
     if exists is not None:
         create_data = payload.model_dump()
-        if create_data.get("benefit_points") in {None, 0} and create_data.get("explore_points", 0) > 0:
-            create_data["benefit_points"] = create_data["explore_points"]
         for field, value in create_data.items():
             setattr(exists, field, value)
         exists.is_active = True
@@ -105,8 +103,6 @@ def create_admin_user(
         return user_to_out(db, exists)
 
     create_data = payload.model_dump()
-    if create_data.get("benefit_points") in {None, 0} and create_data.get("explore_points", 0) > 0:
-        create_data["benefit_points"] = create_data["explore_points"]
     user = MiniProgramUser(**create_data)
     db.add(user)
     db.flush()

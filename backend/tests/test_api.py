@@ -559,6 +559,17 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(len(unlocks), 1)
         self.assertTrue(unlocks[0]["is_unlocked"])
 
+    def test_spot_unlock_candidates_use_benefit_points_not_lifetime_explore_points(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.explore_points = 120
+            user.benefit_points = 0
+            db.commit()
+
+        response = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
     def test_spot_unlocks_can_be_redeemed_as_one_batch(self):
         with self.SessionLocal() as db:
             user = db.get(MiniProgramUser, 1)
@@ -1649,7 +1660,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.json()["avatar_url"], "/media/avatars/saved-avatar.png")
         self.assertEqual(response.json()["avatar_display_url"], "/media/avatars/saved-avatar.png")
 
-    def test_legacy_explore_points_are_backfilled_once_as_benefit_points(self):
+    def test_legacy_explore_points_are_not_converted_to_benefit_points(self):
         with self.SessionLocal() as db:
             db.add(MiniProgramUser(id=98, openid="legacy-benefit-openid", nickname="历史用户", explore_points=10, benefit_points=0))
             db.commit()
@@ -1659,14 +1670,14 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["explore_points"], 10)
-        self.assertEqual(response.json()["benefit_points"], 10)
+        self.assertEqual(response.json()["benefit_points"], 0)
         with self.SessionLocal() as db:
             user = db.get(MiniProgramUser, 98)
             ledger_count = db.query(BenefitPointLedger).filter(BenefitPointLedger.user_id == 98).count()
-            self.assertEqual(user.benefit_points, 10)
-            self.assertEqual(ledger_count, 1)
+            self.assertEqual(user.benefit_points, 0)
+            self.assertEqual(ledger_count, 0)
 
-    def test_admin_explore_point_adjustment_updates_available_benefit_balance(self):
+    def test_admin_explore_point_adjustment_does_not_change_available_benefit_balance(self):
         headers = self.login_headers()
         with self.SessionLocal() as db:
             user = db.get(MiniProgramUser, 1)
@@ -1681,7 +1692,7 @@ class ApiTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["explore_points"], 25)
-        self.assertEqual(response.json()["benefit_points"], 25)
+        self.assertEqual(response.json()["benefit_points"], 10)
 
     def test_mini_user_can_view_own_checkin_history_with_risk_detail(self):
         with self.SessionLocal() as db:

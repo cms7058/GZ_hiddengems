@@ -140,17 +140,6 @@ def ensure_runtime_columns() -> None:
             connection.execute(
                 text(
                     "UPDATE mini_program_users "
-                    "SET benefit_points = explore_points "
-                    "WHERE benefit_points = 0 AND explore_points > 0 "
-                    "AND NOT EXISTS ("
-                    "SELECT 1 FROM benefit_point_ledgers "
-                    "WHERE benefit_point_ledgers.user_id = mini_program_users.id"
-                    ")"
-                )
-            )
-            connection.execute(
-                text(
-                    "UPDATE mini_program_users "
                     "SET checkin_risk_level = CASE checkin_risk_level "
                     "WHEN 'low' THEN 'normal' "
                     "WHEN 'medium' THEN 'suspicious' "

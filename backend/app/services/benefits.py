@@ -45,28 +45,12 @@ def ensure_spot_unlock_benefit(
 
 
 def backfill_legacy_benefit_points(db: Session, user: MiniProgramUser) -> int:
-    """Migrate pre-benefit accounts once without restoring spent balances."""
-    if user.explore_points <= 0 or user.benefit_points > 0:
-        return 0
-    has_ledger = db.scalar(
-        select(BenefitPointLedger.id)
-        .where(BenefitPointLedger.user_id == user.id)
-        .limit(1)
-    )
-    if has_ledger is not None:
-        return 0
-    user.benefit_points = user.explore_points
-    db.add(
-        BenefitPointLedger(
-            user_id=user.id,
-            change_points=user.explore_points,
-            action="migration",
-            reference_type="legacy_balance",
-            reference_id=user.id,
-            note="历史探秘积分迁移为可用权益积分",
-        )
-    )
-    return user.explore_points
+    """Keep legacy call sites safe without converting cumulative points.
+
+    Explore points are a lifetime total, while benefit points are a spendable
+    balance. They must never be derived from one another on login or refresh.
+    """
+    return 0
 
 
 def adjust_benefit_points_for_admin(
@@ -76,16 +60,11 @@ def adjust_benefit_points_for_admin(
     previous_benefit_points: int,
     update_data: dict,
 ) -> int:
-    """Apply administrator corrections to available points unless overridden."""
-    requested_explore = int(update_data.get("explore_points", user.explore_points))
+    """Apply only an explicit administrator correction to benefit points."""
     requested_benefit = update_data.get("benefit_points")
-    benefit_unchanged = requested_benefit is None or int(requested_benefit) == previous_benefit_points
-    if "explore_points" in update_data and benefit_unchanged:
-        target = max(0, previous_benefit_points + requested_explore - previous_explore_points)
-    elif requested_benefit is not None:
-        target = int(requested_benefit)
-    else:
+    if requested_benefit is None:
         return 0
+    target = int(requested_benefit)
 
     change = target - previous_benefit_points
     user.benefit_points = target

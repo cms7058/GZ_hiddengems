@@ -3,6 +3,7 @@
   <view class="balance"><text>可用权益积分</text><text class="value">{{summary.benefit_points}}</text><text>累计探秘积分 {{summary.explore_points}}</text></view>
   <view class="tabs"><view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab===item.key?'active':''}}" data-key="{{item.key}}" bindtap="onTab">{{item.label}}</view></view>
   <scroll-view class="scroll" scroll-y>
+    <view wx:if="{{activeTab === 'spot_unlock'}}" class="unlock-section-title">待解锁秘境</view>
     <block wx:for="{{visible}}" wx:key="id">
       <view wx:if="{{item.isSpotUnlock}}" class="card spot-unlock-card {{item.isUnlocked ? 'unlocked' : ''}}" data-id="{{item.id}}" bindtap="onToggleSpot">
         <text class="name">{{item.name}}</text>
@@ -21,7 +22,16 @@
         <button class="redeem" data-id="{{item.id}}" bindtap="onRedeem">确认兑换</button>
       </view>
     </block>
-    <view wx:if="{{!visible.length}}" class="empty">当前没有符合积分条件的权益</view>
+    <view wx:if="{{activeTab === 'spot_unlock' && !visible.length}}" class="empty">当前没有待解锁秘境</view>
+    <view wx:if="{{activeTab === 'spot_unlock' && unlockedSpots.length}}" class="unlock-section-title">已解锁秘境</view>
+    <view wx:for="{{unlockedSpots}}" wx:key="id" class="card spot-unlock-card unlocked" data-id="{{item.id}}" bindtap="onToggleSpot">
+      <text class="name">{{item.name}}</text>
+      <text class="desc">{{item.summary}}</text>
+      <text>L{{item.recommendation_level}} · {{item.points_cost}} 积分</text>
+      <text class="unlocked-hint">已解锁，点击查看详情</text>
+      <view class="spot-choice"><text class="lock-icon">🔓</text></view>
+    </view>
+    <view wx:if="{{activeTab !== 'spot_unlock' && !visible.length}}" class="empty">当前没有符合积分条件的权益</view>
     <view class="records">
       <text class="title">积分与兑换记录</text>
       <view wx:for="{{summary.redemptions}}" wx:key="id" class="redemption-record">

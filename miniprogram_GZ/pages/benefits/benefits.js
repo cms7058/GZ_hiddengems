@@ -11,6 +11,7 @@ Page({
     activeTab: "spot_unlock",
     catalog: [],
     spotUnlocks: [],
+    unlockedSpots: [],
     visible: [],
     selectedIds: [],
     selectedCount: 0,
@@ -56,16 +57,23 @@ Page({
   filter() {
     const selectedIds = new Set(this.data.selectedIds)
     const selectedItems = this.data.spotUnlocks.filter((item) => selectedIds.has(item.benefit_id) && !item.isUnlocked)
-    const visible = this.data.activeTab === "spot_unlock"
-      ? this.data.spotUnlocks.map((item) => ({
+    const pendingUnlocks = this.data.spotUnlocks
+      .filter((item) => !item.isUnlocked)
+      .map((item) => ({
         ...item,
         id: item.benefit_id,
         isSpotUnlock: true,
         selected: selectedIds.has(item.benefit_id),
       }))
+    const unlockedSpots = this.data.spotUnlocks
+      .filter((item) => item.isUnlocked)
+      .map((item) => ({ ...item, id: item.benefit_id, isSpotUnlock: true, selected: false }))
+    const visible = this.data.activeTab === "spot_unlock"
+      ? pendingUnlocks
       : this.data.catalog.filter((item) => item.category === this.data.activeTab)
     this.setData({
       visible,
+      unlockedSpots,
       selectedCount: selectedItems.length,
       selectedPoints: selectedItems.reduce((total, item) => total + Number(item.points_cost || 0), 0),
     })
