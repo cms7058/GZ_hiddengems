@@ -109,6 +109,14 @@ page {
   font-weight: 800;
 }
 
+.sync-error {
+  display: block;
+  margin-top: 8rpx;
+  color: #a14137;
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+
 .profile-modal-mask {
   position: fixed;
   inset: 0;

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.models.spot import ScenicSpot
 from app.models.user import BenefitCatalog, BenefitPointLedger, MiniProgramUser, UserBenefitRedemption, UserSpotUnlock
-from app.schemas.benefits import BenefitCatalogOut, RedemptionCreate, RedemptionOut, SpotUnlockCandidateOut, BenefitLedgerOut
+from app.schemas.benefits import BatchRedemptionCreate, BatchRedemptionOut, BenefitCatalogOut, RedemptionCreate, RedemptionOut, SpotUnlockCandidateOut, BenefitLedgerOut
 from app.services.benefits import backfill_legacy_benefit_points, ensure_spot_unlock_benefit, redeem_benefit, redemption_out
 from app.services.localization import choose_text, normalize_language
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
@@ -94,3 +94,30 @@ def redeem(payload: RedemptionCreate, db: Session = Depends(get_db)):
     redemption = redeem_benefit(db, user, benefit)
     db.commit(); db.refresh(redemption); db.refresh(redemption, attribute_names=["benefit"])
     return redemption_out(redemption)
+
+
+@router.post("/redeem-batch", response_model=BatchRedemptionOut)
+def redeem_spot_unlocks_batch(payload: BatchRedemptionCreate, db: Session = Depends(get_db)) -> BatchRedemptionOut:
+    benefit_ids = list(dict.fromkeys(payload.benefit_ids))
+    if len(benefit_ids) != len(payload.benefit_ids):
+        raise HTTPException(status_code=400, detail="Duplicate benefit selection")
+    user = db.get(MiniProgramUser, payload.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="User not found")
+    benefits = db.scalars(select(BenefitCatalog).where(BenefitCatalog.id.in_(benefit_ids))).all()
+    if len(benefits) != len(benefit_ids):
+        raise HTTPException(status_code=404, detail="Benefit not found")
+    if any(not benefit.is_active or benefit.category != "spot_unlock" for benefit in benefits):
+        raise HTTPException(status_code=400, detail="Only active spot unlock benefits can be selected")
+    total_cost = sum(benefit.points_cost for benefit in benefits)
+    if total_cost > user.benefit_points:
+        raise HTTPException(status_code=400, detail="Insufficient benefit points")
+    redemptions = [redeem_benefit(db, user, benefit) for benefit in benefits]
+    db.commit()
+    for redemption in redemptions:
+        db.refresh(redemption)
+        db.refresh(redemption, attribute_names=["benefit"])
+    return BatchRedemptionOut(
+        redemptions=[redemption_out(redemption) for redemption in redemptions],
+        benefit_points=user.benefit_points,
+    )

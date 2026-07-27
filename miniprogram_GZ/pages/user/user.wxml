@@ -8,6 +8,7 @@
     <view wx:else class="avatar">{{copy.defaultAvatar}}</view>
     <view class="profile-summary">
       <text class="name">{{user.nickname}}</text>
+      <text wx:if="{{syncError}}" class="sync-error">{{syncError}}</text>
     </view>
     <view class="edit-button" role="button" bindtap="onToggleProfileEdit">{{copy.editProfile}}</view>
   </view>

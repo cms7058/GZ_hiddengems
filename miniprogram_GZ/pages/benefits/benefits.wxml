@@ -3,14 +3,28 @@
   <view class="balance"><text>可用权益积分</text><text class="value">{{summary.benefit_points}}</text><text>累计探秘积分 {{summary.explore_points}}</text></view>
   <view class="tabs"><view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab===item.key?'active':''}}" data-key="{{item.key}}" bindtap="onTab">{{item.label}}</view></view>
   <scroll-view class="scroll" scroll-y>
-    <view wx:for="{{visible}}" wx:key="id" class="card">
-      <text class="name">{{item.isSpotUnlock ? item.name : item.name_zh}}</text>
-      <text class="desc">{{item.isSpotUnlock ? item.summary : item.description_zh}}</text>
-      <text wx:if="{{item.isSpotUnlock}}">L{{item.recommendation_level}} · {{item.points_cost}} 积分</text>
-      <text wx:else>{{item.points_cost}} 积分 · 有效期 {{item.valid_days}} 天</text>
-      <button class="redeem" data-id="{{item.id}}" bindtap="onRedeem">{{item.isSpotUnlock ? '选择解锁' : '确认兑换'}}</button>
-    </view>
+    <block wx:for="{{visible}}" wx:key="id">
+      <view wx:if="{{item.isSpotUnlock}}" class="card spot-unlock-card {{item.isUnlocked ? 'unlocked' : ''}}" data-id="{{item.id}}" bindtap="onToggleSpot">
+        <text class="name">{{item.name}}</text>
+        <text class="desc">{{item.summary}}</text>
+        <text>L{{item.recommendation_level}} · {{item.points_cost}} 积分</text>
+        <view class="spot-choice">
+          <text class="lock-icon">{{item.isUnlocked ? '🔓' : '🔒'}}</text>
+          <view wx:if="{{!item.isUnlocked}}" class="check-box {{item.selected ? 'checked' : ''}}"><text wx:if="{{item.selected}}">✓</text></view>
+        </view>
+      </view>
+      <view wx:else class="card">
+        <text class="name">{{item.name_zh}}</text>
+        <text class="desc">{{item.description_zh}}</text>
+        <text>{{item.points_cost}} 积分 · 有效期 {{item.valid_days}} 天</text>
+        <button class="redeem" data-id="{{item.id}}" bindtap="onRedeem">确认兑换</button>
+      </view>
+    </block>
     <view wx:if="{{!visible.length}}" class="empty">当前没有符合积分条件的权益</view>
     <view class="records"><text class="title">积分与兑换记录</text><view wx:for="{{summary.ledgers}}" wx:key="id"><text>{{item.action}} {{item.change_points}} 分</text></view><view wx:for="{{summary.redemptions}}" wx:key="id"><text>{{item.benefit_name}} · {{item.status}}</text></view></view>
   </scroll-view>
+  <view wx:if="{{activeTab === 'spot_unlock' && selectedCount}}" class="unlock-summary">
+    <text>已选 {{selectedCount}} 个秘境 · {{selectedPoints}} 积分</text>
+    <button class="confirm-unlock" loading="{{batchUnlocking}}" disabled="{{batchUnlocking}}" bindtap="onConfirmSpotUnlocks">确定解锁</button>
+  </view>
 </view>

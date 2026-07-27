@@ -126,6 +126,7 @@ Page({
     },
     avatarNeedsUpload: false,
     editing: false,
+    syncError: "",
     saving: false,
     refreshing: false,
   },
@@ -179,7 +180,11 @@ Page({
   reloadUser() {
     this.setData({ refreshing: true })
     app.bootstrapUser({ force: true })
-      .catch((error) => console.warn("profile refresh failed", error))
+      .then(() => this.setData({ syncError: "" }))
+      .catch((error) => {
+        console.warn("profile refresh failed", error)
+        this.setData({ syncError: error.message || "后台用户数据同步失败" })
+      })
       .finally(() => {
         this.refreshUserView()
         this.setData({ refreshing: false })

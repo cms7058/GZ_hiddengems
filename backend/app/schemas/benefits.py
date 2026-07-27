@@ -40,6 +40,11 @@ class RedemptionCreate(BaseModel):
     benefit_id: int
 
 
+class BatchRedemptionCreate(BaseModel):
+    user_id: int
+    benefit_ids: list[int] = Field(min_length=1, max_length=50)
+
+
 class RedemptionOut(BaseModel):
     id: int
     benefit_id: int
@@ -50,6 +55,11 @@ class RedemptionOut(BaseModel):
     verification_code: Optional[str] = None
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+
+
+class BatchRedemptionOut(BaseModel):
+    redemptions: list[RedemptionOut]
+    benefit_points: int
 
 
 class BenefitLedgerOut(BaseModel):

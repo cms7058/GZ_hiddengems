@@ -555,6 +555,44 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(redeemed.status_code, 200)
         self.assertEqual(self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json(), [])
 
+    def test_spot_unlocks_can_be_redeemed_as_one_batch(self):
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.explore_points = 120
+            user.benefit_points = 120
+            db.add(
+                ScenicSpot(
+                    id=2,
+                    name_zh="批量解锁测试点",
+                    name_en="Batch Unlock Test Spot",
+                    summary_zh="用于验证批量解锁。",
+                    summary_en="Used to verify batch unlocks.",
+                    description_zh="测试说明。",
+                    description_en="Test description.",
+                    city="贵阳市",
+                    county="南明区",
+                    latitude=26.56,
+                    longitude=106.71,
+                    visibility_level="protected",
+                    review_status="approved",
+                    recommendation_level=2,
+                    required_explore_points=10,
+                )
+            )
+            db.commit()
+
+        candidates = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
+        self.assertEqual(candidates.status_code, 200)
+        self.assertEqual(len(candidates.json()), 2)
+        redemption = self.client.post(
+            "/api/v1/benefits/redeem-batch",
+            json={"user_id": 1, "benefit_ids": [item["benefit_id"] for item in candidates.json()]},
+        )
+        self.assertEqual(redemption.status_code, 200)
+        self.assertEqual(len(redemption.json()["redemptions"]), 2)
+        self.assertEqual(redemption.json()["benefit_points"], 10)
+        self.assertEqual(self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN").json(), [])
+
     def test_locked_nearby_spots_hide_coordinates_and_media(self):
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)
