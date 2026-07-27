@@ -44,7 +44,11 @@ Page({
           return []
         }),
       ])
-      this.setData({ catalog, summary, spotUnlocks }, () => this.filter())
+      this.setData({
+        catalog,
+        summary,
+        spotUnlocks: this.applyRedemptionState(spotUnlocks, summary),
+      }, () => this.filter())
     } catch (error) {
       wx.showModal({
         title: "获取权益失败",
@@ -56,9 +60,10 @@ Page({
 
   filter() {
     const selectedIds = new Set(this.data.selectedIds)
+    const redeemed = this.getRedeemedUnlockIds()
     const selectedItems = this.data.spotUnlocks.filter((item) => selectedIds.has(item.benefit_id) && !item.isUnlocked)
     const pendingUnlocks = this.data.spotUnlocks
-      .filter((item) => !item.isUnlocked)
+      .filter((item) => !item.isUnlocked && !redeemed.benefitIds.has(Number(item.benefit_id)) && !redeemed.spotIds.has(Number(item.spot_id)))
       .map((item) => ({
         ...item,
         id: item.benefit_id,
@@ -89,6 +94,27 @@ Page({
         redeemedAt: this.formatDate(item.created_at),
       })),
     }
+  },
+
+  getRedeemedUnlockIds(summary = this.data.summary) {
+    const benefitIds = new Set()
+    const spotIds = new Set()
+    ;(summary.redemptions || []).forEach((redemption) => {
+      if (redemption.category !== "spot_unlock" || !["confirmed", "used"].includes(redemption.status)) return
+      if (redemption.benefit_id != null) benefitIds.add(Number(redemption.benefit_id))
+      if (redemption.spot_id != null) spotIds.add(Number(redemption.spot_id))
+    })
+    return { benefitIds, spotIds }
+  },
+
+  applyRedemptionState(spotUnlocks, summary) {
+    const redeemed = this.getRedeemedUnlockIds(summary)
+    return (spotUnlocks || []).map((item) => ({
+      ...item,
+      isUnlocked: item.is_unlocked === true
+        || redeemed.benefitIds.has(Number(item.benefit_id))
+        || redeemed.spotIds.has(Number(item.spot_id)),
+    }))
   },
 
   formatDate(value) {

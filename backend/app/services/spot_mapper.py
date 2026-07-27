@@ -187,7 +187,9 @@ def locked_spot_intro(spot: ScenicSpot, lang: str) -> str:
         for term in (spot.city, spot.county, spot.river_name, *(point.name for point in spot.child_points))
         if term
     )
-    raw_intro = choose_text(lang, spot.description_zh, spot.description_en)
+    # The summary is the administrator-maintained public text for a locked
+    # spot. Detailed descriptions are reserved for users after unlocking.
+    raw_intro = choose_text(lang, spot.summary_zh, spot.summary_en)
     return remove_location_text(raw_intro, blocked_terms) or ""
 
 

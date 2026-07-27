@@ -41,6 +41,11 @@ class RedemptionCreate(BaseModel):
     benefit_id: int
 
 
+class SpotUnlockRedemptionCreate(BaseModel):
+    user_id: int
+    spot_id: int
+
+
 class BatchRedemptionCreate(BaseModel):
     user_id: int
     benefit_ids: list[int] = Field(min_length=1, max_length=50)
@@ -51,6 +56,7 @@ class RedemptionOut(BaseModel):
     benefit_id: int
     benefit_name: str
     category: str
+    spot_id: Optional[int] = None
     points_cost: int
     status: str
     verification_code: Optional[str] = None

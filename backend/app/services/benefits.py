@@ -115,6 +115,7 @@ def redemption_out(redemption: UserBenefitRedemption) -> dict:
         "benefit_id": redemption.benefit_id,
         "benefit_name": redemption.benefit.name_zh,
         "category": redemption.benefit.category,
+        "spot_id": redemption.benefit.spot_id,
         "points_cost": redemption.points_cost,
         "status": redemption.status,
         "verification_code": redemption.verification_code,

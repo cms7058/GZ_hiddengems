@@ -22,6 +22,7 @@
       <view class="locked-meta">
         <text>{{copy.locked}} · {{copy.level}} L{{spot.recommendation_level}}</text>
         <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
+        <text>{{copy.available}} {{benefitPoints}} {{copy.points}}</text>
       </view>
       <view class="tag-row">
         <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
@@ -32,6 +33,7 @@
       <text class="section-title">{{copy.description}}</text>
       <text class="description">{{spot.description || spot.summary}}</text>
     </view>
+    <button class="unlock-button" loading="{{unlocking}}" disabled="{{unlocking}}" bindtap="onUnlockSpot">{{copy.unlock}}</button>
   </scroll-view>
 
   <view class="floating-back" catchtap="onFloatingBackTap">←</view>

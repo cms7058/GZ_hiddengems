@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.models.spot import ScenicSpot
 from app.models.user import BenefitCatalog, BenefitPointLedger, MiniProgramUser, UserBenefitRedemption, UserSpotUnlock
-from app.schemas.benefits import BatchRedemptionCreate, BatchRedemptionOut, BenefitCatalogOut, RedemptionCreate, RedemptionOut, SpotUnlockCandidateOut, BenefitLedgerOut
+from app.schemas.benefits import BatchRedemptionCreate, BatchRedemptionOut, BenefitCatalogOut, RedemptionCreate, RedemptionOut, SpotUnlockCandidateOut, SpotUnlockRedemptionCreate, BenefitLedgerOut
 from app.services.benefits import backfill_legacy_benefit_points, ensure_spot_unlock_benefit, redeem_benefit, redemption_out
 from app.services.localization import choose_text, normalize_language
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
@@ -143,6 +143,43 @@ def redeem(payload: RedemptionCreate, db: Session = Depends(get_db)):
     if benefit is None: raise HTTPException(status_code=404, detail="Benefit not found")
     redemption = redeem_benefit(db, user, benefit)
     db.commit(); db.refresh(redemption); db.refresh(redemption, attribute_names=["benefit"])
+    return redemption_out(redemption)
+
+
+@router.post("/unlock-spot", response_model=RedemptionOut)
+def unlock_spot(payload: SpotUnlockRedemptionCreate, db: Session = Depends(get_db)):
+    """Redeem one locked spot directly from its protected detail page."""
+    user = db.get(MiniProgramUser, payload.user_id)
+    spot = db.get(ScenicSpot, payload.spot_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="User not found")
+    if spot is None or not spot.is_active or spot.review_status != "approved":
+        raise HTTPException(status_code=404, detail="Spot not found")
+    settings_by_level = get_active_pass_settings_by_level(db)
+    is_unlocked, required_points = get_spot_unlock_state(
+        spot_required_explore_points=spot.required_explore_points,
+        recommendation_level=spot.recommendation_level,
+        user=user,
+        fallback_explore_points=user.explore_points,
+        settings_by_level=settings_by_level,
+        spot_id=spot.id,
+        db=db,
+    )
+    if is_unlocked:
+        raise HTTPException(status_code=409, detail="Spot is already unlocked")
+    benefit = ensure_spot_unlock_benefit(
+        db,
+        spot_id=spot.id,
+        name_zh=spot.name_zh,
+        name_en=spot.name_en,
+        summary_zh=spot.summary_zh,
+        summary_en=spot.summary_en,
+        points_cost=required_points,
+    )
+    redemption = redeem_benefit(db, user, benefit)
+    db.commit()
+    db.refresh(redemption)
+    db.refresh(redemption, attribute_names=["benefit"])
     return redemption_out(redemption)
 
 

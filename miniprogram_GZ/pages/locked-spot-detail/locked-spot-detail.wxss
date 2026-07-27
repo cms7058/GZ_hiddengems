@@ -127,6 +127,14 @@ page {
   font-weight: 800;
 }
 
+.unlock-button {
+  width: 100%;
+  margin: 24rpx 0 16rpx;
+  background: #1f5f45;
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
 .floating-back {
   position: fixed;
   left: 24rpx;

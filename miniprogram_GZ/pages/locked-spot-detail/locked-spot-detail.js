@@ -11,7 +11,12 @@ const COPY = {
     locked: "秘境待解锁",
     level: "秘境等级",
     need: "还需",
+    available: "可用权益积分",
     points: "积分",
+    unlock: "去解锁",
+    unlockTitle: "确认解锁",
+    unlockSuccess: "秘境已解锁",
+    unlockInsufficient: "可用权益积分不足",
     description: "秘境介绍（未解锁）",
     noPhotos: "暂无公开照片",
     protected: "为保护秘境，本页面不展示地图、坐标、距离或导航信息。",
@@ -24,7 +29,12 @@ const COPY = {
     locked: "Locked Gem",
     level: "Gem Level",
     need: "Need",
+    available: "Available benefit points",
     points: "pts",
+    unlock: "Unlock",
+    unlockTitle: "Confirm Unlock",
+    unlockSuccess: "Gem unlocked",
+    unlockInsufficient: "Not enough benefit points",
     description: "Locked Gem Introduction",
     noPhotos: "No public photos",
     protected: "To protect this gem, maps, coordinates, distance, and navigation are not shown here.",
@@ -39,6 +49,8 @@ Page({
     loading: true,
     offline: false,
     serviceClosed: false,
+    benefitPoints: 0,
+    unlocking: false,
   },
 
   onLoad(options) {
@@ -75,8 +87,9 @@ Page({
         images: [],
         image_urls: [],
         description: cached.description || cached.summary || "",
-        need_points: Math.max(Number(cached.required_explore_points || 0) - Number(cached.user_explore_points || 0), 0),
+        need_points: Number(cached.required_explore_points || 0),
       },
+      benefitPoints: Number((app.globalData.user || {}).benefit_points || 0),
       loading: false,
       offline: false,
     })
@@ -92,14 +105,18 @@ Page({
     const hasCachedSpot = this.showCachedSpot()
     this.setData({ loading: !hasCachedSpot, offline: false, serviceClosed: false })
     try {
-      const spot = await request(`/spots/locked-preview/${this.spotId}?lang=${this.data.lang}&user_id=${user.id}`)
+      const [spot, benefits] = await Promise.all([
+        request(`/spots/locked-preview/${this.spotId}?lang=${this.data.lang}&user_id=${user.id}`),
+        request(`/benefits/me/${user.id}`),
+      ])
       this.setData({
         spot: {
           ...spot,
           images: [],
           image_urls: [],
-          need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
+          need_points: Number(spot.required_explore_points || 0),
         },
+        benefitPoints: Number(benefits.benefit_points || 0),
         loading: false,
       })
     } catch (error) {
@@ -120,6 +137,45 @@ Page({
     const urls = event.currentTarget.dataset.urls || []
     const current = event.currentTarget.dataset.current
     if (urls.length) wx.previewImage({ current, urls })
+  },
+
+  onUnlockSpot() {
+    const user = app.globalData.user || {}
+    const spot = this.data.spot
+    if (!user.id || !spot || this.data.unlocking) return
+    const required = Number(spot.need_points || 0)
+    const available = Number(this.data.benefitPoints || 0)
+    if (available < required) {
+      wx.showModal({
+        title: this.data.copy.unlockInsufficient,
+        content: `${this.data.copy.need} ${required} ${this.data.copy.points}，${this.data.copy.available} ${available} ${this.data.copy.points}`,
+        showCancel: false,
+      })
+      return
+    }
+    wx.showModal({
+      title: this.data.copy.unlockTitle,
+      content: `${this.data.copy.need} ${required} ${this.data.copy.points}，${this.data.copy.available} ${available} ${this.data.copy.points}`,
+      success: async (result) => {
+        if (!result.confirm) return
+        try {
+          this.setData({ unlocking: true })
+          const redemption = await request("/benefits/unlock-spot", {
+            method: "POST",
+            data: { user_id: user.id, spot_id: this.spotId },
+          })
+          const benefitPoints = Math.max(0, available - Number(redemption.points_cost || required))
+          app.globalData.user = { ...user, benefit_points: benefitPoints }
+          wx.setStorageSync("gzHiddenGemsUser", app.globalData.user)
+          wx.showToast({ title: this.data.copy.unlockSuccess, icon: "success" })
+          wx.redirectTo({ url: `/pages/spot-detail/spot-detail?id=${this.spotId}` })
+        } catch (error) {
+          wx.showModal({ title: this.data.copy.unlockInsufficient, content: error.message || "", showCancel: false })
+        } finally {
+          this.setData({ unlocking: false })
+        }
+      },
+    })
   },
 
   onFloatingBackTap() {

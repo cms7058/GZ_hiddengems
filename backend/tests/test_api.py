@@ -529,6 +529,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(benefit.status_code, 201)
         redeemed = self.client.post("/api/v1/benefits/redeem", json={"user_id": 1, "benefit_id": benefit.json()["id"]})
         self.assertEqual(redeemed.status_code, 200)
+        self.assertEqual(redeemed.json()["spot_id"], 1)
         self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1").status_code, 200)
         self.assertEqual(self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=2").status_code, 403)
         map_spots = self.client.get("/api/v1/spots/map?lang=zh-CN&user_id=1").json()
@@ -675,8 +676,8 @@ class ApiTest(unittest.TestCase):
         detail = detail_response.json()
         self.assertEqual(detail["id"], 1)
         self.assertEqual(detail["images"], [])
-        self.assertEqual(detail["summary"], "请尊重自然环境。")
-        self.assertEqual(detail["description"], "请尊重自然环境。")
+        self.assertEqual(detail["summary"], "云海景观很适合远观。")
+        self.assertEqual(detail["description"], "云海景观很适合远观。")
         self.assertNotIn("latitude", detail)
         self.assertNotIn("longitude", detail)
         self.assertNotIn("city", detail)
@@ -685,10 +686,13 @@ class ApiTest(unittest.TestCase):
 
         db = self.SessionLocal()
         user = db.get(MiniProgramUser, 1)
-        user.explore_points = 120
+        user.benefit_points = 120
         db.add(user)
         db.commit()
         db.close()
+        unlock_response = self.client.post("/api/v1/benefits/unlock-spot", json={"user_id": 1, "spot_id": 1})
+        self.assertEqual(unlock_response.status_code, 200)
+        self.assertEqual(unlock_response.json()["spot_id"], 1)
         unlocked_response = self.client.get("/api/v1/spots/locked-preview/1?user_id=1&lang=zh-CN")
         self.assertEqual(unlocked_response.status_code, 403)
 
