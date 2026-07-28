@@ -62,3 +62,4 @@
     </view>
   </view>
 </view>
+<view wx:if="{{back && floatingBack}}" class="global-floating-back" catchtap="onFloatingBack" aria-role="button" aria-label="返回上一页">←</view>

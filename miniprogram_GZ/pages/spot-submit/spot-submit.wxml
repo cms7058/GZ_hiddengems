@@ -61,6 +61,5 @@
       </view>
     </view>
   </scroll-view>
-  <view class="floating-back" catchtap="onBackTap">←</view>
   <bottom-tabs lang="{{lang}}"></bottom-tabs>
 </view>

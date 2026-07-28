@@ -1,5 +1,5 @@
 <view class="page">
-  <navigation-bar title="积分权益" back="true" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
+  <navigation-bar title="积分权益" back="{{true}}" color="#193127" background="rgba(244,241,232,0.96)"></navigation-bar>
   <view class="balance"><text>可用权益积分</text><text class="value">{{summary.benefit_points}}</text><text>累计探秘积分 {{summary.explore_points}}</text></view>
   <view class="tabs"><view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab===item.key?'active':''}}" data-key="{{item.key}}" bindtap="onTab">{{item.label}}</view></view>
   <scroll-view class="scroll" scroll-y>

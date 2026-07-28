@@ -70,6 +70,30 @@
   height: 100%;
 }
 
+.global-floating-back {
+  position: fixed;
+  left: 24rpx;
+  bottom: calc(236rpx + env(safe-area-inset-bottom));
+  z-index: 1000;
+  width: 76rpx;
+  height: 76rpx;
+  border: 1rpx solid rgba(47, 107, 79, 0.18);
+  border-radius: 50%;
+  background: rgba(205, 235, 211, 0.88);
+  box-shadow: 0 8rpx 24rpx rgba(25, 49, 39, 0.16);
+  color: #2f6b4f;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 76rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.global-floating-back:active {
+  background: rgba(183, 224, 193, 0.96);
+  transform: scale(0.95);
+}
+
 .weui-navigation-bar__loading {
   margin-right: 4px;
   align-items: center;

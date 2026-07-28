@@ -18,5 +18,4 @@
     enable-play-gesture
   ></video>
 
-  <view class="floating-back" catchtap="onFloatingBackTap">←</view>
 </view>
