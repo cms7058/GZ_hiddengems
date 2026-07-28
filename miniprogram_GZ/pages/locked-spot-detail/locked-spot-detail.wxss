@@ -127,12 +127,31 @@ page {
   font-weight: 800;
 }
 
-.unlock-button {
+.unlock-action-row {
+  display: flex;
+  justify-content: flex-end;
   width: 100%;
-  margin: 24rpx 0 16rpx;
-  background: #1f5f45;
+  margin-top: 18rpx;
+}
+
+.unlock-button {
+  display: block;
+  flex: 0 0 72rpx;
+  width: 72rpx !important;
+  min-width: 0 !important;
+  height: 38rpx;
+  margin: 0 0 0 auto !important;
+  padding: 0;
+  border: 0;
+  border-radius: 6rpx;
+  background: #2f80c9;
   color: #ffffff;
-  font-size: 28rpx;
+  font-size: 20rpx;
+  line-height: 38rpx;
+}
+
+.unlock-button::after {
+  border: 0;
 }
 
 .floating-back {

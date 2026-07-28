@@ -72,6 +72,12 @@ def ensure_active_user(db: Session, user_id: int) -> MiniProgramUser:
 
 
 def ensure_user_permission(user: MiniProgramUser, permission: str) -> None:
+    if permission == "can_checkin":
+        now = datetime.utcnow()
+        disabled_from = user.checkin_permission_disabled_from
+        disabled_until = user.checkin_permission_disabled_until
+        if disabled_from is not None and now >= disabled_from and (disabled_until is None or now <= disabled_until):
+            raise HTTPException(status_code=403, detail="Check-in permission is temporarily disabled")
     if not getattr(user, permission, False):
         raise HTTPException(status_code=403, detail="User permission denied")
 
@@ -500,6 +506,8 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     if risk.disable_permission:
         user.can_checkin = False
         user.checkin_risk_status = "disabled"
+        user.checkin_permission_disabled_from = datetime.utcnow()
+        user.checkin_permission_disabled_until = None
         user.checkin_permission_disabled_at = datetime.utcnow()
     elif risk.status in {"warning", "suspicious", "watch"}:
         user.checkin_risk_status = risk.status

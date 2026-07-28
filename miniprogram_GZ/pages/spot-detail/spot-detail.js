@@ -700,13 +700,15 @@ Page({
   onShareAppMessage() {
     const spot = this.data.spot || {}
     const shareToken = this.data.shareToken
+    // Share callbacks are inconsistent across WeChat releases. Confirming on
+    // invocation records this user-initiated share exactly once server-side.
+    if (shareToken) this.confirmShare(shareToken)
     return {
       title: spot.name || this.data.copy.navTitle,
       // This action invites friends into the mini program itself. Sharing a
       // protected spot URL could reveal an entry point the sender did not
       // intend to expose, so recipients always start from the home page.
       path: `/pages/index/index${shareToken ? `?ref=${encodeURIComponent(shareToken)}` : ""}`,
-      success: () => this.confirmShare(shareToken),
     }
   },
 

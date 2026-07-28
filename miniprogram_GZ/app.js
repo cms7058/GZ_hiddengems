@@ -46,10 +46,31 @@ App({
         ...savedUser,
       }
     }
+    this.globalData.pendingReferrerToken = String(wx.getStorageSync("gzPendingReferrerToken") || "").trim()
     this.globalData.hasAcceptedSafetyAgreement = Boolean(wx.getStorageSync("gzSafetyAgreementAccepted"))
     this.globalData.hasAcceptedProfileAuth = Boolean(wx.getStorageSync("gzProfileAuthAccepted"))
-    this.bootstrapUser({ referrer_token: options.query?.ref || "" })
+    this.captureReferrerToken(options)
+    this.bootstrapUser()
     preloadServiceHours().then(() => notifyServiceClosedIfNeeded())
+  },
+
+  onShow(options = {}) {
+    const hasReferral = this.captureReferrerToken(options)
+    const user = this.globalData.user || {}
+    // A share can reopen a mini program already resident in memory. When the
+    // recipient has not logged in yet, retry login with the retained token so
+    // the registration is attributed to the inviter.
+    if (hasReferral && !user.id && !this.globalData.userLoginPromise) {
+      this.bootstrapUser({ force: true })
+    }
+  },
+
+  captureReferrerToken(options = {}) {
+    const token = String(options.query?.ref || "").trim()
+    if (!token) return false
+    this.globalData.pendingReferrerToken = token
+    wx.setStorageSync("gzPendingReferrerToken", token)
+    return true
   },
 
   bootstrapUser(profile = {}) {
@@ -76,7 +97,8 @@ App({
             const nickname = (profile.nickname || "").trim()
             if (nickname) loginPayload.nickname = nickname
           }
-          if (profile.referrer_token) loginPayload.referrer_token = profile.referrer_token
+          const referrerToken = String(profile.referrer_token || this.globalData.pendingReferrerToken || "").trim()
+          if (referrerToken) loginPayload.referrer_token = referrerToken
           if (Object.prototype.hasOwnProperty.call(profile, "avatar_url")) {
             loginPayload.avatar_url = profile.avatar_url
           }
@@ -90,6 +112,8 @@ App({
                 ...this.globalData.user,
                 ...user,
               }
+              this.globalData.pendingReferrerToken = ""
+              wx.removeStorageSync("gzPendingReferrerToken")
               wx.setStorageSync("gzHiddenGemsUser", this.globalData.user)
               resolve(this.globalData.user)
             })
@@ -104,6 +128,7 @@ App({
             })
         },
         fail: (error) => {
+          this.globalData.userLoginPromise = null
           if (profile.force) {
             reject(error)
             return
@@ -173,6 +198,7 @@ App({
     lockedSpotListFilters: null,
     user: DEFAULT_USER,
     userLoginPromise: null,
+    pendingReferrerToken: "",
     device: {},
     window: {},
     lastTabPath: "pages/index/index",

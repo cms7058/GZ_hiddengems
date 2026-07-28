@@ -1942,6 +1942,20 @@ function fillTagForm(tag = null) {
   form.elements.is_active.checked = Boolean(tag.is_active);
 }
 
+function toDateTimeLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (item) => String(item).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function optionalDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function fillUserForm(user) {
   const form = $("#userForm");
   const permissionFields = ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"];
@@ -1982,10 +1996,13 @@ function fillUserForm(user) {
     "checkin_suspicious_count",
     "checkin_watch_count",
     "checkin_risk_status",
-    "checkin_permission_disabled_at",
+    "checkin_risk_level",
   ].forEach((field) => {
     form.elements[field].value = user[field] ?? "";
   });
+  form.elements.phone_verified_at.value = toDateTimeLocal(user.phone_verified_at);
+  form.elements.checkin_permission_disabled_from.value = toDateTimeLocal(user.checkin_permission_disabled_from || user.checkin_permission_disabled_at);
+  form.elements.checkin_permission_disabled_until.value = toDateTimeLocal(user.checkin_permission_disabled_until);
   $("#userAvatarPreview").innerHTML = userAvatarCell(user.avatar_url, user.nickname);
   form.elements.is_member.checked = Boolean(user.is_member);
   form.elements.is_active.checked = Boolean(user.is_active);
@@ -3513,6 +3530,21 @@ $("#userForm").addEventListener("submit", async (event) => {
     explore_points: Number(data.explore_points),
     benefit_points: Number(data.benefit_points),
     checkin_count: Number(data.checkin_count),
+    contribution_count: Number(data.contribution_count),
+    eco_credit: Number(data.eco_credit),
+    share_count: Number(data.share_count),
+    referral_registered_count: Number(data.referral_registered_count),
+    approved_recommendation_count: Number(data.approved_recommendation_count),
+    like_received_count: Number(data.like_received_count),
+    like_given_count: Number(data.like_given_count),
+    checkin_warning_count: Number(data.checkin_warning_count),
+    checkin_suspicious_count: Number(data.checkin_suspicious_count),
+    checkin_watch_count: Number(data.checkin_watch_count),
+    checkin_risk_status: String(data.checkin_risk_status || "normal").trim(),
+    checkin_risk_level: String(data.checkin_risk_level || "normal").trim(),
+    phone_verified_at: optionalDateTime(data.phone_verified_at),
+    checkin_permission_disabled_from: optionalDateTime(data.checkin_permission_disabled_from),
+    checkin_permission_disabled_until: optionalDateTime(data.checkin_permission_disabled_until),
     is_member: form.elements.is_member.checked,
     is_active: form.elements.is_active.checked,
     can_upload_image: form.elements.can_upload_image.checked,

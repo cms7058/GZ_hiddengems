@@ -14,6 +14,21 @@ class MiniProgramUserUpdate(BaseModel):
     explore_points: Optional[int] = Field(default=None, ge=0)
     benefit_points: Optional[int] = Field(default=None, ge=0)
     checkin_count: Optional[int] = Field(default=None, ge=0)
+    contribution_count: Optional[int] = Field(default=None, ge=0)
+    eco_credit: Optional[int] = Field(default=None, ge=0, le=100)
+    share_count: Optional[int] = Field(default=None, ge=0)
+    referral_registered_count: Optional[int] = Field(default=None, ge=0)
+    approved_recommendation_count: Optional[int] = Field(default=None, ge=0)
+    like_received_count: Optional[int] = Field(default=None, ge=0)
+    like_given_count: Optional[int] = Field(default=None, ge=0)
+    checkin_warning_count: Optional[int] = Field(default=None, ge=0)
+    checkin_suspicious_count: Optional[int] = Field(default=None, ge=0)
+    checkin_watch_count: Optional[int] = Field(default=None, ge=0)
+    checkin_risk_status: Optional[str] = Field(default=None, max_length=32)
+    checkin_risk_level: Optional[str] = Field(default=None, max_length=16)
+    phone_verified_at: Optional[datetime] = None
+    checkin_permission_disabled_from: Optional[datetime] = None
+    checkin_permission_disabled_until: Optional[datetime] = None
     is_member: Optional[bool] = None
     is_active: Optional[bool] = None
     can_upload_image: Optional[bool] = None
@@ -37,6 +52,19 @@ class MiniProgramUserCreate(BaseModel):
     checkin_count: int = Field(default=0, ge=0)
     contribution_count: int = Field(default=0, ge=0)
     eco_credit: int = Field(default=100, ge=0, le=100)
+    share_count: int = Field(default=0, ge=0)
+    referral_registered_count: int = Field(default=0, ge=0)
+    approved_recommendation_count: int = Field(default=0, ge=0)
+    like_received_count: int = Field(default=0, ge=0)
+    like_given_count: int = Field(default=0, ge=0)
+    checkin_warning_count: int = Field(default=0, ge=0)
+    checkin_suspicious_count: int = Field(default=0, ge=0)
+    checkin_watch_count: int = Field(default=0, ge=0)
+    checkin_risk_status: str = Field(default="normal", max_length=32)
+    checkin_risk_level: str = Field(default="normal", max_length=16)
+    phone_verified_at: Optional[datetime] = None
+    checkin_permission_disabled_from: Optional[datetime] = None
+    checkin_permission_disabled_until: Optional[datetime] = None
     is_member: bool = False
     is_active: bool = True
     can_upload_image: bool = True
@@ -82,6 +110,8 @@ class MiniProgramUserOut(BaseModel):
     checkin_watch_count: int = 0
     checkin_risk_status: str = "normal"
     checkin_risk_level: str = "normal"
+    checkin_permission_disabled_from: Optional[datetime] = None
+    checkin_permission_disabled_until: Optional[datetime] = None
     checkin_permission_disabled_at: Optional[datetime] = None
 
     class Config:

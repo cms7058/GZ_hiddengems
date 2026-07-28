@@ -1,6 +1,6 @@
 import json
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 from fastapi.testclient import TestClient
@@ -1411,6 +1411,85 @@ class ApiTest(unittest.TestCase):
         duplicate_confirmation = self.client.post(f"/api/v1/mini/shares/{token}/confirm?user_id=1")
         self.assertEqual(duplicate_confirmation.status_code, 200)
         self.assertEqual(duplicate_confirmation.json()["share_count"], 1)
+
+    def test_new_registration_from_share_awards_referrer_points_once(self):
+        prepared = self.client.post("/api/v1/mini/shares/prepare?user_id=1")
+        self.assertEqual(prepared.status_code, 200)
+        token = prepared.json()["share_token"]
+
+        with patch("app.api.v1.routers.mini.resolve_wechat_openid", return_value="shared-new-user-openid"):
+            registered = self.client.post(
+                "/api/v1/mini/login",
+                json={"code": "shared-new-user-code", "referrer_token": token},
+            )
+        self.assertEqual(registered.status_code, 200)
+
+        with self.SessionLocal() as db:
+            inviter = db.get(MiniProgramUser, 1)
+            self.assertEqual(inviter.referral_registered_count, 1)
+            self.assertEqual(inviter.explore_points, 140)
+            self.assertEqual(inviter.benefit_points, 20)
+
+        with patch("app.api.v1.routers.mini.resolve_wechat_openid", return_value="shared-new-user-openid"):
+            repeated_login = self.client.post(
+                "/api/v1/mini/login",
+                json={"code": "shared-new-user-code-2", "referrer_token": token},
+            )
+        self.assertEqual(repeated_login.status_code, 200)
+        with self.SessionLocal() as db:
+            inviter = db.get(MiniProgramUser, 1)
+            self.assertEqual(inviter.referral_registered_count, 1)
+            self.assertEqual(inviter.explore_points, 140)
+            self.assertEqual(inviter.benefit_points, 20)
+
+    def test_admin_can_edit_user_metrics_and_temporary_checkin_window(self):
+        headers = self.login_headers()
+        active_from = datetime.utcnow() - timedelta(minutes=10)
+        active_until = datetime.utcnow() + timedelta(minutes=10)
+        updated = self.client.patch(
+            "/api/v1/admin/users/1",
+            headers=headers,
+            json={
+                "share_count": 7,
+                "referral_registered_count": 3,
+                "contribution_count": 9,
+                "eco_credit": 88,
+                "like_received_count": 4,
+                "checkin_warning_count": 2,
+                "can_checkin": True,
+                "checkin_permission_disabled_from": active_from.isoformat(),
+                "checkin_permission_disabled_until": active_until.isoformat(),
+            },
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()["share_count"], 7)
+        self.assertEqual(updated.json()["referral_registered_count"], 3)
+        self.assertEqual(updated.json()["contribution_count"], 9)
+        self.assertIsNotNone(updated.json()["checkin_permission_disabled_from"])
+        self.assertIsNotNone(updated.json()["checkin_permission_disabled_until"])
+
+        blocked = self.client.post(
+            "/api/v1/mini/checkins",
+            json={"user_id": 1, "spot_id": 1, "latitude": "25.7436", "longitude": "108.5062", "image_url": "/media/checkins/test.jpg"},
+        )
+        self.assertEqual(blocked.status_code, 403)
+        self.assertIn("temporarily disabled", blocked.json()["detail"])
+
+        expired = self.client.patch(
+            "/api/v1/admin/users/1",
+            headers=headers,
+            json={
+                "can_checkin": True,
+                "checkin_permission_disabled_from": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
+                "checkin_permission_disabled_until": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+            },
+        )
+        self.assertEqual(expired.status_code, 200)
+        restored = self.client.post(
+            "/api/v1/mini/checkins",
+            json={"user_id": 1, "spot_id": 1, "latitude": "25.7436", "longitude": "108.5062", "image_url": "/media/checkins/test.jpg"},
+        )
+        self.assertEqual(restored.status_code, 201)
 
     def test_admin_can_change_pass_level_without_duplicates(self):
         headers = self.login_headers()

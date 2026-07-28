@@ -11,7 +11,7 @@ const COPY = {
     serviceClosed: "后台数据服务开放时间为每天北京时间 08:00-24:00，请在开放时间内使用。",
     radius: "搜索范围",
     distance: "距离",
-    need: "还需",
+    need: "所需",
     points: "积分",
     protected: "为保护秘境，地图不展示未解锁点位。",
     noPhotos: "暂无公开照片",
@@ -83,7 +83,7 @@ Page({
           ...spot,
           images: [],
           image_urls: [],
-          need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
+          need_points: Number(spot.required_explore_points || 0),
         }
       })
       this.setData({ spots, loading: false, offline: false, serviceClosed: false, radiusKm: 0, catalogMode: true })
@@ -111,7 +111,7 @@ Page({
           ...spot,
           images: [],
           image_urls: [],
-          need_points: Math.max(Number(spot.required_explore_points || 0) - Number(spot.user_explore_points || 0), 0),
+          need_points: Number(spot.required_explore_points || 0),
         }
       })
       this.setData({ spots, loading: false })

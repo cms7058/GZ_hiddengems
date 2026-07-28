@@ -925,8 +925,9 @@ Page({
 
   configureHomeShareMenu() {
     const user = this.data.user || app.globalData.user || {}
-    if (user.can_share === false) {
+    if (user.can_share === false || !this.data.shareToken) {
       if (wx.hideShareMenu) wx.hideShareMenu({ menus: ["shareAppMessage", "shareTimeline"] })
+      if (wx.hideOptionMenu) wx.hideOptionMenu()
       return
     }
     if (wx.showOptionMenu) wx.showOptionMenu()
@@ -943,19 +944,22 @@ Page({
     if (!user.id || user.can_share === false) return
     try {
       const result = await request(`/mini/shares/prepare?user_id=${user.id}`, { method: "POST" })
-      this.setData({ shareToken: result.share_token || "" })
+      this.setData({ shareToken: result.share_token || "" }, () => this.configureHomeShareMenu())
     } catch (error) {
       console.warn("home share preparation failed", error)
-      this.setData({ shareToken: "" })
+      this.setData({ shareToken: "" }, () => this.configureHomeShareMenu())
     }
   },
 
   onShareAppMessage() {
     const shareToken = this.data.shareToken
+    // Newer WeChat versions do not reliably invoke the share-success callback.
+    // Counting the prepared, user-initiated share here keeps the profile's
+    // share statistic current; the backend event is idempotent.
+    if (shareToken) this.confirmHomeShare(shareToken)
     return {
       title: this.data.copy.navTitle,
       path: `/pages/index/index${shareToken ? `?ref=${encodeURIComponent(shareToken)}` : ""}`,
-      success: () => this.confirmHomeShare(shareToken),
     }
   },
 

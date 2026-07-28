@@ -27,13 +27,15 @@
       <view class="tag-row">
         <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
       </view>
+      <view class="unlock-action-row">
+        <button class="unlock-button" loading="{{unlocking}}" disabled="{{unlocking}}" bindtap="onUnlockSpot">{{copy.unlock}}</button>
+      </view>
     </view>
 
     <view class="content-card description-card">
       <text class="section-title">{{copy.description}}</text>
       <text class="description">{{spot.description || spot.summary}}</text>
     </view>
-    <button class="unlock-button" loading="{{unlocking}}" disabled="{{unlocking}}" bindtap="onUnlockSpot">{{copy.unlock}}</button>
   </scroll-view>
 
   <view class="floating-back" catchtap="onFloatingBackTap">←</view>

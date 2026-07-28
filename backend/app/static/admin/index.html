@@ -687,20 +687,22 @@
           <label><span>探秘积分</span><input name="explore_points" type="number" min="0" /></label>
           <label><span>可用权益积分</span><input name="benefit_points" type="number" min="0" /></label>
           <label><span>打卡数</span><input name="checkin_count" type="number" min="0" /></label>
-          <label><span>贡献数</span><input name="contribution_count" type="number" min="0" readonly /></label>
-          <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" readonly /></label>
+          <label><span>贡献数</span><input name="contribution_count" type="number" min="0" /></label>
+          <label><span>环保信用</span><input name="eco_credit" type="number" min="0" max="100" /></label>
           <label><span>会员安全等级</span><select name="safety_level"><option value="general">一般</option><option value="risk">风险</option><option value="quality">优质</option></select></label>
-          <label><span>手机号认证时间</span><input name="phone_verified_at" readonly /></label>
-          <label><span>分享次数</span><input name="share_count" type="number" readonly /></label>
-          <label><span>分享注册人数</span><input name="referral_registered_count" type="number" readonly /></label>
-          <label><span>推荐通过次数</span><input name="approved_recommendation_count" type="number" readonly /></label>
-          <label><span>获得点赞数</span><input name="like_received_count" type="number" readonly /></label>
-          <label><span>点赞次数</span><input name="like_given_count" type="number" readonly /></label>
-          <label><span>路线警告次数</span><input name="checkin_warning_count" type="number" readonly /></label>
-          <label><span>可疑打卡次数</span><input name="checkin_suspicious_count" type="number" readonly /></label>
-          <label><span>重点关注次数</span><input name="checkin_watch_count" type="number" readonly /></label>
-          <label><span>打卡风控状态</span><input name="checkin_risk_status" readonly /></label>
-          <label><span>打卡权限停用时间</span><input name="checkin_permission_disabled_at" readonly /></label>
+          <label><span>手机号认证时间</span><input name="phone_verified_at" type="datetime-local" /></label>
+          <label><span>分享次数</span><input name="share_count" type="number" min="0" /></label>
+          <label><span>分享注册人数</span><input name="referral_registered_count" type="number" min="0" /></label>
+          <label><span>推荐通过次数</span><input name="approved_recommendation_count" type="number" min="0" /></label>
+          <label><span>获得点赞数</span><input name="like_received_count" type="number" min="0" /></label>
+          <label><span>点赞次数</span><input name="like_given_count" type="number" min="0" /></label>
+          <label><span>路线警告次数</span><input name="checkin_warning_count" type="number" min="0" /></label>
+          <label><span>可疑打卡次数</span><input name="checkin_suspicious_count" type="number" min="0" /></label>
+          <label><span>重点关注次数</span><input name="checkin_watch_count" type="number" min="0" /></label>
+          <label><span>打卡风控状态</span><input name="checkin_risk_status" maxlength="32" /></label>
+          <label><span>打卡风险等级</span><input name="checkin_risk_level" maxlength="16" /></label>
+          <label><span>打卡权限停用开始</span><input name="checkin_permission_disabled_from" type="datetime-local" /></label>
+          <label><span>打卡权限停用截止</span><input name="checkin_permission_disabled_until" type="datetime-local" /></label>
           <label class="switch-line"><input name="is_member" type="checkbox" /> <span>会员</span></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
           <div class="full checks permission-checks">

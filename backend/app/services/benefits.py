@@ -25,6 +25,13 @@ def ensure_spot_unlock_benefit(
         .order_by(BenefitCatalog.id.asc())
     )
     if benefit is not None:
+        # Spot unlock benefits mirror the effective requirement calculated from
+        # the spot and its pass-level rule. This keeps legacy catalog rows from
+        # charging a different amount than the mini program displays.
+        effective_cost = max(0, int(points_cost or 0))
+        if benefit.points_cost != effective_cost:
+            benefit.points_cost = effective_cost
+            db.flush()
         return benefit
     benefit = BenefitCatalog(
         category="spot_unlock",
