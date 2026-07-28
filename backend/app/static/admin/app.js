@@ -1956,6 +1956,16 @@ function optionalDateTime(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function setUserFormValue(form, field, value) {
+  const control = form.elements[field];
+  if (control && "value" in control) control.value = value ?? "";
+}
+
+function setUserFormChecked(form, field, checked) {
+  const control = form.elements[field];
+  if (control && "checked" in control) control.checked = Boolean(checked);
+}
+
 function fillUserForm(user) {
   const form = $("#userForm");
   const permissionFields = ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"];
@@ -1964,15 +1974,15 @@ function fillUserForm(user) {
   $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
   if (!user) {
     $("#userAvatarPreview").innerHTML = '<span class="default-avatar">用</span><span class="muted">系统默认头像</span>';
-    form.elements.language.value = "zh-CN";
-    form.elements.explore_points.value = 0;
-    form.elements.benefit_points.value = 0;
-    form.elements.checkin_count.value = 0;
-    form.elements.contribution_count.value = 0;
-    form.elements.eco_credit.value = 100;
-    form.elements.is_member.checked = false;
-    form.elements.is_active.checked = true;
-    permissionFields.forEach((field) => { form.elements[field].checked = true; });
+    setUserFormValue(form, "language", "zh-CN");
+    setUserFormValue(form, "explore_points", 0);
+    setUserFormValue(form, "benefit_points", 0);
+    setUserFormValue(form, "checkin_count", 0);
+    setUserFormValue(form, "contribution_count", 0);
+    setUserFormValue(form, "eco_credit", 100);
+    setUserFormChecked(form, "is_member", false);
+    setUserFormChecked(form, "is_active", true);
+    permissionFields.forEach((field) => setUserFormChecked(form, field, true));
     return;
   }
   [
@@ -1998,15 +2008,15 @@ function fillUserForm(user) {
     "checkin_risk_status",
     "checkin_risk_level",
   ].forEach((field) => {
-    form.elements[field].value = user[field] ?? "";
+    setUserFormValue(form, field, user[field]);
   });
-  form.elements.phone_verified_at.value = toDateTimeLocal(user.phone_verified_at);
-  form.elements.checkin_permission_disabled_from.value = toDateTimeLocal(user.checkin_permission_disabled_from || user.checkin_permission_disabled_at);
-  form.elements.checkin_permission_disabled_until.value = toDateTimeLocal(user.checkin_permission_disabled_until);
+  setUserFormValue(form, "phone_verified_at", toDateTimeLocal(user.phone_verified_at));
+  setUserFormValue(form, "checkin_permission_disabled_from", toDateTimeLocal(user.checkin_permission_disabled_from || user.checkin_permission_disabled_at));
+  setUserFormValue(form, "checkin_permission_disabled_until", toDateTimeLocal(user.checkin_permission_disabled_until));
   $("#userAvatarPreview").innerHTML = userAvatarCell(user.avatar_url, user.nickname);
-  form.elements.is_member.checked = Boolean(user.is_member);
-  form.elements.is_active.checked = Boolean(user.is_active);
-  permissionFields.forEach((field) => { form.elements[field].checked = user[field] !== false; });
+  setUserFormChecked(form, "is_member", user.is_member);
+  setUserFormChecked(form, "is_active", user.is_active);
+  permissionFields.forEach((field) => setUserFormChecked(form, field, user[field] !== false));
 }
 
 function fillTravelNoteForm(note = null) {
