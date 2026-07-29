@@ -519,6 +519,10 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(liked.json()["liked_by_me"])
         self.assertEqual(liked.json()["liked_users"][0]["nickname"], "点赞用户")
 
+        admin_detail = self.client.get("/api/v1/admin/spots/1", headers=self.login_headers())
+        self.assertEqual(admin_detail.status_code, 200)
+        self.assertEqual(admin_detail.json()["like_count"], 1)
+
         duplicate = self.client.post("/api/v1/mini/spots/1/like?user_id=2")
         self.assertEqual(duplicate.status_code, 200)
         self.assertEqual(duplicate.json()["like_count"], 1)

@@ -499,6 +499,7 @@
             <select name="recommendation_level" required></select>
           </label>
           <label><span>解锁积分</span><input name="required_explore_points" type="number" min="0" value="0" /></label>
+          <label><span>点赞次数</span><input name="like_count" type="number" value="0" readonly /></label>
           <label><span>打卡半径米</span><input name="checkin_radius_meters" type="number" min="50" value="300" /></label>
           <label class="full"><span>标签</span><div id="spotTagChecks" class="checks"></div></label>
           <label class="switch-line"><input name="is_active" type="checkbox" checked /> <span>启用</span></label>
@@ -988,6 +989,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260728-user-form-fix"></script>
+    <script src="/admin/static/app.js?v=20260729-spot-like-count"></script>
   </body>
 </html>

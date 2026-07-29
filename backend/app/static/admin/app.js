@@ -1860,6 +1860,7 @@ function fillSpotForm(spot = null) {
     form.elements.review_status.value = "draft";
     form.elements.visibility_level.value = "public";
     form.elements.required_explore_points.value = 0;
+    form.elements.like_count.value = 0;
     form.elements.checkin_radius_meters.value = 300;
     form.elements.river_name.value = "";
     form.elements.river_upstream_latitude.value = "";
@@ -1897,6 +1898,7 @@ function fillSpotForm(spot = null) {
     "review_status",
     "recommendation_level",
     "required_explore_points",
+    "like_count",
     "checkin_radius_meters",
   ].forEach((field) => {
     form.elements[field].value = spot[field] ?? "";
@@ -3179,6 +3181,7 @@ $("#spotForm").addEventListener("submit", async (event) => {
   const saveButton = $("#saveSpotBtn");
   if (saveButton?.disabled) return;
   const data = formToObject(form);
+  delete data.like_count;
   const path = state.editingSpotId ? `/admin/spots/${state.editingSpotId}` : "/admin/spots";
   const method = state.editingSpotId ? "PATCH" : "POST";
   setSpotSaveStatus("正在保存");

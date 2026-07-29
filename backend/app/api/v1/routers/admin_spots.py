@@ -155,6 +155,7 @@ def list_admin_spots(
         selectinload(ScenicSpot.tags),
         selectinload(ScenicSpot.child_points),
         selectinload(ScenicSpot.spot_images),
+        selectinload(ScenicSpot.spot_likes),
         selectinload(ScenicSpot.wechat_channel_videos),
     )
     active_image = ScenicSpot.spot_images.any(
@@ -230,7 +231,7 @@ def get_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.spot_likes), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -274,7 +275,7 @@ def update_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.spot_likes), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:
@@ -314,7 +315,7 @@ def review_admin_spot(
 ) -> SpotAdminOut:
     spot = db.scalar(
         select(ScenicSpot)
-        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.wechat_channel_videos))
+        .options(selectinload(ScenicSpot.tags), selectinload(ScenicSpot.child_points), selectinload(ScenicSpot.spot_images), selectinload(ScenicSpot.spot_likes), selectinload(ScenicSpot.wechat_channel_videos))
         .where(ScenicSpot.id == spot_id)
     )
     if spot is None:

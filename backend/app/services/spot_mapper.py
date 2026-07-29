@@ -70,6 +70,7 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
         spot_code=spot.spot_code,
         # Admin list thumbnails need the same signed display URL as other media.
         cover_image_url=spot_cover_image_url(spot, db),
+        like_count=len(getattr(spot, "spot_likes", []) or []),
         name_zh=spot.name_zh,
         name_en=spot.name_en,
         locked_name_zh=spot.locked_name_zh,

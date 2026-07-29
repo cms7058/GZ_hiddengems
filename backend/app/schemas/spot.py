@@ -187,6 +187,7 @@ class SpotAdminOut(SpotCreate):
     id: int
     spot_code: Optional[str] = None
     cover_image_url: Optional[str] = None
+    like_count: int = 0
     wechat_channel_videos: list[WechatChannelVideoOut] = Field(default_factory=list)
     tags: list[LocalizedTag] = Field(default_factory=list)
     child_points: list[SpotChildPointOut] = Field(default_factory=list)
