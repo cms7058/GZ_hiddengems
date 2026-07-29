@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, SpotLike, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
 from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, TagAdminOut, WechatChannelVideoOut
+from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, SpotLikeStatusOut, SpotLikeUserOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
@@ -399,12 +399,31 @@ def spot_to_detail_out(
             for comment in getattr(spot, "comments", [])
             if comment.status == "approved" or (user is not None and comment.user_id == user.id)
         ],
+        like_count=len(getattr(spot, "spot_likes", []) or []),
+        liked_by_me=any(like.user_id == user.id for like in getattr(spot, "spot_likes", []) or []) if user is not None else False,
+        liked_users=[spot_like_user_to_out(like, db) for like in getattr(spot, "spot_likes", []) or []],
         my_checkins=[checkin_to_out(record, db) for record in my_checkins or []],
         lifestyle_recommendations=[
             recommendation_to_out(recommendation, db)
             for recommendation in getattr(spot, "lifestyle_recommendations", [])
             if recommendation.is_active
         ],
+    )
+
+
+def spot_like_user_to_out(like: SpotLike, db: Optional[Session] = None) -> SpotLikeUserOut:
+    return SpotLikeUserOut(
+        id=like.user.id,
+        nickname=like.user.nickname,
+        avatar_display_url=get_media_proxy_path(db, like.user.avatar_url) if db else like.user.avatar_url,
+    )
+
+
+def spot_like_status_to_out(likes: list[SpotLike], viewer_user_id: Optional[int], db: Optional[Session] = None) -> SpotLikeStatusOut:
+    return SpotLikeStatusOut(
+        like_count=len(likes),
+        liked_by_me=any(like.user_id == viewer_user_id for like in likes) if viewer_user_id is not None else False,
+        liked_users=[spot_like_user_to_out(like, db) for like in likes],
     )
 
 

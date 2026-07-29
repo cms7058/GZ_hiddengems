@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.db.session import get_db
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import LifestyleRecommendation, SpotImage, SpotLike, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag
 from app.models.user import CheckinRecord, MiniProgramUser, PassLevelSetting
 from app.schemas.spot import HomeSpotOut, LockedNearbySpotCountOut, LockedSpotDetailOut, LockedSpotPreviewOut, MapSpotOut, PassLevelRuleOut, SpotDetailOut
@@ -320,6 +320,7 @@ def get_spot_detail(
             selectinload(ScenicSpot.comments).joinedload(UserComment.user),
             selectinload(ScenicSpot.comments).joinedload(UserComment.spot),
             selectinload(ScenicSpot.comments).selectinload(UserComment.likes),
+            selectinload(ScenicSpot.spot_likes).joinedload(SpotLike.user),
             selectinload(ScenicSpot.lifestyle_recommendations).joinedload(LifestyleRecommendation.spot),
         )
         .where(

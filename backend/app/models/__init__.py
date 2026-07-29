@@ -1,5 +1,5 @@
 from app.models.admin import AdminUser
-from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotRecommendation, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotLike, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, SpotTag, Tag, WechatChannelVideo
 from app.models.user import (
@@ -36,6 +36,7 @@ __all__ = [
     "ScenicSpot",
     "SpotChildPoint",
     "SpotImage",
+    "SpotLike",
     "SpotRecommendation",
     "SpotTag",
     "Tag",

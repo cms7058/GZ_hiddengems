@@ -8,14 +8,15 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.content import CommentLike, ContentMedia, SpotRecommendation, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, SpotLike, SpotRecommendation, TravelNote, UserComment
 from app.models.spot import ScenicSpot
 from app.models.user import CheckinRecord, MiniProgramUser, ShareEvent
 from app.schemas.content import ContentMediaOut, TravelNoteCreate, TravelNoteOut, UserCommentCreate, UserCommentOut
+from app.schemas.spot import SpotLikeStatusOut
 from app.schemas.growth import SpotRecommendationCreate, SpotRecommendationOut
 from app.schemas.mini_assistant import MiniAssistantQuery
 from app.schemas.user import CheckinCreate, CheckinRecordOut, MiniProgramLoginIn, MiniProgramUserOut
@@ -29,7 +30,7 @@ from app.services.pass_levels import get_active_pass_settings_by_level, get_spot
 from app.services.localization import choose_text, normalize_language
 from app.services.archive import handle_mini_archive_query
 from app.services.benefits import backfill_legacy_benefit_points
-from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, travel_note_to_out
+from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, spot_like_status_to_out, travel_note_to_out
 
 
 router = APIRouter()
@@ -639,6 +640,39 @@ def unlike_comment(comment_id: int, user_id: int, db: Session = Depends(get_db))
     db.refresh(comment)
     db.refresh(comment, attribute_names=["user", "likes"])
     return comment_to_out(comment, db, viewer_user_id=user.id)
+
+
+def spot_like_status(db: Session, spot_id: int, viewer_user_id: Optional[int]) -> SpotLikeStatusOut:
+    likes = db.scalars(
+        select(SpotLike)
+        .options(joinedload(SpotLike.user))
+        .where(SpotLike.spot_id == spot_id)
+        .order_by(SpotLike.created_at.desc(), SpotLike.id.desc())
+    ).all()
+    return spot_like_status_to_out(likes, viewer_user_id, db)
+
+
+@router.post("/spots/{spot_id}/like", response_model=SpotLikeStatusOut)
+def like_spot(spot_id: int, user_id: int, db: Session = Depends(get_db)) -> SpotLikeStatusOut:
+    user = ensure_active_user(db, user_id)
+    ensure_user_permission(user, "can_like_comment")
+    ensure_active_spot(db, spot_id)
+    like = db.scalar(select(SpotLike).where(SpotLike.spot_id == spot_id, SpotLike.user_id == user.id))
+    if like is None:
+        db.add(SpotLike(spot_id=spot_id, user_id=user.id))
+        db.commit()
+    return spot_like_status(db, spot_id, user.id)
+
+
+@router.delete("/spots/{spot_id}/like", response_model=SpotLikeStatusOut)
+def unlike_spot(spot_id: int, user_id: int, db: Session = Depends(get_db)) -> SpotLikeStatusOut:
+    user = ensure_active_user(db, user_id)
+    ensure_active_spot(db, spot_id)
+    like = db.scalar(select(SpotLike).where(SpotLike.spot_id == spot_id, SpotLike.user_id == user.id))
+    if like is not None:
+        db.delete(like)
+        db.commit()
+    return spot_like_status(db, spot_id, user.id)
 
 
 @router.post("/spot-recommendations", response_model=SpotRecommendationOut, status_code=201)

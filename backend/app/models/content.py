@@ -80,6 +80,21 @@ class CommentLike(Base):
     user = relationship("MiniProgramUser")
 
 
+class SpotLike(Base):
+    """A user's public endorsement of a scenic spot."""
+
+    __tablename__ = "spot_likes"
+    __table_args__ = (UniqueConstraint("spot_id", "user_id", name="uq_spot_like_user"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("mini_program_users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    spot = relationship("ScenicSpot", back_populates="spot_likes")
+    user = relationship("MiniProgramUser", back_populates="spot_likes")
+
+
 class SpotRecommendation(Base):
     __tablename__ = "spot_recommendations"
 

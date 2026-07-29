@@ -58,6 +58,7 @@ class ScenicSpot(Base):
     tags = relationship("Tag", secondary="spot_tags", back_populates="spots")
     travel_notes = relationship("TravelNote", back_populates="spot")
     comments = relationship("UserComment", back_populates="spot")
+    spot_likes = relationship("SpotLike", back_populates="spot", cascade="all, delete-orphan")
     lifestyle_recommendations = relationship("LifestyleRecommendation", back_populates="spot")
     spot_images = relationship("SpotImage", back_populates="spot")
     wechat_channel_videos = relationship(

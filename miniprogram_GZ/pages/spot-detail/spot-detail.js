@@ -9,7 +9,10 @@ const MAX_VIDEO_UPLOAD_BYTES = 8 * 1024 * 1024
 const COPY = {
   "zh-CN": {
     navTitle: "秘境详情",
-    points: "探秘积分",
+    likes: "点赞次数",
+    likedUsers: "点赞用户",
+    emptyLikedUsers: "暂时还没有人点赞",
+    close: "关闭",
     unlockNeed: "解锁积分",
     users: "互动用户",
     interaction: "公开互动",
@@ -88,7 +91,10 @@ const COPY = {
   },
   "en-US": {
     navTitle: "Gem Detail",
-    points: "Explore Points",
+    likes: "Like Count",
+    likedUsers: "Liked by",
+    emptyLikedUsers: "No likes yet",
+    close: "Close",
     unlockNeed: "Required",
     users: "Users",
     interaction: "Community",
@@ -189,6 +195,7 @@ Page({
     error: "",
     fallbackMode: false,
     interactionMessages: [],
+    showLikedUsers: false,
     scrollTarget: "",
     checkinNote: "",
     checkinMedia: null,
@@ -382,6 +389,12 @@ Page({
         display_url: resolveMediaUrl(item.display_url || item.image_url),
       })),
       wechat_channel_videos: (spot.wechat_channel_videos || []).filter((item) => item.is_active !== false && item.finder_user_name && item.feed_id),
+      like_count: Number(spot.like_count || 0),
+      liked_by_me: Boolean(spot.liked_by_me),
+      liked_users: (spot.liked_users || []).map((item) => ({
+        ...item,
+        avatar_display_url: resolveMediaUrl(item.avatar_display_url),
+      })),
     }
   },
 
@@ -664,6 +677,10 @@ Page({
 
   onStatTap(event) {
     const target = event.currentTarget.dataset.target
+    if (target === "likes") {
+      this.setData({ showLikedUsers: true })
+      return
+    }
     if (target === "checkin") {
       this.openAction("checkin")
       return
@@ -678,6 +695,38 @@ Page({
   onActionTap(event) {
     this.openAction(event.currentTarget.dataset.action)
   },
+
+  async onToggleSpotLike() {
+    const { spot, user } = this.data
+    if (!spot || !user || user.can_like_comment === false) {
+      wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+      return
+    }
+    try {
+      const result = await request(`/mini/spots/${spot.id}/like?user_id=${user.id}`, {
+        method: spot.liked_by_me ? "DELETE" : "POST",
+      })
+      this.setData({
+        spot: {
+          ...spot,
+          like_count: Number(result.like_count || 0),
+          liked_by_me: Boolean(result.liked_by_me),
+          liked_users: (result.liked_users || []).map((item) => ({
+            ...item,
+            avatar_display_url: resolveMediaUrl(item.avatar_display_url),
+          })),
+        },
+      })
+    } catch (error) {
+      wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+    }
+  },
+
+  onCloseLikedUsers() {
+    this.setData({ showLikedUsers: false })
+  },
+
+  noop() {},
 
   async prepareShare() {
     const user = this.data.user || {}

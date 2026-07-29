@@ -47,6 +47,8 @@ class MiniProgramUser(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    spot_likes = relationship("SpotLike", back_populates="user", cascade="all, delete-orphan")
+
 
 class UserSafetyLevelPolicy(Base):
     __tablename__ = "user_safety_level_policies"

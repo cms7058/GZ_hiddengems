@@ -6,7 +6,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.archive import ArchiveRequirement
-from app.models.content import CommentLike, ContentMedia, SpotRecommendation, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, SpotLike, SpotRecommendation, TravelNote, UserComment
 from app.models.user import CheckinRecord, MiniProgramUser, PointLedger, ShareEvent, UserMembership
 from app.schemas.pagination import Page
 from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
@@ -208,6 +208,7 @@ def delete_admin_user(
     if comment_ids:
         db.query(CommentLike).filter(CommentLike.comment_id.in_(comment_ids)).delete(synchronize_session=False)
     db.query(CommentLike).filter(CommentLike.user_id == user.id).delete(synchronize_session=False)
+    db.query(SpotLike).filter(SpotLike.user_id == user.id).delete(synchronize_session=False)
     for item in media:
         db.delete(item)
     for item in notes + comments + recommendations + checkins:

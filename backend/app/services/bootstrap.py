@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminRole, AdminUser
 from app.models.archive import ArchiveChatImport, ArchiveDevelopmentTask, ArchiveEvent, ArchiveInternalMessage, ArchiveRequirement
-from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotRecommendation, TravelNote, UserComment
+from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotLike, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag
 from app.models.user import (

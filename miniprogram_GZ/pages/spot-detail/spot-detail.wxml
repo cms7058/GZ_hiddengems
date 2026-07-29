@@ -96,9 +96,9 @@
         </view>
 
         <view class="stats">
-          <view class="stat stat-action" data-target="checkin" bindtap="onStatTap">
-            <text class="stat-number">{{spot.user_explore_points}}</text>
-            <text>{{copy.points}}</text>
+          <view class="stat stat-action" data-target="likes" bindtap="onStatTap">
+            <text class="stat-number">{{spot.like_count}}</text>
+            <text>{{copy.likes}}</text>
           </view>
           <view class="stat stat-action" data-target="description" bindtap="onStatTap">
             <text class="stat-number">{{spot.required_explore_points}}</text>
@@ -132,6 +132,10 @@
             </view>
           </view>
           <view class="explore-actions">
+            <view wx:if="{{user.can_like_comment !== false}}" class="explore-action" bindtap="onToggleSpotLike">
+              <text class="explore-action-title">{{spot.liked_by_me ? copy.unlike : copy.like}}</text>
+              <text class="explore-action-arrow">{{spot.like_count}}</text>
+            </view>
             <view wx:if="{{user.can_checkin}}" class="explore-action" data-action="checkin" bindtap="onActionTap">
               <text class="explore-action-title">{{copy.checkin}}</text>
               <text class="explore-action-arrow">›</text>
@@ -279,6 +283,22 @@
       </view>
     </block>
   </scroll-view>
+  <view wx:if="{{showLikedUsers}}" class="liked-users-mask" catchtap="onCloseLikedUsers">
+    <view class="liked-users-panel" catchtap="noop">
+      <view class="liked-users-head">
+        <text>{{copy.likedUsers}}（{{spot.like_count}}）</text>
+        <text class="liked-users-close" catchtap="onCloseLikedUsers">{{copy.close}}</text>
+      </view>
+      <scroll-view class="liked-users-scroll" scroll-y>
+        <view wx:if="{{spot.liked_users.length === 0}}" class="empty">{{copy.emptyLikedUsers}}</view>
+        <view wx:for="{{spot.liked_users}}" wx:key="id" class="liked-user-row">
+          <image wx:if="{{item.avatar_display_url}}" class="liked-user-avatar" src="{{item.avatar_display_url}}" mode="aspectFill"></image>
+          <view wx:else class="liked-user-avatar liked-user-avatar-fallback">•</view>
+          <text class="liked-user-name">{{item.nickname}}</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
   <canvas canvas-id="detailMarkerCanvas" class="marker-canvas" width="40" height="50" style="width: 40px; height: 50px;"></canvas>
   <canvas canvas-id="travelNoteWatermarkCanvas" class="watermark-canvas" width="{{watermarkCanvasWidth}}" height="{{watermarkCanvasHeight}}" style="width: {{watermarkCanvasWidth}}px; height: {{watermarkCanvasHeight}}px;"></canvas>
   <view wx:if="{{spot}}" class="floating-navigate" catchtap="onNavigateTap">{{copy.goThere}}</view>

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin import AdminUser
-from app.models.content import LifestyleRecommendation, SpotImage, TravelNote, UserComment
+from app.models.content import LifestyleRecommendation, SpotImage, SpotLike, TravelNote, UserComment
 from app.models.spot import ScenicSpot, SpotChildPoint, Tag, WechatChannelVideo
 from app.models.user import CheckinRecord, PassLevelSetting
 from app.schemas.spot import (
@@ -432,6 +432,7 @@ def delete_admin_spot(
 
     for record in [*images, *notes, *comments, *recommendations, *checkins]:
         db.delete(record)
+    db.query(SpotLike).filter(SpotLike.spot_id == spot_id).delete(synchronize_session=False)
     spot.tags.clear()
     db.delete(spot)
     db.commit()

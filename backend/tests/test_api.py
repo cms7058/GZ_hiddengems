@@ -507,6 +507,33 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["comments"], [])
         self.assertEqual(data["lifestyle_recommendations"][0]["name_zh"], "酸汤鱼")
 
+    def test_spot_likes_are_user_specific_and_return_liker_list(self):
+        with self.SessionLocal() as db:
+            db.add(UserSpotUnlock(user_id=1, spot_id=1, status="active"))
+            db.add(MiniProgramUser(id=2, openid="spot-like-user", nickname="点赞用户"))
+            db.commit()
+
+        liked = self.client.post("/api/v1/mini/spots/1/like?user_id=2")
+        self.assertEqual(liked.status_code, 200)
+        self.assertEqual(liked.json()["like_count"], 1)
+        self.assertTrue(liked.json()["liked_by_me"])
+        self.assertEqual(liked.json()["liked_users"][0]["nickname"], "点赞用户")
+
+        duplicate = self.client.post("/api/v1/mini/spots/1/like?user_id=2")
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertEqual(duplicate.json()["like_count"], 1)
+
+        detail = self.client.get("/api/v1/spots/1?lang=zh-CN&user_id=1")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["like_count"], 1)
+        self.assertFalse(detail.json()["liked_by_me"])
+        self.assertEqual(detail.json()["liked_users"][0]["nickname"], "点赞用户")
+
+        unliked = self.client.delete("/api/v1/mini/spots/1/like?user_id=2")
+        self.assertEqual(unliked.status_code, 200)
+        self.assertEqual(unliked.json()["like_count"], 0)
+        self.assertFalse(unliked.json()["liked_by_me"])
+
     def test_spot_detail_requires_enough_explore_points(self):
         response = self.client.get("/api/v1/spots/1?lang=zh-CN&explore_points=20")
 

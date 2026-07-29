@@ -263,6 +263,75 @@ page {
   pointer-events: none;
 }
 
+.liked-users-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(25, 49, 39, 0.36);
+}
+
+.liked-users-panel {
+  width: 100%;
+  max-height: 58vh;
+  padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 16rpx 16rpx 0 0;
+  background: #f8f6ef;
+  box-sizing: border-box;
+}
+
+.liked-users-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #193127;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.liked-users-close {
+  color: #2f6b4f;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.liked-users-scroll {
+  max-height: 44vh;
+  margin-top: 20rpx;
+}
+
+.liked-user-row {
+  display: flex;
+  align-items: center;
+  min-height: 84rpx;
+  padding: 10rpx 0;
+  border-bottom: 1rpx solid #e4e0d3;
+}
+
+.liked-user-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  flex: none;
+  border-radius: 50%;
+  background: #dfe9e0;
+}
+
+.liked-user-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f6b4f;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.liked-user-name {
+  margin-left: 16rpx;
+  color: #193127;
+  font-size: 28rpx;
+}
+
 .floating-back {
   position: fixed;
   left: 24rpx;

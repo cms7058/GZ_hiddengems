@@ -265,6 +265,18 @@ class LockedSpotDetailOut(BaseModel):
     images: list[SpotImageOut] = Field(default_factory=list)
 
 
+class SpotLikeUserOut(BaseModel):
+    id: int
+    nickname: str
+    avatar_display_url: Optional[str] = None
+
+
+class SpotLikeStatusOut(BaseModel):
+    like_count: int = 0
+    liked_by_me: bool = False
+    liked_users: list[SpotLikeUserOut] = Field(default_factory=list)
+
+
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
@@ -273,5 +285,8 @@ class SpotDetailOut(MapSpotOut):
     images: list[SpotImageOut] = Field(default_factory=list)
     travel_notes: list[TravelNoteOut] = Field(default_factory=list)
     comments: list[UserCommentOut] = Field(default_factory=list)
+    like_count: int = 0
+    liked_by_me: bool = False
+    liked_users: list[SpotLikeUserOut] = Field(default_factory=list)
     my_checkins: list[CheckinRecordOut] = Field(default_factory=list)
     lifestyle_recommendations: list[RecommendationOut] = Field(default_factory=list)
