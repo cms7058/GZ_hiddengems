@@ -1,6 +1,7 @@
 import json
 import re
 from typing import Optional
+from urllib.parse import quote
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from app.core.config import settings
 from app.models.content import ContentMedia, LifestyleRecommendation, SpotImage, SpotLike, TravelNote, UserComment
 from app.models.spot import ScenicSpot, Tag, WechatChannelVideo
 from app.schemas.content import ContentMediaOut, RecommendationOut, SpotImageOut, TravelNoteOut, UserCommentOut
-from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, SpotLikeStatusOut, SpotLikeUserOut, TagAdminOut, WechatChannelVideoOut
+from app.schemas.spot import HomeSpotOut, LockedSpotDetailOut, LockedSpotPreviewOut, LocalizedTag, MapSpotOut, SpotAdminListOut, SpotAdminOut, SpotChildPointOut, SpotDetailOut, SpotLikeStatusOut, SpotLikeUserOut, TagAdminOut, WechatChannelVideoOut
 from app.services.geo import mask_coordinate
 from app.services.localization import choose_text, normalize_language
 from app.services.media_storage import get_media_display_url, get_media_proxy_path, is_managed_media_url
@@ -68,7 +69,6 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
     return SpotAdminOut(
         id=spot.id,
         spot_code=spot.spot_code,
-        # Admin list thumbnails need the same signed display URL as other media.
         cover_image_url=spot_cover_image_url(spot, db),
         like_count=len(getattr(spot, "spot_likes", []) or []),
         name_zh=spot.name_zh,
@@ -104,6 +104,26 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
     )
 
 
+def spot_to_admin_list_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdminListOut:
+    return SpotAdminListOut(
+        id=spot.id,
+        spot_code=spot.spot_code,
+        cover_image_url=spot_cover_image_url(spot, db, thumbnail=True),
+        name_zh=spot.name_zh,
+        name_en=spot.name_en,
+        city=spot.city,
+        county=spot.county,
+        latitude=spot.latitude,
+        longitude=spot.longitude,
+        visibility_level=spot.visibility_level,
+        review_status=spot.review_status,
+        recommendation_level=spot.recommendation_level,
+        required_explore_points=spot.required_explore_points,
+        is_active=spot.is_active,
+        tags=[tag_to_localized(tag, "zh-CN") for tag in spot.tags],
+    )
+
+
 def locked_spot_name(spot: ScenicSpot, lang: str) -> str:
     """Never disclose a full spot name from a locked response."""
     configured_name = choose_text(lang, spot.locked_name_zh, spot.locked_name_en)
@@ -135,7 +155,13 @@ def wechat_channel_video_to_out(video: WechatChannelVideo, db: Optional[Session]
     )
 
 
-def _spot_card_media_url(image_url: str, image_id: int, db: Optional[Session], prefer_signed_url: bool) -> Optional[str]:
+def _spot_card_media_url(
+    image_url: str,
+    image_id: int,
+    db: Optional[Session],
+    prefer_signed_url: bool,
+    thumbnail: bool = False,
+) -> Optional[str]:
     if db is not None and prefer_signed_url:
         signed_url = get_media_display_url(db, image_url)
         # get_media_display_url returns the original URL on a signing error.
@@ -144,10 +170,13 @@ def _spot_card_media_url(image_url: str, image_id: int, db: Optional[Session], p
         if signed_url and signed_url != image_url:
             return signed_url
     display_url = get_media_proxy_path(db, image_url) if db else image_url
+    if thumbnail and db is not None and display_url.startswith("/media/"):
+        display_url = f"{settings.api_v1_prefix}/media/{quote(display_url[len('/media/'):], safe='/')}"
     if not display_url:
         return display_url
     separator = "&" if "?" in display_url else "?"
-    return f"{display_url}{separator}v={image_id}"
+    thumbnail_query = "thumbnail=1&" if thumbnail else ""
+    return f"{display_url}{separator}{thumbnail_query}v={image_id}"
 
 
 def spot_cover_image_url(
@@ -155,13 +184,14 @@ def spot_cover_image_url(
     db: Optional[Session] = None,
     *,
     prefer_signed_url: bool = False,
+    thumbnail: bool = False,
 ) -> Optional[str]:
     images = sorted(
         (image for image in getattr(spot, "spot_images", []) if image.is_active and image.media_type == "image"),
         key=lambda image: (not image.is_cover, image.sort_order, image.id),
     )
     if images:
-        return _spot_card_media_url(images[0].image_url, images[0].id, db, prefer_signed_url)
+        return _spot_card_media_url(images[0].image_url, images[0].id, db, prefer_signed_url, thumbnail)
 
     # When no spot media is uploaded, Video Channel covers are the next visual
     # source for map/list cards. Their display URL is proxied through the API
@@ -178,7 +208,7 @@ def spot_cover_image_url(
         if db is not None and not is_managed_media_url(db, channel_videos[0].cover_url):
             return None
         channel_cover = channel_videos[0]
-        return _spot_card_media_url(channel_cover.cover_url, channel_cover.id, db, prefer_signed_url)
+        return _spot_card_media_url(channel_cover.cover_url, channel_cover.id, db, prefer_signed_url, thumbnail)
     return None
 
 

@@ -13,6 +13,7 @@ from app.models.spot import ScenicSpot, SpotChildPoint, Tag, WechatChannelVideo
 from app.models.user import CheckinRecord, PassLevelSetting
 from app.schemas.spot import (
     ReviewStatusUpdate,
+    SpotAdminListOut,
     SpotAdminOut,
     SpotChildPointCreate,
     SpotChildPointOut,
@@ -25,7 +26,7 @@ from app.schemas.user import CheckinRecordOut
 from app.services.pagination import build_page, paginated_scalars
 from app.services.media_storage import MediaStorageError, cache_remote_image, delete_media
 from app.services.coordinates import normalize_to_gcj02
-from app.services.spot_mapper import spot_to_admin_out
+from app.services.spot_mapper import spot_to_admin_list_out, spot_to_admin_out
 from app.services.spot_codes import assign_spot_code
 
 
@@ -134,7 +135,7 @@ def sync_wechat_channel_videos(db: Session, spot: ScenicSpot, videos: list[dict]
             db.delete(existing)
 
 
-@router.get("", response_model=Page[SpotAdminOut])
+@router.get("", response_model=Page[SpotAdminListOut])
 def list_admin_spots(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
@@ -150,12 +151,10 @@ def list_admin_spots(
     sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
-) -> Page[SpotAdminOut]:
+) -> Page[SpotAdminListOut]:
     statement = select(ScenicSpot).options(
         selectinload(ScenicSpot.tags),
-        selectinload(ScenicSpot.child_points),
         selectinload(ScenicSpot.spot_images),
-        selectinload(ScenicSpot.spot_likes),
         selectinload(ScenicSpot.wechat_channel_videos),
     )
     active_image = ScenicSpot.spot_images.any(
@@ -193,7 +192,7 @@ def list_admin_spots(
     statement = statement.order_by(order_column.asc() if sort_order == "asc" else order_column.desc(), ScenicSpot.id.desc())
     result = paginated_scalars(db, statement, page, page_size)
     return build_page(
-        [spot_to_admin_out(spot, db) for spot in result.items],
+        [spot_to_admin_list_out(spot, db) for spot in result.items],
         result.total,
         result.page,
         result.page_size,

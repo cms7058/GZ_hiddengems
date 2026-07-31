@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+from io import BytesIO
 from mimetypes import guess_extension, guess_type
 from pathlib import Path
 from typing import Optional
@@ -13,7 +15,9 @@ from app.services.integrations import get_object_storage_config
 
 
 LOCAL_UPLOAD_BASE = Path(__file__).resolve().parents[1] / "static" / "uploads"
+LOCAL_THUMBNAIL_BASE = LOCAL_UPLOAD_BASE / ".thumbnails"
 MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024
+ADMIN_THUMBNAIL_SIZE = (240, 160)
 
 
 class MediaStorageError(Exception):
@@ -282,6 +286,49 @@ def read_managed_media(db: Session, key: str) -> tuple[bytes, str]:
     raise MediaStorageError("Unsupported media storage provider")
 
 
+def read_managed_thumbnail(db: Session, key: str) -> tuple[bytes, str]:
+    """Create a durable local thumbnail cache for admin list cover images."""
+    normalized_key = key.strip().lstrip("/")
+    if not normalized_key or "\\" in normalized_key or any(part in {"", ".", ".."} for part in normalized_key.split("/")):
+        raise MediaStorageError("Invalid media key")
+
+    target = thumbnail_cache_path(normalized_key)
+    if target.is_file():
+        return target.read_bytes(), "image/jpeg"
+
+    content, media_type = read_managed_media(db, normalized_key)
+    if not media_type.startswith("image/"):
+        return content, media_type
+    try:
+        from PIL import Image, ImageOps
+    except ImportError as error:
+        raise MediaStorageError("Pillow is required to generate media thumbnails") from error
+
+    try:
+        with Image.open(BytesIO(content)) as source:
+            image = ImageOps.exif_transpose(source).convert("RGB")
+            thumbnail = ImageOps.fit(image, ADMIN_THUMBNAIL_SIZE, method=Image.Resampling.LANCZOS)
+            output = BytesIO()
+            thumbnail.save(output, format="JPEG", quality=78, optimize=True)
+            result = output.getvalue()
+    except Exception as error:
+        raise MediaStorageError(f"Could not generate media thumbnail: {error}") from error
+
+    LOCAL_THUMBNAIL_BASE.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(result)
+    return result, "image/jpeg"
+
+
+def thumbnail_cache_path(key: str) -> Path:
+    return LOCAL_THUMBNAIL_BASE / f"{sha256(key.encode('utf-8')).hexdigest()}.jpg"
+
+
+def delete_thumbnail_cache(key: str) -> None:
+    target = thumbnail_cache_path(key)
+    if target.is_file():
+        target.unlink()
+
+
 def read_managed_media_url(db: Session, url: str) -> tuple[bytes, str]:
     """Read a managed local or OSS media URL without exposing storage details to callers."""
     config = get_object_storage_config(db)
@@ -299,12 +346,14 @@ def delete_media(db: Session, url: Optional[str]) -> None:
         if config["provider"] in {"", "local"}:
             key = _extract_local_key(url)
             if key:
+                delete_thumbnail_cache(key)
                 LocalMediaStorage().delete(key)
             return
 
         if config["provider"] == "aliyun_oss":
             key = _extract_oss_key(url, config)
             if key:
+                delete_thumbnail_cache(key)
                 AliyunOssMediaStorage(config).delete(key)
     except MediaStorageError:
         raise

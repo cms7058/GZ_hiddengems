@@ -196,6 +196,26 @@ class SpotAdminOut(SpotCreate):
         from_attributes = True
 
 
+class SpotAdminListOut(BaseModel):
+    """Compact payload for the admin spot list."""
+
+    id: int
+    spot_code: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    name_zh: str
+    name_en: str
+    city: str
+    county: str
+    latitude: float
+    longitude: float
+    visibility_level: str
+    review_status: str
+    recommendation_level: int
+    required_explore_points: int
+    is_active: bool
+    tags: list[LocalizedTag] = Field(default_factory=list)
+
+
 class MapSpotOut(BaseModel):
     id: int
     name: str

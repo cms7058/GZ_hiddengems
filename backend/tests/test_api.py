@@ -1354,6 +1354,17 @@ class ApiTest(unittest.TestCase):
             0,
         )
 
+    def test_admin_spot_list_uses_compact_payload(self):
+        response = self.client.get("/api/v1/admin/spots", headers=self.login_headers())
+        self.assertEqual(response.status_code, 200)
+        spot = response.json()["items"][0]
+        self.assertEqual(spot["name_zh"], "加榜梯田晨雾点")
+        self.assertEqual(len(spot["tags"]), 2)
+        self.assertIn("thumbnail=1", spot["cover_image_url"])
+        self.assertNotIn("description_zh", spot)
+        self.assertNotIn("child_points", spot)
+        self.assertNotIn("wechat_channel_videos", spot)
+
     def test_admin_can_manage_registered_users(self):
         headers = self.login_headers()
         list_response = self.client.get("/api/v1/admin/users", headers=headers)

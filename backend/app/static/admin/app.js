@@ -792,7 +792,7 @@ function imageCell(url, alt = "图片") {
   if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".m4v")) {
     return `<video class="image-thumb" src="${escapedUrl}" controls preload="metadata" onerror="this.replaceWith(document.createTextNode('${fallback}'))"></video>`;
   }
-  return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" onerror="this.replaceWith(document.createTextNode('${fallback}'))" />`;
+  return `<img class="image-thumb" src="${escapedUrl}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" onerror="this.replaceWith(document.createTextNode('${fallback}'))" />`;
 }
 
 function userAvatarCell(url, nickname = "用户") {
