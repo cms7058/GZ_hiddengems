@@ -9,6 +9,7 @@ from app.schemas.benefits import BatchRedemptionCreate, BatchRedemptionOut, Bene
 from app.services.benefits import backfill_legacy_benefit_points, ensure_spot_unlock_benefit, redeem_benefit, redemption_out
 from app.services.localization import choose_text, normalize_language
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
+from app.services.spot_mapper import locked_spot_intro, locked_spot_name
 
 router = APIRouter()
 
@@ -111,8 +112,11 @@ def available_spot_unlocks(
             SpotUnlockCandidateOut(
                 benefit_id=benefit.id,
                 spot_id=spot.id,
-                name=choose_text(normalized_lang, spot.name_zh, spot.name_en),
-                summary=choose_text(normalized_lang, spot.summary_zh, spot.summary_en),
+                # This endpoint powers the benefit page before redemption.
+                # Return only the administrator-maintained locked presentation;
+                # no location, coordinates, photos, or full unlocked copy.
+                name=locked_spot_name(spot, normalized_lang),
+                summary=locked_spot_intro(spot, normalized_lang),
                 recommendation_level=spot.recommendation_level,
                 points_cost=benefit.points_cost,
                 valid_days=benefit.valid_days,

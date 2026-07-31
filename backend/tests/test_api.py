@@ -573,6 +573,9 @@ class ApiTest(unittest.TestCase):
             user = db.get(MiniProgramUser, 1)
             user.explore_points = 120
             user.benefit_points = 120
+            spot = db.get(ScenicSpot, 1)
+            spot.locked_name_zh = "晨雾秘境"
+            spot.summary_zh = "适合清晨观察云雾。位于从江县，需要通过山路抵达。"
             db.commit()
 
         response = self.client.get("/api/v1/benefits/spot-unlocks/1?lang=zh-CN")
@@ -581,6 +584,11 @@ class ApiTest(unittest.TestCase):
         candidate = response.json()[0]
         self.assertEqual(candidate["spot_id"], 1)
         self.assertEqual(candidate["points_cost"], 100)
+        self.assertEqual(candidate["name"], "晨雾秘境")
+        self.assertEqual(candidate["summary"], "适合清晨观察云雾。")
+        self.assertNotIn("county", candidate)
+        self.assertNotIn("latitude", candidate)
+        self.assertNotIn("image", candidate)
 
         redeemed = self.client.post(
             "/api/v1/benefits/redeem",
