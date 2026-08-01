@@ -2806,7 +2806,9 @@ $("#spotsTable").addEventListener("click", async (event) => {
   const deleteId = event.target.dataset.deleteSpot;
 
   if (editId) {
-    const spot = state.spots.find((item) => item.id === Number(editId));
+    // The list endpoint is deliberately compact. Load the full record before
+    // filling the editor so descriptions and child-point data are preserved.
+    const spot = await request(`/admin/spots/${Number(editId)}`);
     fillSpotForm(spot);
     state.pagination.spotImages = { page: 1, page_size: PAGE_SIZE };
     state.pagination.spotCheckins = { page: 1, page_size: PAGE_SIZE };
