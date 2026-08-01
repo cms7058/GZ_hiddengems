@@ -2808,7 +2808,7 @@ $("#spotsTable").addEventListener("click", async (event) => {
   if (editId) {
     // The list endpoint is deliberately compact. Load the full record before
     // filling the editor so descriptions and child-point data are preserved.
-    const spot = await request(`/admin/spots/${Number(editId)}`);
+    const spot = await request(`/admin/spots/${Number(editId)}`, { cache: "no-store" });
     fillSpotForm(spot);
     state.pagination.spotImages = { page: 1, page_size: PAGE_SIZE };
     state.pagination.spotCheckins = { page: 1, page_size: PAGE_SIZE };
