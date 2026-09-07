@@ -156,7 +156,7 @@ def list_checkins(
     page_size: int = Query(default=10, ge=1, le=100),
     spot_keyword: Optional[str] = Query(default=None, max_length=128),
     user_keyword: Optional[str] = Query(default=None, max_length=128),
-    status: Optional[str] = Query(default=None, pattern="^(approved|rejected)$"),
+    status: Optional[str] = Query(default=None, pattern="^(pending|approved|rejected)$"),
     risk_status: Optional[str] = Query(default=None, pattern="^(normal|warning|suspicious|watch|unavailable)$"),
     checked_at: Optional[str] = Query(default=None, max_length=10),
     db: Session = Depends(get_db),
@@ -218,6 +218,9 @@ def review_checkin(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> CheckinRecordOut:
+    user_id = db.scalar(select(CheckinRecord.user_id).where(CheckinRecord.id == checkin_id))
+    if user_id is not None:
+        db.execute(select(MiniProgramUser).where(MiniProgramUser.id == user_id).with_for_update())
     record = db.scalar(
         select(CheckinRecord)
         .options(joinedload(CheckinRecord.user), joinedload(CheckinRecord.spot))
@@ -225,6 +228,17 @@ def review_checkin(
     )
     if record is None:
         raise HTTPException(status_code=404, detail="Checkin record not found")
+
+    if record.media_type == "video" and payload.status == "approved":
+        existing = db.scalar(select(CheckinRecord.id).where(
+            CheckinRecord.user_id == record.user_id,
+            CheckinRecord.spot_id == record.spot_id,
+            CheckinRecord.media_type == "video",
+            CheckinRecord.status == "approved",
+            CheckinRecord.id != record.id,
+        ))
+        if existing:
+            raise HTTPException(status_code=409, detail="该用户在本秘境已有一条审核通过的视频")
 
     was_approved = record.status == "approved"
     record.status = payload.status
@@ -234,6 +248,7 @@ def review_checkin(
 
     if payload.status == "approved" and not was_approved:
         record.user.checkin_count += 1
+        record.user.last_checkin_at = record.created_at
         record.awarded_explore_points = award_points(
             db,
             user=record.user,

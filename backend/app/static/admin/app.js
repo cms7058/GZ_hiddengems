@@ -3774,4 +3774,33 @@ $("#recommendationForm").addEventListener("submit", async (event) => {
   showToast("推荐已保存");
 });
 
-bootstrap();
+let checkinNoticeLoading = false;
+async function refreshCheckinReviewNotice() {
+  const notice = $("#checkinReviewNotice");
+  if (!notice) return;
+  if (!state.token || !state.admin || !can("checkins")) {
+    notice.classList.add("hidden");
+    return;
+  }
+  if (document.hidden || checkinNoticeLoading) return;
+  checkinNoticeLoading = true;
+  try {
+    const result = await request("/admin/checkins?status=pending&page_size=1");
+    notice.textContent = `打卡审核消息：${result.total} 条待审核，点击查看`;
+    notice.classList.toggle("hidden", !result.total);
+  } catch (error) {
+    console.warn("Check-in review notification unavailable", error);
+  } finally {
+    checkinNoticeLoading = false;
+  }
+}
+$("#checkinReviewNotice")?.addEventListener("click", async () => {
+  state.checkinFilters = { status: "pending" };
+  $("#checkinSearchForm").reset();
+  $("#checkinSearchForm").elements.status.value = "pending";
+  state.pagination.checkins = { ...state.pagination.checkins, page: 1 };
+  setActiveSection("checkinsSection");
+  try { await loadData(); } catch (error) { showToast(error.message); }
+});
+window.setInterval(refreshCheckinReviewNotice, 30000);
+bootstrap().then(refreshCheckinReviewNotice);

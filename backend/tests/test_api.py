@@ -762,6 +762,33 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.json()["media_type"], "video")
         self.assertEqual(response.json()["media_url"], payload["media_url"])
         self.assertIsNone(response.json()["image_url"])
+        self.assertEqual(response.json()["status"], "pending")
+        self.assertEqual(response.json()["awarded_explore_points"], 0)
+        self.assertIsNone(response.json()["reviewed_at"])
+        checkin_id = response.json()["id"]
+        duplicate = self.client.post("/api/v1/mini/checkins", json=payload)
+        self.assertEqual(duplicate.status_code, 409)
+        headers = self.login_headers()
+        pending = self.client.get("/api/v1/admin/checkins?status=pending", headers=headers)
+        self.assertEqual(pending.status_code, 200)
+        self.assertIn(checkin_id, [item["id"] for item in pending.json()["items"]])
+        reviewed = self.client.patch(f"/api/v1/admin/checkins/{checkin_id}/review", headers=headers, json={"status": "approved", "review_note": "Video verified"})
+        self.assertEqual(reviewed.status_code, 200, reviewed.text)
+        history = self.client.get("/api/v1/mini/users/1/checkins").json()
+        result = next(item for item in history if item["id"] == checkin_id)
+        self.assertEqual(result["status"], "approved")
+        self.assertEqual(result["review_note"], "Video verified")
+        self.assertIsNotNone(result["reviewed_at"])
+        self.assertEqual(self.client.post("/api/v1/mini/checkins", json=payload).status_code, 409)
+        with self.SessionLocal() as db:
+            old = CheckinRecord(user_id=1, spot_id=1, media_type="video", media_url="/media/old.mp4", status="pending")
+            db.add(old)
+            db.commit()
+            old_id = old.id
+        conflict = self.client.patch(f"/api/v1/admin/checkins/{old_id}/review", headers=headers, json={"status": "approved"})
+        self.assertEqual(conflict.status_code, 409)
+        rejected = self.client.patch(f"/api/v1/admin/checkins/{old_id}/review", headers=headers, json={"status": "rejected", "review_note": "Duplicate video"})
+        self.assertEqual(rejected.status_code, 200)
         with self.SessionLocal() as db:
             user = db.get(MiniProgramUser, 1)
             user.can_upload_video = False

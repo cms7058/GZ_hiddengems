@@ -20,6 +20,7 @@ const DEFAULT_USER = {
 }
 
 const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
+const checkinNotices = require("./utils/checkin-notices")
 
 const TAB_BAR_TEXT = {
   "zh-CN": ["首页", "小助手", "我的", "EN"],
@@ -55,6 +56,7 @@ App({
   },
 
   onShow(options = {}) {
+    checkinNotices.start()
     const hasReferral = this.captureReferrerToken(options)
     const user = this.globalData.user || {}
     // A share can reopen a mini program already resident in memory. When the
@@ -71,6 +73,10 @@ App({
     this.globalData.pendingReferrerToken = token
     wx.setStorageSync("gzPendingReferrerToken", token)
     return true
+  },
+
+  onHide() {
+    checkinNotices.stop()
   },
 
   bootstrapUser(profile = {}) {

@@ -68,6 +68,7 @@
           </div>
         </header>
 
+        <button id="checkinReviewNotice" class="secondary-btn hidden" type="button" aria-live="polite"></button>
         <section class="metrics-grid" aria-label="运营概览">
           <article>
             <span>秘境总数</span>
@@ -288,7 +289,7 @@
           <div class="section-head">
             <div>
               <h2>打卡审核</h2>
-              <p class="muted">审核用户 GPS + 图片打卡记录，通过后同步增加用户打卡数。</p>
+              <p class="muted">审核用户定位及视频打卡记录，通过后同步增加用户打卡数。</p>
             </div>
           </div>
           <article class="checkin-risk-card">
@@ -314,7 +315,7 @@
           <form id="checkinSearchForm" class="admin-filters checkin-filters">
             <input name="spot_keyword" placeholder="按秘境搜索" maxlength="128" />
             <input name="user_keyword" placeholder="按用户搜索" maxlength="128" />
-            <select name="status"><option value="">全部状态</option><option value="approved">成功</option><option value="rejected">未通过</option></select>
+            <select name="status"><option value="">全部状态</option><option value="pending">待审核</option><option value="approved">成功</option><option value="rejected">未通过</option></select>
             <select name="risk_status"><option value="">全部风控</option><option value="normal">路线正常</option><option value="warning">路线警告</option><option value="suspicious">可疑</option><option value="watch">重点关注</option><option value="unavailable">未核验</option></select>
             <input name="checked_at" type="date" />
             <button type="submit" class="secondary-btn">查询</button>
@@ -989,6 +990,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260801-spot-detail-editor"></script>
+    <script src="/admin/static/app.js?v=20260907-checkin-review"></script>
   </body>
 </html>

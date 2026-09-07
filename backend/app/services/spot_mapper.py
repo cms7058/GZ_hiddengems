@@ -549,7 +549,7 @@ def checkin_to_out(record: CheckinRecord, db: Optional[Session] = None) -> Check
         latitude=record.latitude,
         longitude=record.longitude,
         image_url=record.image_url,
-        media_url=record.media_url,
+        media_url=None if record.media_type == "video" and record.status == "rejected" else record.media_url,
         media_type=record.media_type,
         note=record.note,
         review_note=record.review_note,

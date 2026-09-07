@@ -1,4 +1,4 @@
-const { isServiceClosedError, request, uploadMedia } = require("../../utils/request")
+const { isServiceClosedError, request, resolveMediaUrl, uploadMedia } = require("../../utils/request")
 
 const app = getApp()
 const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
@@ -18,6 +18,7 @@ const COPY = {
     chooseMedia: "添加图片/视频",
     chooseCheckinVideo: "添加打卡视频（3秒）",
     retakeVideo: "重新拍摄",
+    videoRecorded: "视频已录制，可提交打卡或重新拍摄",
     checkinVideoRequired: "请先录制3秒打卡视频",
     videoDurationInvalid: "请完整录制3秒视频后重试",
     recordingFailed: "拍摄失败，请检查相机和麦克风权限",
@@ -58,6 +59,7 @@ const COPY = {
     chooseMedia: "Add Photo/Video",
     chooseCheckinVideo: "Record Check-in Video (3s)",
     retakeVideo: "Retake",
+    videoRecorded: "Video recorded. Submit or retake",
     checkinVideoRequired: "Record a 3-second check-in video first",
     videoDurationInvalid: "Please record a full 3-second video",
     recordingFailed: "Recording failed. Check camera and microphone permissions",
@@ -119,6 +121,7 @@ Page({
 
   onShow() {
     app.applyTabBarLanguage()
+    if (this.data.spot && !this.data.submitting) this.loadSpot()
   },
 
   onLanguageChanged() {
@@ -151,7 +154,7 @@ Page({
       const spot = await request(this.buildDetailPath())
       this.setData({
         spot,
-        myCheckins: (spot.my_checkins || []).map((item) => this.decorateSubmission(item)),
+        myCheckins: (spot.my_checkins || []).filter((item) => item.media_type !== "video" || item.status !== "rejected").map((item) => this.decorateSubmission(item)),
         hasSuccessfulCheckin: (spot.my_checkins || []).some((item) => item.status === "approved"),
         loading: false,
       })
@@ -162,7 +165,7 @@ Page({
 
   decorateSubmission(item) {
     const statusText = { pending: this.data.copy.reviewPending, rejected: this.data.copy.reviewRejected, hidden: this.data.copy.reviewHidden }[item.status] || ""
-    return { ...item, statusText }
+    return { ...item, media_url: resolveMediaUrl(item.media_url), image_url: resolveMediaUrl(item.image_url), statusText }
   },
 
   onNoteTitleInput(event) { this.setData({ "noteForm.title": event.detail.value }) },
@@ -216,7 +219,6 @@ Page({
     if (this.data.submitting || this.data.choosingVideo) return
     if (this.data.user.can_upload_video === false) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
     this.setData({ choosingVideo: true })
-    if (this.data.checkinMedia.length) wx.createVideoContext("checkin-preview", this).pause()
     try {
       const file = await new Promise((resolve, reject) => wx.chooseVideo({ sourceType: ["camera"], maxDuration: 3, compressed: true, camera: "back", success: resolve, fail: reject }))
       if (!file.tempFilePath) return
@@ -250,11 +252,12 @@ Page({
       await this.loadSpot()
       this.setData({ checkinMedia: [] })
       wx.showModal({
-        title: record.status === "approved" ? this.data.copy.checkinPassed : this.data.copy.checkinFailed,
+        title: record.status === "pending" ? this.data.copy.submitted : record.status === "approved" ? this.data.copy.checkinPassed : this.data.copy.checkinFailed,
         content: record.review_note || this.data.copy.submitFailed,
         showCancel: false,
       })
     } catch (error) {
+      this.setData({ checkinMedia: [] })
       if (!isServiceClosedError(error)) wx.showModal({ title: this.data.copy.submitFailed, content: error.message || error.errMsg || this.data.copy.submitFailed, showCancel: false })
     } finally { this.setData({ submitting: false }) }
   },

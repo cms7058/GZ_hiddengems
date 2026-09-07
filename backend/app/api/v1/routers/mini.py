@@ -303,7 +303,7 @@ def checkin_to_out(record: CheckinRecord) -> CheckinRecordOut:
         latitude=record.latitude,
         longitude=record.longitude,
         image_url=record.image_url,
-        media_url=record.media_url,
+        media_url=None if record.media_type == "video" and record.status == "rejected" else record.media_url,
         media_type=record.media_type,
         note=record.note,
         review_note=record.review_note,
@@ -485,6 +485,8 @@ def list_user_checkins(user_id: int, db: Session = Depends(get_db)) -> list[Chec
 
 @router.post("/checkins", response_model=CheckinRecordOut, status_code=201)
 def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> CheckinRecordOut:
+    # Serialize submissions and reviews for the same user, including concurrent requests.
+    db.execute(select(MiniProgramUser).where(MiniProgramUser.id == payload.user_id).with_for_update())
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_checkin")
     spot = ensure_active_spot(db, payload.spot_id)
@@ -494,6 +496,14 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
         if not payload.media_url or payload.media_type != "video" or payload.video_duration is None:
             raise HTTPException(status_code=400, detail="请提交完整的3秒打卡视频")
         ensure_user_permission(user, "can_upload_video")
+        existing = db.scalar(select(CheckinRecord.id).where(
+            CheckinRecord.user_id == user.id,
+            CheckinRecord.spot_id == spot.id,
+            CheckinRecord.media_type == "video",
+            CheckinRecord.status.in_(["pending", "approved"]),
+        ))
+        if existing:
+            raise HTTPException(status_code=409, detail="本秘境已有待审核或审核通过的视频，请勿重复提交")
     elif not payload.image_url:
         raise HTTPException(status_code=400, detail="请先录制3秒打卡视频")
     try:
@@ -532,7 +542,7 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
         review_note = f"{review_note} {risk.notice}"
     record = CheckinRecord(
         **payload.model_dump(exclude={"video_duration"}),
-        status="approved" if passed else "rejected",
+        status=("pending" if payload.media_type == "video" else "approved") if passed else "rejected",
         checkin_distance_meters=distance,
         route_distance_meters=risk.route.distance_meters if risk.route else None,
         route_duration_seconds=risk.route.duration_seconds if risk.route else None,
@@ -542,12 +552,12 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
         risk_reason=risk.reason,
         previous_checkin_id=risk.previous_checkin_id,
         awarded_explore_points=0,
-        reviewed_at=datetime.utcnow(),
+        reviewed_at=None if payload.media_type == "video" else datetime.utcnow(),
         review_note=review_note,
     )
     db.add(record)
     db.flush()
-    if passed:
+    if passed and payload.media_type != "video":
         user.checkin_count += 1
         user.last_checkin_at = datetime.utcnow()
         record.awarded_explore_points = award_points(
