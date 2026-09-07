@@ -20,7 +20,7 @@ const DEFAULT_USER = {
 }
 
 const { miniLogin, notifyServiceClosedIfNeeded, preloadServiceHours } = require("./utils/request")
-const checkinNotices = require("./utils/checkin-notices")
+let checkinNotices = null
 
 const TAB_BAR_TEXT = {
   "zh-CN": ["首页", "小助手", "我的", "EN"],
@@ -56,7 +56,7 @@ App({
   },
 
   onShow(options = {}) {
-    checkinNotices.start()
+    this.startCheckinNotices()
     const hasReferral = this.captureReferrerToken(options)
     const user = this.globalData.user || {}
     // A share can reopen a mini program already resident in memory. When the
@@ -76,7 +76,17 @@ App({
   },
 
   onHide() {
-    checkinNotices.stop()
+    if (checkinNotices) checkinNotices.stop()
+  },
+
+  startCheckinNotices() {
+    // Notifications must not prevent App registration or page startup.
+    try {
+      if (!checkinNotices) checkinNotices = require("./utils/checkin-notices.js")
+      checkinNotices.start()
+    } catch (error) {
+      console.warn("Check-in notifications could not start; home remains available", error)
+    }
   },
 
   bootstrapUser(profile = {}) {

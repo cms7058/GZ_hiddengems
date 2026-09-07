@@ -5,13 +5,14 @@ let active = false
 let busy = false
 
 async function poll() {
-  const app = getApp()
-  const userId = app.globalData.user && app.globalData.user.id
-  if (!active || busy || !userId) return
+  if (!active || busy) return
   busy = true
   try {
+    const app = getApp()
+    const userId = app && app.globalData && app.globalData.user && app.globalData.user.id
+    if (!userId) return
     const records = await request(`/mini/users/${userId}/checkins`)
-    if (!active || app.globalData.user.id !== userId) return
+    if (!active || !app.globalData.user || app.globalData.user.id !== userId || !Array.isArray(records)) return
     const key = `gzCheckinReviews:${userId}`
     const seen = wx.getStorageSync(key) || {}
     const results = records.filter((item) => item.media_type === "video" && item.reviewed_at && ["approved", "rejected"].includes(item.status) && seen[item.id] !== `${item.status}:${item.reviewed_at}`)
