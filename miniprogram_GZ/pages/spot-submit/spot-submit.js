@@ -16,8 +16,11 @@ const COPY = {
     currentLocation: "我的实时位置",
     locationFailed: "定位失败，请检查定位权限",
     chooseMedia: "添加图片/视频",
-    chooseCheckinImage: "添加打卡照片",
-    checkinImageRequired: "请先上传至少一张打卡照片",
+    chooseCheckinVideo: "添加打卡视频（3秒）",
+    retakeVideo: "重新拍摄",
+    checkinVideoRequired: "请先录制3秒打卡视频",
+    videoDurationInvalid: "请完整录制3秒视频后重试",
+    recordingFailed: "拍摄失败，请检查相机和麦克风权限",
     removeMedia: "移除",
     mediaReady: "素材已上传",
     mediaAdded: "素材已添加",
@@ -53,8 +56,11 @@ const COPY = {
     currentLocation: "My Live Location",
     locationFailed: "Location failed. Check permission",
     chooseMedia: "Add Photo/Video",
-    chooseCheckinImage: "Add Check-in Photo",
-    checkinImageRequired: "Upload at least one check-in photo first",
+    chooseCheckinVideo: "Record Check-in Video (3s)",
+    retakeVideo: "Retake",
+    checkinVideoRequired: "Record a 3-second check-in video first",
+    videoDurationInvalid: "Please record a full 3-second video",
+    recordingFailed: "Recording failed. Check camera and microphone permissions",
     removeMedia: "Remove",
     mediaReady: "Media uploaded",
     mediaAdded: "Media added",
@@ -95,6 +101,7 @@ Page({
     refreshing: false,
     error: "",
     submitting: false,
+    choosingVideo: false,
     userLocation: null,
     checkinMedia: [],
     noteMedia: [],
@@ -165,10 +172,6 @@ Page({
     const index = Number(event.currentTarget.dataset.index)
     this.setData({ noteMedia: this.data.noteMedia.filter((_, itemIndex) => itemIndex !== index) })
   },
-  onRemoveCheckinMedia(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    this.setData({ checkinMedia: this.data.checkinMedia.filter((_, itemIndex) => itemIndex !== index) })
-  },
 
   async tryShowUserLocation() {
     try {
@@ -209,40 +212,41 @@ Page({
     }
   },
 
-  async onChooseCheckinImage() {
-    if (this.data.submitting) return
-    if (this.data.user.can_upload_image === false) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+  async onChooseCheckinVideo() {
+    if (this.data.submitting || this.data.choosingVideo) return
+    if (this.data.user.can_upload_video === false) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
+    this.setData({ choosingVideo: true })
+    if (this.data.checkinMedia.length) wx.createVideoContext("checkin-preview", this).pause()
     try {
-      const remaining = 9 - this.data.checkinMedia.length
-      if (remaining <= 0) return wx.showToast({ title: "最多添加 9 张照片", icon: "none" })
-      const result = await new Promise((resolve, reject) => wx.chooseMedia({ count: remaining, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject }))
-      const files = (result.tempFiles || []).filter((file) => file && file.tempFilePath)
-      if (!files.length) return
-      this.setData({ submitting: true })
-      const uploadedMedia = []
-      for (const file of files) {
-        if (Number(file.size || 0) > MAX_IMAGE_UPLOAD_BYTES) throw new Error(this.data.copy.mediaImageTooLarge)
-        const uploaded = await uploadMedia(file.tempFilePath, "image")
-        uploadedMedia.push({ ...uploaded, tempFilePath: file.tempFilePath, media_type: "image" })
-      }
-      this.setData({ checkinMedia: [...this.data.checkinMedia, ...uploadedMedia] })
-      wx.showToast({ title: this.data.copy.mediaAdded, icon: "none" })
+      const file = await new Promise((resolve, reject) => wx.chooseVideo({ sourceType: ["camera"], maxDuration: 3, compressed: true, camera: "back", success: resolve, fail: reject }))
+      if (!file.tempFilePath) return
+      const duration = Number(file.duration)
+      // Allow half a second for native recording/encoding timestamp rounding.
+      if (!Number.isFinite(duration) || duration < 2.5 || duration > 3.5) throw new Error(this.data.copy.videoDurationInvalid)
+      if (Number(file.size || 0) > MAX_VIDEO_UPLOAD_BYTES) throw new Error(this.data.copy.mediaVideoTooLarge)
+      this.setData({ checkinMedia: [{ tempFilePath: file.tempFilePath, media_type: "video", duration }] })
     } catch (error) {
-      if (!isServiceClosedError(error)) wx.showModal({ title: this.data.copy.uploadFailed, content: error.message || this.data.copy.uploadFailed, showCancel: false })
-    } finally { this.setData({ submitting: false }) }
+      if (!/cancel/i.test(error.errMsg || "")) wx.showModal({ title: this.data.copy.recordingFailed, content: error.message || error.errMsg || this.data.copy.recordingFailed, showCancel: false })
+    } finally { this.setData({ choosingVideo: false }) }
   },
 
   async onSubmitCheckin() {
-    if (this.data.submitting || this.data.user.can_checkin === false) return
+    if (this.data.submitting || this.data.choosingVideo || this.data.user.can_checkin === false) return
     if (!this.data.checkinMedia.length) {
-      wx.showToast({ title: this.data.copy.checkinImageRequired, icon: "none" })
+      wx.showToast({ title: this.data.copy.checkinVideoRequired, icon: "none" })
       return
     }
     this.setData({ submitting: true })
     try {
-      const location = this.data.userLocation || await this.getLocation()
+      const location = await this.getLocation()
       this.setData({ userLocation: { latitude: location.latitude, longitude: location.longitude } })
-      const record = await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude), image_url: this.data.checkinMedia[0].media_url } })
+      const video = this.data.checkinMedia[0]
+      if (!video.media_url) {
+        const uploaded = await uploadMedia(video.tempFilePath, "video")
+        video.media_url = uploaded.media_url
+        this.setData({ checkinMedia: [video] })
+      }
+      const record = await request("/mini/checkins", { method: "POST", data: { user_id: this.data.user.id, spot_id: this.data.spot.id, latitude: String(location.latitude), longitude: String(location.longitude), media_url: video.media_url, media_type: "video", video_duration: video.duration } })
       await this.loadSpot()
       this.setData({ checkinMedia: [] })
       wx.showModal({
@@ -251,7 +255,7 @@ Page({
         showCancel: false,
       })
     } catch (error) {
-      if (!isServiceClosedError(error)) wx.showToast({ title: this.data.copy.submitFailed, icon: "none" })
+      if (!isServiceClosedError(error)) wx.showModal({ title: this.data.copy.submitFailed, content: error.message || error.errMsg || this.data.copy.submitFailed, showCancel: false })
     } finally { this.setData({ submitting: false }) }
   },
 

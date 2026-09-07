@@ -235,6 +235,9 @@ class CheckinCreate(BaseModel):
     latitude: Optional[str] = Field(default=None, max_length=32)
     longitude: Optional[str] = Field(default=None, max_length=32)
     image_url: Optional[str] = Field(default=None, max_length=512)
+    media_url: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    media_type: Optional[str] = Field(default=None, pattern="^video$")
+    video_duration: Optional[float] = Field(default=None, ge=2.5, le=3.5)
     note: Optional[str] = Field(default=None, max_length=512)
 
 

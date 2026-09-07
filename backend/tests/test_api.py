@@ -745,6 +745,30 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["my_checkins"][0]["note"], "清晨到达。")
         self.assertEqual(data["my_checkins"][0]["status"], "pending")
 
+    def test_mini_program_video_checkin(self):
+        payload = {
+            "user_id": 1, "spot_id": 1,
+            "latitude": "25.7436", "longitude": "108.5062",
+            "media_url": "/media/checkin.mp4", "media_type": "video",
+            "video_duration": 3,
+        }
+        for duration in (1, 10):
+            response = self.client.post("/api/v1/mini/checkins", json={**payload, "video_duration": duration})
+            self.assertEqual(response.status_code, 422)
+        response = self.client.post("/api/v1/mini/checkins", json={**payload, "video_duration": None})
+        self.assertEqual(response.status_code, 400)
+        response = self.client.post("/api/v1/mini/checkins", json=payload)
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual(response.json()["media_type"], "video")
+        self.assertEqual(response.json()["media_url"], payload["media_url"])
+        self.assertIsNone(response.json()["image_url"])
+        with self.SessionLocal() as db:
+            user = db.get(MiniProgramUser, 1)
+            user.can_upload_video = False
+            db.commit()
+        response = self.client.post("/api/v1/mini/checkins", json=payload)
+        self.assertEqual(response.status_code, 403)
+
     def test_mini_program_can_submit_checkin_note_and_comment(self):
         checkin = self.client.post(
             "/api/v1/mini/checkins",

@@ -490,8 +490,12 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     spot = ensure_active_spot(db, payload.spot_id)
     if payload.latitude is None or payload.longitude is None:
         raise HTTPException(status_code=400, detail="Location is required for check-in")
-    if not payload.image_url:
-        raise HTTPException(status_code=400, detail="At least one check-in image is required")
+    if payload.media_url or payload.media_type or payload.video_duration is not None:
+        if not payload.media_url or payload.media_type != "video" or payload.video_duration is None:
+            raise HTTPException(status_code=400, detail="请提交完整的3秒打卡视频")
+        ensure_user_permission(user, "can_upload_video")
+    elif not payload.image_url:
+        raise HTTPException(status_code=400, detail="请先录制3秒打卡视频")
     try:
         distance = haversine_distance_meters(float(payload.latitude), float(payload.longitude), spot.latitude, spot.longitude)
     except (TypeError, ValueError) as error:
@@ -527,7 +531,7 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     if risk.notice:
         review_note = f"{review_note} {risk.notice}"
     record = CheckinRecord(
-        **payload.model_dump(),
+        **payload.model_dump(exclude={"video_duration"}),
         status="approved" if passed else "rejected",
         checkin_distance_meters=distance,
         route_distance_meters=risk.route.distance_meters if risk.route else None,
