@@ -1862,6 +1862,7 @@ function fillSpotForm(spot = null) {
     form.elements.required_explore_points.value = 0;
     form.elements.like_count.value = 0;
     form.elements.checkin_radius_meters.value = 300;
+    form.elements.checkin_enabled.checked = false;
     form.elements.river_name.value = "";
     form.elements.river_upstream_latitude.value = "";
     form.elements.river_upstream_longitude.value = "";
@@ -1904,6 +1905,7 @@ function fillSpotForm(spot = null) {
     form.elements[field].value = spot[field] ?? "";
   });
   form.elements.is_active.checked = Boolean(spot.is_active);
+  form.elements.checkin_enabled.checked = spot.checkin_enabled === true;
 }
 
 function renderSpotLevelOptions(selectedLevel = null) {
@@ -3212,6 +3214,7 @@ $("#spotForm").addEventListener("submit", async (event) => {
       recommendation_level: Number(data.recommendation_level),
       required_explore_points: Number(data.required_explore_points),
       checkin_radius_meters: Number(data.checkin_radius_meters),
+      checkin_enabled: form.elements.checkin_enabled.checked,
       is_active: form.elements.is_active.checked,
       tag_ids: getSelectedSpotTagIds(),
     };

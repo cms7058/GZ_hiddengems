@@ -59,6 +59,7 @@ class ApiTest(unittest.TestCase):
         spot = ScenicSpot(
             id=1,
             name_zh="加榜梯田晨雾点",
+            checkin_enabled=True,
             name_en="Jiabang Rice Terraces Mist Viewpoint",
             summary_zh="适合清晨摄影的梯田观景点。",
             summary_en="A quiet viewpoint for morning photography.",
@@ -795,6 +796,25 @@ class ApiTest(unittest.TestCase):
             db.commit()
         response = self.client.post("/api/v1/mini/checkins", json=payload)
         self.assertEqual(response.status_code, 403)
+
+    def test_spot_checkin_switch_persists_and_blocks_submission(self):
+        headers = self.login_headers()
+        from app.services.spot_mapper import spot_to_detail_out
+        for enabled in (False, True, False):
+            response = self.client.patch("/api/v1/admin/spots/1", headers=headers, json={"checkin_enabled": enabled})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["checkin_enabled"], enabled)
+            detail = self.client.get("/api/v1/admin/spots/1", headers=headers)
+            self.assertEqual(detail.json()["checkin_enabled"], enabled)
+            with self.SessionLocal() as db:
+                spot = db.get(ScenicSpot, 1)
+                self.assertEqual(spot.checkin_enabled, enabled)
+                self.assertEqual(spot_to_detail_out(spot).checkin_enabled, enabled)
+            result = self.client.post("/api/v1/mini/checkins", json={
+                "user_id": 1, "spot_id": 1, "latitude": "25.7436", "longitude": "108.5062",
+                "media_type": "video", "media_url": "/media/checkin.mp4", "video_duration": 3,
+            })
+            self.assertEqual(result.status_code, 201 if enabled else 403, result.text)
 
     def test_mini_program_can_submit_checkin_note_and_comment(self):
         checkin = self.client.post(

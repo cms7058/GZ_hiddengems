@@ -490,6 +490,8 @@ def create_checkin(payload: CheckinCreate, db: Session = Depends(get_db)) -> Che
     user = ensure_active_user(db, payload.user_id)
     ensure_user_permission(user, "can_checkin")
     spot = ensure_active_spot(db, payload.spot_id)
+    if not spot.checkin_enabled:
+        raise HTTPException(status_code=403, detail="本秘境暂未开放打卡")
     if payload.latitude is None or payload.longitude is None:
         raise HTTPException(status_code=400, detail="Location is required for check-in")
     if payload.media_url or payload.media_type or payload.video_duration is not None:

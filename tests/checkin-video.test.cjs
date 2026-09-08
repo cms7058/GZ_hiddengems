@@ -31,7 +31,7 @@ function setup() {
     }),
   })
   page.setData = (values) => Object.assign(page.data, values)
-  page.data.spot = { id: 7 }
+  page.data.spot = { id: 7, checkin_enabled: true }
   page.loadSpot = async () => {}
   page.getLocation = async () => ({ latitude: 26, longitude: 106 })
   return { page, wx, calls }
@@ -96,4 +96,14 @@ test('draft video has no playback element before successful submission', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '../miniprogram_GZ/pages/spot-submit/spot-submit.wxml'), 'utf8')
   assert.equal(wxml.includes('id="checkin-preview"'), false)
   assert.ok(wxml.includes("item.media_type === 'video' && item.media_url"))
+})
+
+test('disabled spot blocks camera and submission even on a direct page entry', async () => {
+  const { page, calls } = setup()
+  page.data.spot.checkin_enabled = false
+  await page.onChooseCheckinVideo()
+  await page.onSubmitCheckin()
+  assert.equal(calls.camera, undefined)
+  assert.equal(calls.requests.length, 0)
+  assert.equal(calls.notices.length, 2)
 })

@@ -93,6 +93,7 @@ class SpotCreate(BaseModel):
     recommendation_level: int = Field(..., ge=0, le=99)
     required_explore_points: int = Field(default=0, ge=0)
     checkin_radius_meters: int = 300
+    checkin_enabled: bool = False
     is_active: bool = True
     tag_ids: list[int] = Field(default_factory=list)
 
@@ -134,6 +135,7 @@ class SpotUpdate(BaseModel):
     recommendation_level: Optional[int] = Field(default=None, ge=0, le=99)
     required_explore_points: Optional[int] = Field(default=None, ge=0)
     checkin_radius_meters: Optional[int] = None
+    checkin_enabled: Optional[bool] = None
     is_active: Optional[bool] = None
     tag_ids: Optional[list[int]] = None
 
@@ -301,6 +303,7 @@ class SpotLikeStatusOut(BaseModel):
 class SpotDetailOut(MapSpotOut):
     description: Optional[str] = None
     checkin_radius_meters: int
+    checkin_enabled: bool = False
     video_channel_urls: list[str] = Field(default_factory=list)
     wechat_channel_videos: list[WechatChannelVideoOut] = Field(default_factory=list)
     images: list[SpotImageOut] = Field(default_factory=list)

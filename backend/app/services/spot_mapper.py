@@ -94,6 +94,7 @@ def spot_to_admin_out(spot: ScenicSpot, db: Optional[Session] = None) -> SpotAdm
         required_explore_points=spot.required_explore_points,
         checkin_radius_meters=spot.checkin_radius_meters,
         is_active=spot.is_active,
+        checkin_enabled=spot.checkin_enabled,
         tag_ids=[tag.id for tag in spot.tags],
         tags=[tag_to_localized(tag, "zh-CN") for tag in spot.tags],
         child_points=[
@@ -409,6 +410,7 @@ def spot_to_detail_out(
         description=choose_text(normalized_lang, spot.description_zh, spot.description_en),
         checkin_radius_meters=spot.checkin_radius_meters,
         video_channel_urls=get_video_channel_urls(spot),
+        checkin_enabled=spot.checkin_enabled,
         wechat_channel_videos=[
             wechat_channel_video_to_out(video, db)
             for video in getattr(spot, "wechat_channel_videos", [])

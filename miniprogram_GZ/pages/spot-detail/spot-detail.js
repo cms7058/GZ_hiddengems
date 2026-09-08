@@ -781,6 +781,7 @@ Page({
 
   openAction(action) {
     if (!this.data.spot || !action) return
+    if (action === "checkin" && this.data.spot.checkin_enabled !== true) return
     if (["note", "comment"].includes(action) && !this.data.spot.has_successful_checkin) {
       wx.showToast({ title: this.data.copy.checkinRequired, icon: "none" })
       return

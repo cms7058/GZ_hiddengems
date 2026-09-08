@@ -10,6 +10,7 @@ const COPY = {
     explorer: "夜郎秘境",
     loading: "加载中",
     checkin: "提交打卡",
+    checkinClosed: "本秘境暂未开放打卡",
     writeNote: "发布游记",
     leaveComment: "发表留言",
     myCheckins: "我的打卡",
@@ -51,6 +52,7 @@ const COPY = {
     explorer: "Yelang Hidden Gems",
     loading: "Loading",
     checkin: "Check In",
+    checkinClosed: "Check-in is not available for this spot",
     writeNote: "Write Note",
     leaveComment: "Leave Comment",
     myCheckins: "My Check-ins",
@@ -216,6 +218,7 @@ Page({
   },
 
   async onChooseCheckinVideo() {
+    if (!this.data.spot || this.data.spot.checkin_enabled !== true) return wx.showToast({ title: this.data.copy.checkinClosed, icon: "none" })
     if (this.data.submitting || this.data.choosingVideo) return
     if (this.data.user.can_upload_video === false) return wx.showToast({ title: this.data.copy.permissionDenied, icon: "none" })
     this.setData({ choosingVideo: true })
@@ -233,6 +236,7 @@ Page({
   },
 
   async onSubmitCheckin() {
+    if (!this.data.spot || this.data.spot.checkin_enabled !== true) return wx.showToast({ title: this.data.copy.checkinClosed, icon: "none" })
     if (this.data.submitting || this.data.choosingVideo || this.data.user.can_checkin === false) return
     if (!this.data.checkinMedia.length) {
       wx.showToast({ title: this.data.copy.checkinVideoRequired, icon: "none" })

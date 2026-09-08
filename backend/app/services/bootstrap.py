@@ -118,6 +118,7 @@ def ensure_runtime_columns() -> None:
             "required_explore_points": "INT NOT NULL DEFAULT 0",
         },
         "scenic_spots": {
+            "checkin_enabled": "BOOLEAN NOT NULL DEFAULT 0",
             "spot_code": "VARCHAR(8) NULL",
             "locked_name_zh": "VARCHAR(128) NULL",
             "locked_name_en": "VARCHAR(128) NULL",
