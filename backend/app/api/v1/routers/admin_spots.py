@@ -406,6 +406,9 @@ def delete_admin_spot(
     )
     if spot is None:
         raise HTTPException(status_code=404, detail="Spot not found")
+    from app.models.community import EcoSubmission
+    if db.scalar(select(EcoSubmission.id).where(EcoSubmission.spot_id == spot_id).limit(1)):
+        raise HTTPException(status_code=409, detail="秘境已有环保审核记录，请使用停用保留审计记录")
 
     images = db.scalars(select(SpotImage).where(SpotImage.spot_id == spot_id)).all()
     notes = db.scalars(select(TravelNote).where(TravelNote.spot_id == spot_id)).all()

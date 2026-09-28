@@ -12,7 +12,7 @@ WORKDIR /app
 
 RUN sed -i "s|http://deb.debian.org/debian|${DEBIAN_MIRROR}|g; s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g; s|http://security.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources 2>/dev/null || true \
     && apt-get update \
-    && apt-get install -y --no-install-recommends build-essential default-libmysqlclient-dev \
+    && apt-get install -y --no-install-recommends build-essential default-libmysqlclient-dev ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

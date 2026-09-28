@@ -209,18 +209,27 @@ Page({
     watermarkCanvasWidth: 1,
     watermarkCanvasHeight: 1,
     shareToken: "",
+    sharePreviewName: "",
     submitting: false,
   },
 
   onLoad(options) {
     this.markerCanvasReady = false
     this.watermarkedImageCache = new Map()
-    this.hideShareMenu()
+    this.configureShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location)
     const id = Number(options.id || 0)
     this.setData({ id })
     this.refreshCopy()
-    this.loadDetail()
+    // A shared spot link can open before the recipient's mini-program login
+    // has completed. Wait for that identity so the server can apply this
+    // recipient's own unlock record instead of any sender-side context.
+    Promise.resolve(app.bootstrapUser())
+      .catch(() => null)
+      .finally(() => {
+        this.refreshCopy()
+        this.loadDetail()
+      })
     this.tryShowUserLocation()
   },
 
@@ -254,6 +263,16 @@ Page({
       copy: COPY[lang],
       user: app.globalData.user,
     })
+    this.configureShareMenu()
+  },
+
+  configureShareMenu() {
+    const user = this.data.user || app.globalData.user || {}
+    if (user.can_share && this.data.shareToken && wx.showShareMenu) {
+      wx.showShareMenu({ withShareTicket: false, menus: ["shareAppMessage"] })
+      return
+    }
+    this.hideShareMenu()
   },
 
   buildDetailPath() {
@@ -265,6 +284,17 @@ Page({
       `is_member=${user.is_member ? "true" : "false"}`,
     ]
     return `/spots/${this.data.id}?${params.join("&")}`
+  },
+
+  isLockedSpotError(error) {
+    if (Number(error && error.statusCode) !== 403) return false
+    return /unlock|locked|解锁|积分不足/i.test(String((error && error.message) || ""))
+  },
+
+  openLockedSpotDetail() {
+    wx.redirectTo({
+      url: `/pages/locked-spot-detail/locked-spot-detail?id=${this.data.id}`,
+    })
   },
 
   async loadDetail() {
@@ -297,6 +327,14 @@ Page({
           fallbackMode: false,
           error: this.data.copy.serviceClosed,
         })
+        return
+      }
+      // The API deliberately returns 403 for a spot the current recipient has
+      // not unlocked. Never fall back to a local cached full detail in that
+      // case, because that could expose the sender's unlocked content.
+      if (this.isLockedSpotError(error)) {
+        this.setData({ loading: false })
+        this.openLockedSpotDetail()
         return
       }
       const fallbackSpot = app.globalData.currentSpot
@@ -388,7 +426,19 @@ Page({
         ...item,
         display_url: resolveMediaUrl(item.display_url || item.image_url),
       })),
-      wechat_channel_videos: (spot.wechat_channel_videos || []).filter((item) => item.is_active !== false && item.finder_user_name && item.feed_id),
+      wechat_channel_videos: (spot.wechat_channel_videos || [])
+        .filter((item) => item.is_active !== false && item.finder_user_name && item.feed_id)
+        .map((item) => {
+          const displayUrl = resolveMediaUrl(item.display_url || item.cover_url)
+          return {
+            ...item,
+            // The API uses same-origin relative paths for OSS media. Images in
+            // WXML require an absolute URL on physical devices, so normalize
+            // both fields used by the carousel and the video-channel card.
+            cover_url: resolveMediaUrl(item.cover_url),
+            display_url: displayUrl,
+          }
+        }),
       like_count: Number(spot.like_count || 0),
       liked_by_me: Boolean(spot.liked_by_me),
       liked_users: (spot.liked_users || []).map((item) => ({
@@ -443,10 +493,6 @@ Page({
     const current = event.currentTarget.dataset.url
     if (event.currentTarget.dataset.mediaType === "video") return
     this.openSpotMedia("image", current)
-  },
-
-  onSpotVideoPlay(event) {
-    this.openSpotMedia("video", event.currentTarget.dataset.url)
   },
 
   onSpotVideoTap(event) {
@@ -696,6 +742,13 @@ Page({
     this.openAction(event.currentTarget.dataset.action)
   },
 
+  onEcoVideo() {
+    const spot = this.data.spot
+    if (spot && spot.is_unlocked !== false && Number(spot.recommendation_level) >= 2) {
+      wx.navigateTo({ url: `/pages/community/community?mode=eco&id=${spot.id}` })
+    }
+  },
+
   async onToggleSpotLike() {
     const { spot, user } = this.data
     if (!spot || !user || user.can_like_comment === false) {
@@ -730,13 +783,25 @@ Page({
 
   async prepareShare() {
     const user = this.data.user || {}
-    if (!user.id || user.can_share === false) return
+    if (!user.id || user.can_share === false || !this.data.id) return
     try {
       const result = await request(`/mini/shares/prepare?user_id=${user.id}`, { method: "POST" })
-      this.setData({ shareToken: result.share_token || "" })
+      let sharePreviewName = ""
+      try {
+        const preview = await request(`/spots/share-preview/${this.data.id}?lang=${this.data.lang}`)
+        sharePreviewName = preview.name || ""
+      } catch (error) {
+        // Keep sharing available while an older server version is still being
+        // deployed. The callback falls back to the generic safe title.
+        console.warn("share preview unavailable", error)
+      }
+      this.setData({
+        shareToken: result.share_token || "",
+        sharePreviewName,
+      }, () => this.configureShareMenu())
     } catch (error) {
       console.warn("share preparation failed", error)
-      this.setData({ shareToken: "" })
+      this.setData({ shareToken: "", sharePreviewName: "" }, () => this.configureShareMenu())
     }
   },
 
@@ -747,17 +812,20 @@ Page({
   },
 
   onShareAppMessage() {
-    const spot = this.data.spot || {}
     const shareToken = this.data.shareToken
     // Share callbacks are inconsistent across WeChat releases. Confirming on
     // invocation records this user-initiated share exactly once server-side.
     if (shareToken) this.confirmShare(shareToken)
     return {
-      title: spot.name || this.data.copy.navTitle,
-      // This action invites friends into the mini program itself. Sharing a
-      // protected spot URL could reveal an entry point the sender did not
-      // intend to expose, so recipients always start from the home page.
-      path: `/pages/index/index${shareToken ? `?ref=${encodeURIComponent(shareToken)}` : ""}`,
+      // Do not expose a protected spot name, level, photo, map, or any other
+      // detail in the WeChat share card itself. The recipient is checked only
+      // after opening the protected preview page.
+      title: this.data.sharePreviewName || (this.data.lang === "en-US" ? "Westland Gems invites you to explore" : "西部觅境邀请你一起探索"),
+      imageUrl: "/assets/share-protected-cover.png",
+      // Always enter through the protected preview. It asks new recipients to
+      // complete registration first, then uses their own unlock record before
+      // it ever opens the full detail page.
+      path: `/pages/locked-spot-detail/locked-spot-detail?id=${this.data.id}${shareToken ? `&ref=${encodeURIComponent(shareToken)}` : ""}`,
     }
   },
 

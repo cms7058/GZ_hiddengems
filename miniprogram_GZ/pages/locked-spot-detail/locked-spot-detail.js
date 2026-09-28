@@ -56,9 +56,18 @@ Page({
   onLoad(options) {
     this.hideShareMenu()
     this.spotId = Number(options.id)
+    this.sharedRef = String(options.ref || "").trim()
     this.refreshCopy()
-    this.showCachedSpot()
-    this.loadSpot()
+    // Shared links can arrive before wx.login has completed. Load the safe
+    // preview only after the receiving user has been identified.
+    Promise.resolve(app.bootstrapUser())
+      .catch(() => null)
+      .finally(() => {
+        this.refreshCopy()
+        if (!this.ensureSharedRegistration()) return
+        this.showCachedSpot()
+        this.loadSpot()
+      })
   },
 
   onShow() {
@@ -76,6 +85,30 @@ Page({
   refreshCopy() {
     const lang = app.globalData.lang || "zh-CN"
     this.setData({ lang, copy: COPY[lang] })
+  },
+
+  ensureSharedRegistration() {
+    const profileAccepted = app.globalData.hasAcceptedProfileAuth || wx.getStorageSync("gzProfileAuthAccepted")
+    const safetyAccepted = app.globalData.hasAcceptedSafetyAgreement || wx.getStorageSync("gzSafetyAgreementAccepted")
+    if (profileAccepted && safetyAccepted) return true
+
+    app.globalData.pendingSharedSpotId = this.spotId
+    wx.showModal({
+      title: this.data.lang === "en-US" ? "Complete Registration" : "完成注册后查看",
+      content: this.data.lang === "en-US"
+        ? "Authorize your profile and accept the safety agreement before viewing this shared gem."
+        : "请先完成微信用户授权并阅读安全协议，再查看好友分享的秘境资料。",
+      confirmText: this.data.lang === "en-US" ? "Register" : "去注册",
+      cancelText: this.data.lang === "en-US" ? "Later" : "暂不",
+      success: (result) => {
+        if (!result.confirm) return
+        const ref = this.sharedRef || app.globalData.pendingReferrerToken
+        wx.reLaunch({
+          url: `/pages/index/index${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
+        })
+      },
+    })
+    return false
   },
 
   showCachedSpot() {
@@ -122,6 +155,10 @@ Page({
     } catch (error) {
       if (isServiceClosedError(error)) {
         this.setData({ spot: null, loading: false, serviceClosed: true })
+        return
+      }
+      if (Number(error && error.statusCode) === 403 && /already unlocked/i.test(String((error && error.message) || ""))) {
+        wx.redirectTo({ url: `/pages/spot-detail/spot-detail?id=${this.spotId}` })
         return
       }
       console.warn("locked spot detail request failed", error)

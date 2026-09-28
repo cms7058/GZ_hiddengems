@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.admin import AdminRole, AdminUser
+from app.models import community  # Register community tables before create_all.
 from app.models.archive import ArchiveChatImport, ArchiveDevelopmentTask, ArchiveEvent, ArchiveInternalMessage, ArchiveRequirement
 from app.models.content import CommentLike, ContentMedia, LifestyleRecommendation, SpotImage, SpotLike, SpotRecommendation, TravelNote, UserComment
 from app.models.integration import IntegrationSetting

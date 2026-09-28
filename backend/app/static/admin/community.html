@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>环保与美食审核</title><link rel="stylesheet" href="/admin/static/community.css"></head>
+<body>
+  <header><a href="/admin">返回管理后台</a><h1>环保与美食审核</h1><span id="pending" role="status"></span></header>
+  <main>
+    <nav aria-label="审核类别"><button data-tab="eco" aria-pressed="true">环保视频</button><button data-tab="food" aria-pressed="false">美食推荐</button><button data-tab="policies" aria-pressed="false">美食规则与绑定</button></nav>
+    <p id="message" role="alert"></p>
+    <section id="reviews">
+      <form id="filters" class="toolbar"><label>审核状态<select name="status"><option value="pending">待审核</option><option value="">全部</option><option value="approved">通过</option><option value="rejected">不通过</option></select></label><label>用户编号<input name="user_id" type="number" min="1"></label><button>查询</button><button type="reset">重置</button></form>
+      <div class="table-wrap"><table><thead><tr><th>编号</th><th>用户</th><th>内容</th><th>类别/奖励</th><th>状态</th><th>AI初审</th><th>提交时间</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="pagination"><button id="previous">上一页</button><span id="page"></span><button id="next">下一页</button></div>
+    </section>
+    <section id="policies" hidden>
+      <form id="policyForm">
+        <h2>美食推荐规则</h2>
+        <div class="fields">
+          <label>规则名称<input name="name" required maxlength="128"></label>
+          <label>最少照片数量<input name="min_photos" type="number" min="1" max="9" value="1" required></label>
+          <label>最多照片数量<input name="max_photos" type="number" min="1" max="9" value="3" required></label>
+          <label>单张图片上限（MB）<input name="image_mb" type="number" min="0.1" max="8" step="0.1" value="2" required></label>
+          <label>最大宽度（像素）<input name="max_width" type="number" min="100" max="12000" value="4096" required></label>
+          <label>最大高度（像素）<input name="max_height" type="number" min="100" max="12000" value="4096" required></label>
+          <label>视频上限（秒）<input name="max_video_seconds" type="number" min="3" max="60" value="3" required></label>
+          <label>审核通过奖励积分<input name="reward_points" type="number" min="0" max="100000" value="1" required></label>
+          <label class="check"><input name="video_required" type="checkbox">必须上传视频</label>
+          <label class="check"><input name="is_active" type="checkbox" checked>启用推荐权限</label>
+          <label>绑定范围<select name="all_users"><option value="false">指定用户</option><option value="true">所有用户（含后续新用户）</option></select></label>
+        </div>
+        <div id="userPicker"><div class="toolbar"><label>查找用户<input id="userSearch" placeholder="用户昵称"></label><button type="button" id="searchUsers">查询</button><button type="button" id="moreUsers">下一页用户</button><span id="selectedCount"></span></div><div id="users" class="users"></div></div>
+        <button class="primary" type="submit">保存并绑定新版本</button>
+      </form>
+      <h2>规则版本</h2><div class="table-wrap"><table><thead><tr><th>版本</th><th>规则名称</th><th>范围</th><th>状态</th><th>积分</th><th>操作</th></tr></thead><tbody id="policyRows"></tbody></table></div>
+    </section>
+  </main>
+  <dialog id="reviewDialog"><form id="reviewForm"><div class="dialog-head"><h2 id="reviewTitle">审核详情</h2><button type="button" data-close="reviewDialog" aria-label="关闭">×</button></div><div id="details"></div><div id="media" class="media"></div><p id="aiResult"></p><button type="button" id="retryAI">重试AI初审</button><div id="auditFields"><label>审核结论<select name="verdict" id="verdict"></select></label><label>审核说明<textarea name="note" required maxlength="512"></textarea></label><p id="penaltyHint">最近30次提交：1次完全无关，信用及环保打卡次数清零；至少4次垃圾不清晰，信用清零。AI不自动处罚。</p><button class="primary" id="saveReview">确认审核</button></div><p id="reviewError" role="alert"></p></form></dialog>
+  <dialog id="userDialog"><div class="dialog-head"><h2>用户环保信用</h2><button data-close="userDialog" aria-label="关闭">×</button></div><div id="userSummary"></div></dialog>
+  <script src="/admin/static/community.js?v=20260928"></script>
+</body></html>

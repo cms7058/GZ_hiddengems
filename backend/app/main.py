@@ -88,6 +88,10 @@ def create_app() -> FastAPI:
             media_type="text/html; charset=utf-8",
         )
 
+    @app.get("/admin/community", include_in_schema=False)
+    def community_page() -> FileResponse:
+        return FileResponse(static_dir / "community.html", media_type="text/html; charset=utf-8")
+
     @app.get("/admin/archive", include_in_schema=False)
     def archive_page() -> FileResponse:
         return FileResponse(

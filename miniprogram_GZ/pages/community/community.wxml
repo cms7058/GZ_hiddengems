@@ -1,0 +1,40 @@
+<view class="page">
+  <navigation-bar title="{{mode === 'food' ? '美食推荐' : '环保信用'}}" back="{{true}}" color="#193127" background="#f4f1e8" />
+  <scroll-view scroll-y class="scroll">
+    <view class="body">
+      <view wx:if="{{loading}}" class="notice">加载中</view>
+      <view wx:if="{{error}}" class="notice" bindtap="load">{{error}} · 重试</view>
+      <view wx:if="{{summary}}" class="summary">
+        <text>环保信用 {{summary.credit}} · 环保打卡 {{summary.checkin_count}} · 警告 {{summary.warning_count}}</text>
+        <text>L2 {{summary.levels['2']}} / 30　L3 {{summary.levels['3']}} / 15　L4 {{summary.levels['4']}} / 15</text>
+      </view>
+      <view wx:if="{{mode === 'eco' && !blocked && !loading && !error}}">
+        <picker mode="selector" range="{{categories}}" value="{{categoryIndex}}" bindchange="onCategory" disabled="{{busy}}"><view class="field">{{categories[categoryIndex]}}</view></picker>
+        <video wx:if="{{video}}" src="{{video.tempFilePath}}" class="video" controls />
+        <button bindtap="onRecord" disabled="{{busy}}">{{video ? '重新拍摄' : '录制3秒环保视频'}}</button>
+        <button class="primary" bindtap="onSubmit" disabled="{{busy}}" loading="{{busy}}">提交审核</button>
+      </view>
+      <view wx:if="{{mode === 'food' && summary.food_policy && !loading}}">
+        <view class="notice">照片 {{summary.food_policy.min_photos}}–{{summary.food_policy.max_photos}} 张，最大 {{summary.food_policy.max_width}}×{{summary.food_policy.max_height}} 像素、{{summary.food_policy.max_image_bytes / 1048576}}MB；视频最多 {{summary.food_policy.max_video_seconds}} 秒{{summary.food_policy.video_required ? '（必需）' : '（可选）'}}；审核通过 +{{summary.food_policy.reward_points}} 积分</view>
+        <input class="field" placeholder="美食名称" value="{{title}}" maxlength="128" bindinput="onTitle" disabled="{{busy}}" />
+        <textarea class="field content" placeholder="推荐理由及地点" value="{{content}}" maxlength="4000" bindinput="onContent" disabled="{{busy}}" />
+        <view class="photos"><view wx:for="{{photos}}" wx:key="tempFilePath"><image src="{{item.tempFilePath}}" mode="aspectFill" /><button size="mini" data-index="{{index}}" bindtap="onRemovePhoto">移除</button></view></view>
+        <button bindtap="onPhotos" disabled="{{busy}}">添加照片</button>
+        <video wx:if="{{video}}" src="{{video.tempFilePath}}" class="video" controls />
+        <button bindtap="onRecord" disabled="{{busy}}">{{video ? '重新拍摄视频' : '添加视频'}}</button>
+        <button wx:if="{{video}}" bindtap="onRemoveVideo" disabled="{{busy}}">移除视频</button>
+        <button class="primary" bindtap="onSubmit" disabled="{{busy}}" loading="{{busy}}">提交审核</button>
+      </view>
+      <view wx:if="{{mode === 'food' && summary && !summary.food_policy}}" class="notice">管理员尚未开放美食推荐</view>
+      <view wx:if="{{mode !== 'food'}}" wx:for="{{records}}" wx:key="id" class="record">
+        <text class="title">{{item.spot_name}} · L{{item.level}}</text><text>{{item.category}}类 · {{item.statusText}}</text>
+        <text>{{item.review_note}}</text>
+        <video wx:if="{{item.media[0].url}}" src="{{item.media[0].url}}" class="video" controls />
+      </view>
+      <view wx:if="{{mode !== 'eco'}}" wx:for="{{foodRecords}}" wx:key="id" class="record">
+        <text class="title">{{item.title}} · {{item.statusText}}</text><text>奖励 {{item.reward_points}} 积分</text><text>{{item.review_note}}</text>
+      </view>
+    </view>
+  </scroll-view>
+  <view class="back" bindtap="onBack" role="button" aria-label="返回">←</view>
+</view>

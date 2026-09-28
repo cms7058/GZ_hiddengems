@@ -77,6 +77,7 @@ class MiniProgramUserCreate(BaseModel):
 
 
 class MiniProgramUserOut(BaseModel):
+    community_token: Optional[str] = None
     id: int
     openid: str
     nickname: str

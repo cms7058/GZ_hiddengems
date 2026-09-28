@@ -13,6 +13,7 @@ const COPY = {
     distance: "距离",
     need: "所需",
     points: "积分",
+    unlock: "解锁",
     protected: "为保护秘境，地图不展示未解锁点位。",
     noPhotos: "暂无公开照片",
   },
@@ -26,6 +27,7 @@ const COPY = {
     distance: "Distance",
     need: "Need",
     points: "pts",
+    unlock: "Unlock",
     protected: "Locked spot locations are not shown on the map.",
     noPhotos: "No public photos",
   },
@@ -78,14 +80,16 @@ Page({
 
   async loadSpots() {
     if (this.catalogMode) {
-      const spots = (app.globalData.lockedSpotListCache || []).map((spot) => {
+      const cachedSpots = (app.globalData.lockedSpotListCache || []).map((spot) => {
         return {
           ...spot,
+          summary: spot.locked_summary || spot.summary || "",
           images: [],
           image_urls: [],
           need_points: Number(spot.required_explore_points || 0),
         }
       })
+      const spots = await this.hydrateLockedSummaries(cachedSpots)
       this.setData({ spots, loading: false, offline: false, serviceClosed: false, radiusKm: 0, catalogMode: true })
       return
     }
@@ -124,6 +128,30 @@ Page({
     }
   },
 
+  async hydrateLockedSummaries(spots) {
+    const user = app.globalData.user || {}
+    if (!user.id) return spots
+    return Promise.all((spots || []).map(async (spot) => {
+      if (spot.summary) return spot
+      try {
+        const preview = await request(`/spots/locked-preview/${spot.id}?lang=${this.data.lang}&user_id=${user.id}`)
+        return {
+          ...spot,
+          name: preview.name || spot.name,
+          summary: preview.description || preview.summary || "",
+          need_points: Number(preview.required_explore_points || spot.need_points || 0),
+          recommendation_level: Number(preview.recommendation_level || spot.recommendation_level || 0),
+          tags: preview.tags || spot.tags || [],
+        }
+      } catch (error) {
+        // A record may have been unlocked in another page. Keep it out of
+        // this protected list rather than showing any full-detail fallback.
+        if (Number(error && error.statusCode) === 403) return null
+        return spot
+      }
+    })).then((items) => items.filter(Boolean))
+  },
+
   onPreviewImage(event) {
     const urls = event.currentTarget.dataset.urls || []
     const current = event.currentTarget.dataset.current
@@ -140,6 +168,12 @@ Page({
         [spotId]: spot,
       }
     }
+    wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spotId}` })
+  },
+
+  onUnlockTap(event) {
+    const spotId = Number(event.currentTarget.dataset.id)
+    if (!spotId) return
     wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spotId}` })
   },
 

@@ -12,7 +12,7 @@ from app.schemas.spot import HomeSpotOut, LockedNearbySpotCountOut, LockedSpotDe
 from app.services.geo import distance_km_between
 from app.services.media_storage import MediaStorageError, cache_remote_image, is_managed_media_url
 from app.services.pass_levels import get_active_pass_settings_by_level, get_marker_colors_by_level, get_spot_unlock_state
-from app.services.spot_mapper import spot_to_detail_out, spot_to_home_out, spot_to_locked_detail_out, spot_to_locked_preview_out, spot_to_map_out
+from app.services.spot_mapper import locked_spot_name, spot_to_detail_out, spot_to_home_out, spot_to_locked_detail_out, spot_to_locked_preview_out, spot_to_map_out
 
 
 router = APIRouter()
@@ -296,6 +296,28 @@ def get_locked_spot_preview(
         marker_colors_by_level=get_marker_colors_by_level(db),
         db=db,
     )
+
+
+@router.get("/share-preview/{spot_id}")
+def get_spot_share_preview(
+    spot_id: int,
+    lang: str = Query(default="zh-CN"),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    """Return only the safe title that may appear on a share card."""
+    spot = db.scalar(
+        select(ScenicSpot).where(
+            ScenicSpot.id == spot_id,
+            ScenicSpot.is_active.is_(True),
+            ScenicSpot.review_status == "approved",
+        )
+    )
+    if spot is None:
+        raise HTTPException(status_code=404, detail="Spot not found")
+    return {
+        "id": spot.id,
+        "name": locked_spot_name(spot, lang),
+    }
 
 
 @router.get("/{spot_id}", response_model=SpotDetailOut)

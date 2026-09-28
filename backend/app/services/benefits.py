@@ -6,6 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.user import BenefitCatalog, BenefitPointLedger, MiniProgramUser, UserBenefitRedemption, UserSpotUnlock
+from app.models.spot import ScenicSpot
+from app.services.community import can_redeem_eco_level
 
 
 def ensure_spot_unlock_benefit(
@@ -101,6 +103,9 @@ def redeem_benefit(db: Session, user: MiniProgramUser, benefit: BenefitCatalog) 
     if benefit.category == "spot_unlock":
         if benefit.spot_id is None:
             raise HTTPException(status_code=400, detail="Spot unlock benefit is not linked to a spot")
+        spot = db.get(ScenicSpot, benefit.spot_id)
+        if not spot or not can_redeem_eco_level(db, user.id, spot.recommendation_level):
+            raise HTTPException(status_code=403, detail="请先达到上一级环保信用门槛，达标后新增秘境可使用积分兑换")
         existing = db.scalar(select(UserSpotUnlock.id).where(UserSpotUnlock.user_id == user.id, UserSpotUnlock.spot_id == benefit.spot_id, UserSpotUnlock.status == "active"))
         if existing is not None:
             raise HTTPException(status_code=409, detail="Spot is already unlocked for this user")

@@ -161,6 +161,9 @@ def delete_admin_user(
     user = db.get(MiniProgramUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    from app.models.community import CommunityUpload, FoodPolicyUser
+    if db.scalar(select(CommunityUpload.id).where(CommunityUpload.user_id == user_id).limit(1)) or db.scalar(select(FoodPolicyUser.policy_id).where(FoodPolicyUser.user_id == user_id).limit(1)):
+        raise HTTPException(status_code=409, detail="用户有关联环保/美食审核或绑定记录，请使用停用保留审计记录")
 
     # “停用” is handled by the PATCH endpoint. The explicit delete action must
     # remove the account from the list and clear its dependent records so a

@@ -265,6 +265,7 @@ class HomeSpotOut(BaseModel):
     id: int
     name: str
     locked_name: str = ""
+    locked_summary: str = ""
     recommendation_level: int
     marker_color: str = "#2f6b4f"
     is_unlocked: bool

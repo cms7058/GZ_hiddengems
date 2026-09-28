@@ -3791,6 +3791,13 @@ async function refreshCheckinReviewNotice() {
     const result = await request("/admin/checkins?status=pending&page_size=1");
     notice.textContent = `打卡审核消息：${result.total} 条待审核，点击查看`;
     notice.classList.toggle("hidden", !result.total);
+    const communityNotice = $("#communityReviewNotice");
+    if (communityNotice) {
+      const eco = await request("/admin/community/eco?status=pending");
+      const food = await request("/admin/community/food?status=pending");
+      communityNotice.textContent = `环保视频待审核 ${eco.total} · 美食推荐待审核 ${food.total}`;
+      communityNotice.classList.toggle("hidden", !(eco.total || food.total));
+    }
   } catch (error) {
     console.warn("Check-in review notification unavailable", error);
   } finally {

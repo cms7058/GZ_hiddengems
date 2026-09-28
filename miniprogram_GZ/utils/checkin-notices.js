@@ -11,6 +11,24 @@ async function poll() {
     const app = getApp()
     const userId = app && app.globalData && app.globalData.user && app.globalData.user.id
     if (!userId) return
+    if (app.globalData.user.community_token) {
+      try {
+        const { communityRequest } = require("./community-client")
+        const notices = await communityRequest("/notices")
+        if (!active || app.globalData.user.id !== userId) return
+        const key = `gzCommunityNotices:${userId}`
+        const read = wx.getStorageSync(key) || []
+        const fresh = notices.filter((item) => !read.includes(item.key)).slice(0, 5)
+        if (fresh.length) {
+          await new Promise((resolve) => wx.showModal({
+            title: "环保与美食审核通知",
+            content: fresh.map((item) => `${item.kind === 'eco' ? '环保视频' : '美食推荐'} #${item.id}：${{ pending: '待审核', approved: '通过', rejected: '不通过' }[item.status]}\n${item.note || ''}`).join("\n\n"),
+            showCancel: false,
+            success: () => wx.setStorageSync(key, [...read, ...fresh.map((item) => item.key)].slice(-1000)), complete: resolve,
+          }))
+        }
+      } catch (error) { console.warn("community notifications unavailable", error) }
+    }
     const records = await request(`/mini/users/${userId}/checkins`)
     if (!active || !app.globalData.user || app.globalData.user.id !== userId || !Array.isArray(records)) return
     const key = `gzCheckinReviews:${userId}`

@@ -23,11 +23,13 @@
           <text class="spot-summary">{{spot.summary}}</text>
           <view class="spot-meta">
             <text wx:if="{{!catalogMode}}">{{copy.distance}} {{spot.distance_km}} km</text>
-            <text wx:else>{{copy.protected}}</text>
             <text>{{copy.need}} {{spot.need_points}} {{copy.points}}</text>
           </view>
-          <view class="tag-row">
-            <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
+          <view class="card-footer">
+            <view class="tag-row">
+              <text wx:for="{{spot.tags}}" wx:for-item="tag" wx:key="id" class="tag">{{tag.name}}</text>
+            </view>
+            <view class="unlock-button" data-id="{{spot.id}}" catchtap="onUnlockTap">{{copy.unlock}}</view>
           </view>
         </view>
       </view>

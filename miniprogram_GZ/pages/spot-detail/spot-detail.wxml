@@ -20,7 +20,6 @@
               direction="0"
               enable-play-gesture
               bindtap="onSpotVideoTap"
-              bindplay="onSpotVideoPlay"
             ></video>
             <image
               wx:elif="{{photo.media_type === 'wechat_channel'}}"
@@ -83,7 +82,6 @@
             <image wx:if="{{item.display_url || item.cover_url}}" class="video-channel-cover" src="{{item.display_url || item.cover_url}}" mode="aspectFill"></image>
             <view class="video-channel-copy">
               <text class="video-channel-link-title">{{item.title}}</text>
-              <text class="video-channel-author">{{item.finder_user_name}}</text>
             </view>
             <text class="video-channel-link-action">{{copy.openVideoChannel}} ›</text>
           </view>
@@ -139,6 +137,9 @@
             <view wx:if="{{user.can_checkin && spot.checkin_enabled}}" class="explore-action" data-action="checkin" bindtap="onActionTap">
               <text class="explore-action-title">{{copy.checkin}}</text>
               <text class="explore-action-arrow">›</text>
+            </view>
+            <view wx:if="{{user.can_upload_video && spot.is_unlocked !== false && spot.recommendation_level >= 2}}" class="explore-action" bindtap="onEcoVideo">
+              <text class="explore-action-title">{{lang === 'en-US' ? 'Eco Video' : '上传环保视频'}}</text>
             </view>
             <view wx:if="{{user.can_comment && spot.has_successful_checkin}}" class="explore-action" data-action="note" bindtap="onActionTap">
               <text class="explore-action-title">{{copy.writeNote}}</text>

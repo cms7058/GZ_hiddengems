@@ -58,10 +58,11 @@
       <text>{{copy.contributions}}</text>
       <text class="value">{{user.contribution_count || 0}}</text>
     </view>
-    <view class="stat">
+    <view class="stat stat-tap" bindtap="onOpenEco">
       <text>{{copy.ecoCredit}}</text>
-      <text class="value">{{user.eco_credit || 0}}</text>
+      <text class="value">{{community ? community.credit : '—'}}</text>
     </view>
+    <view wx:if="{{community.food_policy}}" class="stat stat-tap" bindtap="onOpenFood"><text>{{lang === 'en-US' ? 'Food Recommendation' : '美食推荐'}}</text><text class="value small">+{{community.food_policy.reward_points}}</text></view>
     <view class="stat">
       <text>{{copy.shares}}</text>
       <text class="value">{{user.share_count || 0}}</text>

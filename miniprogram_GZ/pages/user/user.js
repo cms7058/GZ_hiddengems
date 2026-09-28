@@ -139,6 +139,19 @@ Page({
     this.reloadUser()
   },
 
+  async loadCommunity() {
+    try {
+      const { communityRequest } = require("../../utils/community-client")
+      this.setData({ community: await communityRequest("/summary") })
+    } catch (error) {
+      this.setData({ community: null })
+      console.warn("community summary unavailable", error)
+    }
+  },
+
+  onOpenEco() { wx.navigateTo({ url: "/pages/community/community" }) },
+  onOpenFood() { wx.navigateTo({ url: "/pages/community/community?mode=food" }) },
+
   refreshUserView() {
     app.applyTabBarLanguage()
     const lang = app.globalData.lang || "zh-CN"
@@ -184,7 +197,7 @@ Page({
   reloadUser() {
     this.setData({ refreshing: true })
     app.bootstrapUser({ force: true })
-      .then(() => this.setData({ syncError: "" }))
+      .then(() => { this.setData({ syncError: "" }); this.loadCommunity() })
       .catch((error) => {
         console.warn("profile refresh failed", error)
         this.setData({ syncError: error.message || "后台用户数据同步失败" })

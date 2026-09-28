@@ -1,0 +1,17 @@
+page, .page { height: 100%; background: #f4f1e8; color: #193127; }
+.page { display: flex; flex-direction: column; }
+.scroll { flex: 1; height: 0; min-height: 0; }
+.body { padding: 24rpx 24rpx 160rpx; }
+.summary, .record { padding: 24rpx 0; border-bottom: 1rpx solid #ccd8cd; }
+text { display: block; margin-bottom: 12rpx; font-size: 26rpx; }
+.title { font-weight: 700; font-size: 30rpx; }
+.notice { padding: 16rpx; background: #fff1d3; font-size: 24rpx; margin: 16rpx 0; }
+.field { width: 100%; box-sizing: border-box; padding: 16rpx; margin: 16rpx 0; background: #fff; border: 1rpx solid #ccd8cd; border-radius: 8rpx; font-size: 26rpx; }
+input.field { height: 80rpx; }
+.content { height: 200rpx; }
+.video { width: 100%; height: 360rpx; margin: 16rpx 0; }
+.photos { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.photos image { width: 190rpx; height: 160rpx; }
+button { margin: 16rpx auto; font-size: 26rpx; border-radius: 8rpx; }
+button.primary { background: #1f5f45; color: #fff; }
+.back { position: fixed; bottom: calc(40rpx + env(safe-area-inset-bottom)); left: 24rpx; width: 76rpx; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 50%; background: #cdebd3; font-size: 38rpx; }

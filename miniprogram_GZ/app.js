@@ -215,6 +215,7 @@ App({
     user: DEFAULT_USER,
     userLoginPromise: null,
     pendingReferrerToken: "",
+    pendingSharedSpotId: 0,
     device: {},
     window: {},
     lastTabPath: "pages/index/index",

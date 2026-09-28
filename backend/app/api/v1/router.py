@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from app.api.v1.routers import community
 
 from app.api.v1.routers import (
     admin_checkins,
@@ -26,6 +27,8 @@ from app.api.v1.routers import (
 
 
 api_router = APIRouter()
+api_router.include_router(community.mini_router, prefix="/mini/community", tags=["community"])
+api_router.include_router(community.admin_router, prefix="/admin/community", tags=["community-admin"])
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(spots.router, prefix="/spots", tags=["spots"])

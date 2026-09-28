@@ -1,0 +1,30 @@
+:root { font-family: system-ui, sans-serif; color: #24332b; background: #f7f9f8; }
+* { box-sizing: border-box; letter-spacing: 0; }
+body { margin: 0; }
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; padding: 20px 28px; border-bottom: 1px solid #d4ddd8; background: #fff; }
+h1 { font-size: 22px; margin: 0; } h2 { font-size: 18px; }
+main { padding: 20px 28px; }
+nav { display: flex; gap: 8px; border-bottom: 1px solid #d4ddd8; padding-bottom: 16px; }
+button, input, select, textarea { font: inherit; font-size: 14px; border: 1px solid #b7c7be; border-radius: 4px; padding: 9px 12px; color: inherit; background: white; }
+button { cursor: pointer; } button:disabled { opacity: .5; cursor: default; }
+button[aria-pressed="true"], .primary { background: #245b45; color: #fff; }
+a { color: #245b75; } label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+.toolbar { display: flex; align-items: end; flex-wrap: nowrap; gap: 12px; overflow-x: auto; padding: 16px 0; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; }
+.check { flex-direction: row; align-items: center; } .check input { width: 18px; height: 18px; }
+.users { display: flex; flex-wrap: wrap; gap: 14px; max-height: 200px; overflow: auto; padding-bottom: 16px; }
+.users label { flex-direction: row; align-items: center; }
+.table-wrap { overflow-x: auto; margin-top: 16px; } table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e5e2; vertical-align: top; }
+th { background: #edf2ef; white-space: nowrap; } td button { white-space: nowrap; }
+.pagination { display: flex; gap: 16px; justify-content: end; align-items: center; margin-top: 16px; }
+#message, #reviewError { color: #a22d23; white-space: pre-wrap; } #pending { color: #94600b; }
+dialog { border: 1px solid #b7c7be; border-radius: 6px; width: min(760px,94vw); max-height: 90vh; overflow: auto; }
+dialog::backdrop { background: #172b2466; } .dialog-head { display: flex; align-items: center; justify-content: space-between; }
+.media { display: flex; gap: 12px; flex-wrap: wrap; } .media video { width: 100%; max-height: 380px; background: #141a17; }
+.media img { max-width: 220px; max-height: 180px; object-fit: contain; }
+#aiResult, #details, #userSummary { white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
+#auditFields label { margin: 14px 0; } textarea { min-height: 90px; width: 100%; }
+#penaltyHint { font-size: 13px; color: #8b4d19; }
+[hidden] { display: none !important; }
+@media(max-width:600px) { main, header { padding: 16px; } nav { flex-wrap: wrap; } .fields { grid-template-columns: 1fr; } }

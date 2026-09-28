@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/community/community",
     "pages/spot-list/spot-list",
     "pages/locked-spot-list/locked-spot-list",
     "pages/locked-spot-detail/locked-spot-detail",

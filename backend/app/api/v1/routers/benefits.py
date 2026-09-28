@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from app.services.community import can_redeem_eco_level
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -59,7 +60,9 @@ def available_spot_unlocks(
             spot_id=spot.id,
             db=db,
         )
-        if required_points <= 0:
+        if required_points <= 0 and spot.recommendation_level < 2:
+            continue
+        if not is_unlocked and not can_redeem_eco_level(db, user.id, spot.recommendation_level):
             continue
         benefit = ensure_spot_unlock_benefit(
             db,

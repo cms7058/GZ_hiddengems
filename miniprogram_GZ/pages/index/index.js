@@ -27,6 +27,7 @@ const COPY = {
     filterSummaryPrefix: "已选择",
     filterSummaryCountPrefix: "共",
     filterSummaryCountSuffix: "个秘境",
+    advcontent:"每一个用心做产品的人，都值得被更多人看见。",
     radius: "搜索未解锁",
     radiusUnit: "公里",
     invalidRadius: "请输入 0 到 20000 公里之间的搜索范围",
@@ -216,9 +217,10 @@ Page({
     shareToken: "",
   },
 
-  onLoad() {
+  onLoad(options = {}) {
     this.mapAutoFit = true
     this.markerCanvasReady = false
+    app.captureReferrerToken({ query: options })
     this.configureHomeShareMenu()
     this.handleLocationChange = (location) => this.updateUserLocation(location, false)
     this.refreshCopy()
@@ -985,6 +987,14 @@ Page({
     wx.setStorageSync("gzSafetyAgreementAccepted", true)
     app.globalData.hasAcceptedSafetyAgreement = true
     this.setData({ showSafetyAgreement: false })
+    this.openPendingSharedSpot()
+  },
+
+  openPendingSharedSpot() {
+    const spotId = Number(app.globalData.pendingSharedSpotId || 0)
+    if (!spotId) return
+    app.globalData.pendingSharedSpotId = 0
+    wx.navigateTo({ url: `/pages/locked-spot-detail/locked-spot-detail?id=${spotId}` })
   },
 
   onSkipProfileAuth() {

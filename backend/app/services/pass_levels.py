@@ -69,7 +69,7 @@ def get_spot_unlock_state(
 ) -> tuple[bool, int]:
     setting = (settings_by_level or {}).get(recommendation_level)
     required_points = required_explore_points_for_spot(spot_required_explore_points, setting)
-    if required_points <= 0:
+    if required_points <= 0 and recommendation_level < 2:
         return True, required_points
     if user is None or spot_id is None or db is None:
         return False, required_points

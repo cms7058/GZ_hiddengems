@@ -342,10 +342,12 @@ def spot_to_home_out(
     )
     full_name = choose_text(normalized_lang, spot.name_zh, spot.name_en) or ""
     safe_locked_name = locked_spot_name(spot, normalized_lang)
+    safe_locked_summary = locked_spot_intro(spot, normalized_lang)
     return HomeSpotOut(
         id=spot.id,
         name=full_name if is_unlocked else safe_locked_name,
         locked_name=safe_locked_name,
+        locked_summary=safe_locked_summary,
         recommendation_level=spot.recommendation_level,
         marker_color=(marker_colors_by_level or {}).get(spot.recommendation_level, "#2f6b4f"),
         is_unlocked=is_unlocked,

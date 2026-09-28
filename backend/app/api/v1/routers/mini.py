@@ -30,6 +30,7 @@ from app.services.pass_levels import get_active_pass_settings_by_level, get_spot
 from app.services.localization import choose_text, normalize_language
 from app.services.archive import handle_mini_archive_query
 from app.services.benefits import backfill_legacy_benefit_points
+from app.services.security import create_access_token
 from app.services.spot_mapper import comment_to_out, locked_spot_intro, locked_spot_name, spot_like_status_to_out, travel_note_to_out
 
 
@@ -417,7 +418,7 @@ def mini_login(payload: MiniProgramLoginIn, db: Session = Depends(get_db)) -> Mi
     db.refresh(user)
     # Keep the mini program profile server-authoritative and return the same
     # display-safe avatar URL used by the administrative user API.
-    return user_to_out(db, user)
+    return user_to_out(db, user).model_copy(update={"community_token": create_access_token(f"mini:{user.id}")})
 
 
 @router.post("/uploads")
