@@ -238,6 +238,8 @@ textarea:focus {
   gap: 10px;
 }
 
+.section-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(120px, 1fr));
@@ -528,6 +530,17 @@ button:disabled {
 .wide-dialog {
   width: min(960px, calc(100vw - 32px));
 }
+
+.permission-manager { max-height: 90vh; overflow: auto; }
+.permission-filter-grid { margin: 18px 0; }
+.permission-selection-head { display: flex; align-items: center; gap: 18px; margin: 12px 0; }
+.permission-users { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 260px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #fbfdfb; }
+.permission-user-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border: 1px solid #dce7df; border-radius: 6px; }
+.permission-user-row small { display: block; color: var(--muted); margin-top: 3px; word-break: break-all; }
+.permission-batch-form, .permission-policy-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.permission-batch-form footer, .permission-policy-section .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
+.permission-policy-section .table-wrap { margin-top: 16px; }
+@media (max-width: 760px) { .permission-users { grid-template-columns: 1fr; } .permission-selection-head { flex-wrap: wrap; } }
 
 .dialog::backdrop {
   background: rgba(15, 38, 27, 0.32);

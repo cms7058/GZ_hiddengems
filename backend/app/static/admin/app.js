@@ -44,6 +44,11 @@ const state = {
   checkinFilters: {},
   checkinRiskSettings: null,
   benefitCatalog: [],
+  foodPolicies: [],
+  permissionUsers: [],
+  permissionSelected: new Set(),
+  permissionPage: 1,
+  permissionTotal: 0,
   spotFilters: {},
   assistantPending: { checkins: 0, travel_notes: 0, comments: 0, media: 0 },
   assistantMode: "guide",
@@ -996,6 +1001,56 @@ function renderUsers() {
     )
     .join("");
   renderPagination("usersTable", "users");
+}
+
+function renderFoodPolicyOptions(select, includeNoChange = false) {
+  if (!select) return;
+  const prefix = includeNoChange ? '<option value="">不修改</option><option value="0">取消指定用户绑定</option>' : '<option value="0">未绑定</option>';
+  select.innerHTML = prefix + state.foodPolicies
+    .filter((policy) => policy.is_active)
+    .map((policy) => `<option value="${policy.id}">${escapeHtml(policy.name)}${policy.all_users ? "（所有用户）" : ""}</option>`)
+    .join("");
+}
+
+function renderPermissionUsers() {
+  const container = $("#permissionUsers");
+  if (!container) return;
+  container.innerHTML = state.permissionUsers.map((user) => `
+    <label class="permission-user-row">
+      <input type="checkbox" data-permission-user="${user.id}" ${state.permissionSelected.has(user.id) ? "checked" : ""} />
+      <span><strong>${escapeHtml(user.nickname)}</strong> #${user.id}<small>${escapeHtml(user.openid)} · ${user.safety_level || "general"} · 探秘 ${user.explore_points || 0} · 权益 ${user.benefit_points || 0} · 环保 ${user.eco_credit || 0} · ${user.checkin_risk_level || "normal"}</small></span>
+    </label>`).join("") || '<p class="muted">暂无符合条件的用户</p>';
+  $("#permissionSelectedCount").textContent = `已选择 ${state.permissionSelected.size} 位用户`;
+  $("#permissionPageInfo").textContent = `${state.permissionPage} / ${Math.max(1, Math.ceil(state.permissionTotal / 100))} · ${state.permissionTotal} 位用户`;
+  $("#permissionPrevious").disabled = state.permissionPage <= 1;
+  $("#permissionNext").disabled = state.permissionPage * 100 >= state.permissionTotal;
+  $("#permissionSelectAll").checked = state.permissionUsers.length > 0 && state.permissionUsers.every((user) => state.permissionSelected.has(user.id));
+}
+
+async function loadPermissionUsers(reset = false) {
+  if (reset) state.permissionPage = 1;
+  const form = $("#permissionFilterForm");
+  const params = new URLSearchParams(new FormData(form));
+  for (const [key, value] of [...params]) if (!value) params.delete(key);
+  params.set("include_inactive", "true");
+  params.set("page", String(state.permissionPage));
+  params.set("page_size", "100");
+  const result = await request(`/admin/users?${params}`);
+  state.permissionUsers = result.items || [];
+  state.permissionTotal = result.total || 0;
+  renderPermissionUsers();
+}
+
+async function loadPermissionManager() {
+  const [options, policies] = await Promise.all([
+    request("/admin/users/permissions/options"),
+    request("/admin/community/food-policies"),
+  ]);
+  state.foodPolicies = policies || options.food_policies || [];
+  renderFoodPolicyOptions($("#userFoodPolicySelect"));
+  renderFoodPolicyOptions($("#permissionFoodPolicySelect"), true);
+  $("#permissionPolicyRows").innerHTML = state.foodPolicies.map((policy) => `<tr><td>${policy.id}</td><td>${escapeHtml(policy.name)}</td><td>${policy.all_users ? "所有用户" : `${policy.user_ids?.length || 0} 位指定用户`}</td><td>${policy.is_active ? "启用" : "停用"}</td><td>${policy.reward_points}</td></tr>`).join("") || '<tr><td colspan="5">暂无规则</td></tr>';
+  await loadPermissionUsers(true);
 }
 
 function renderPassSettings() {
@@ -1973,6 +2028,7 @@ function setUserFormChecked(form, field, checked) {
 function fillUserForm(user) {
   const form = $("#userForm");
   const permissionFields = ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"];
+  renderFoodPolicyOptions($("#userFoodPolicySelect"));
   form.reset();
   state.editingUserId = user?.id || null;
   $("#userDialogTitle").textContent = user ? `${t("编辑用户")}：${user.nickname}` : t("新增用户");
@@ -1984,6 +2040,7 @@ function fillUserForm(user) {
     setUserFormValue(form, "checkin_count", 0);
     setUserFormValue(form, "contribution_count", 0);
     setUserFormValue(form, "eco_credit", 100);
+    setUserFormValue(form, "food_policy_id", 0);
     setUserFormChecked(form, "is_member", false);
     setUserFormChecked(form, "is_active", true);
     permissionFields.forEach((field) => setUserFormChecked(form, field, true));
@@ -2017,6 +2074,7 @@ function fillUserForm(user) {
   setUserFormValue(form, "phone_verified_at", toDateTimeLocal(user.phone_verified_at));
   setUserFormValue(form, "checkin_permission_disabled_from", toDateTimeLocal(user.checkin_permission_disabled_from || user.checkin_permission_disabled_at));
   setUserFormValue(form, "checkin_permission_disabled_until", toDateTimeLocal(user.checkin_permission_disabled_until));
+  setUserFormValue(form, "food_policy_id", user.food_policy_id || 0);
   $("#userAvatarPreview").innerHTML = userAvatarCell(user.avatar_url, user.nickname);
   setUserFormChecked(form, "is_member", user.is_member);
   setUserFormChecked(form, "is_active", user.is_active);
@@ -2431,6 +2489,92 @@ $("#newTagBtn").addEventListener("click", () => {
 $("#newUserBtn").addEventListener("click", () => {
   fillUserForm();
   $("#userDialog").showModal();
+});
+
+$("#permissionManageBtn").addEventListener("click", async () => {
+  try {
+    $("#permissionMessage").textContent = "加载中...";
+    $("#permissionDialog").showModal();
+    await loadPermissionManager();
+    $("#permissionMessage").textContent = "";
+  } catch (error) {
+    $("#permissionMessage").textContent = `加载失败：${error.message}`;
+  }
+});
+
+$("#permissionFilterForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try { await loadPermissionUsers(true); } catch (error) { $("#permissionMessage").textContent = `查询失败：${error.message}`; }
+});
+
+$("#permissionFilterForm").addEventListener("reset", () => {
+  setTimeout(() => loadPermissionUsers(true).catch((error) => { $("#permissionMessage").textContent = `查询失败：${error.message}`; }), 0);
+});
+
+$("#permissionUsers").addEventListener("change", (event) => {
+  const id = Number(event.target.dataset.permissionUser);
+  if (!id) return;
+  if (event.target.checked) state.permissionSelected.add(id);
+  else state.permissionSelected.delete(id);
+  renderPermissionUsers();
+});
+
+$("#permissionSelectAll").addEventListener("change", (event) => {
+  state.permissionUsers.forEach((user) => event.target.checked ? state.permissionSelected.add(user.id) : state.permissionSelected.delete(user.id));
+  renderPermissionUsers();
+});
+
+$("#permissionPrevious").addEventListener("click", async () => {
+  if (state.permissionPage <= 1) return;
+  state.permissionPage -= 1;
+  await loadPermissionUsers();
+});
+
+$("#permissionNext").addEventListener("click", async () => {
+  if (state.permissionPage * 100 >= state.permissionTotal) return;
+  state.permissionPage += 1;
+  await loadPermissionUsers();
+});
+
+$("#permissionBatchForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.permissionSelected.size) { $("#permissionMessage").textContent = "请先选择用户"; return; }
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const payload = { user_ids: [...state.permissionSelected] };
+  ["can_upload_image", "can_upload_video", "can_comment", "can_checkin", "can_recommend_spot", "can_like_comment", "can_share"].forEach((field) => {
+    if (form.elements[field].checked) payload[field] = true;
+  });
+  if (data.food_policy_id !== "") payload.food_policy_id = Number(data.food_policy_id);
+  if (Object.keys(payload).length === 1) { $("#permissionMessage").textContent = "请至少选择一项权限或美食规则"; return; }
+  if (!window.confirm(`确认给 ${state.permissionSelected.size} 位用户批量赋予所选权限吗？`)) return;
+  try {
+    const result = await request("/admin/users/permissions/batch", { method: "POST", body: JSON.stringify(payload) });
+    $("#permissionMessage").textContent = `已成功更新 ${result.updated_count} 位用户，失败 ${result.failed_count} 位`;
+    await loadPermissionUsers();
+    await loadData();
+  } catch (error) { $("#permissionMessage").textContent = `保存失败：${error.message}`; }
+});
+
+$("#permissionPolicyForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const allUsers = form.elements.all_users.checked;
+  if (!allUsers && !state.permissionSelected.size) { $("#permissionMessage").textContent = "指定用户规则请先选择用户"; return; }
+  if (!window.confirm("确认保存新的美食规则版本并绑定用户吗？")) return;
+  const payload = {
+    name: String(data.name || "").trim(), min_photos: Number(data.min_photos), max_photos: Number(data.max_photos),
+    max_image_bytes: Math.round(Number(data.image_mb) * 1048576), max_width: Number(data.max_width), max_height: Number(data.max_height),
+    video_required: form.elements.video_required.checked, max_video_seconds: Number(data.max_video_seconds), reward_points: Number(data.reward_points),
+    all_users: allUsers, is_active: form.elements.is_active.checked, user_ids: allUsers ? [] : [...state.permissionSelected],
+  };
+  try {
+    await request("/admin/community/food-policies", { method: "POST", body: JSON.stringify(payload) });
+    form.reset(); form.elements.is_active.checked = true;
+    await loadPermissionManager();
+    $("#permissionMessage").textContent = "美食规则已保存并完成绑定";
+  } catch (error) { $("#permissionMessage").textContent = `规则保存失败：${error.message}`; }
 });
 
 $("#newPassSettingBtn").addEventListener("click", () => {
@@ -3573,6 +3717,7 @@ $("#userForm").addEventListener("submit", async (event) => {
     can_recommend_spot: form.elements.can_recommend_spot.checked,
     can_like_comment: form.elements.can_like_comment.checked,
     can_share: form.elements.can_share.checked,
+    food_policy_id: Number(data.food_policy_id || 0),
   };
   const path = state.editingUserId ? `/admin/users/${state.editingUserId}` : "/admin/users";
   const method = state.editingUserId ? "PATCH" : "POST";

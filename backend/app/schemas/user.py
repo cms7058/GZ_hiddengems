@@ -38,6 +38,21 @@ class MiniProgramUserUpdate(BaseModel):
     can_recommend_spot: Optional[bool] = None
     can_like_comment: Optional[bool] = None
     can_share: Optional[bool] = None
+    # 0 clears a specific food-policy binding; null means leave unchanged.
+    food_policy_id: Optional[int] = Field(default=None, ge=0)
+
+
+class UserPermissionBatchUpdate(BaseModel):
+    user_ids: list[int] = Field(..., min_length=1, max_length=1000)
+    can_upload_image: Optional[bool] = None
+    can_upload_video: Optional[bool] = None
+    can_comment: Optional[bool] = None
+    can_checkin: Optional[bool] = None
+    can_recommend_spot: Optional[bool] = None
+    can_like_comment: Optional[bool] = None
+    can_share: Optional[bool] = None
+    # 0 clears the specific binding; omitted leaves it unchanged.
+    food_policy_id: Optional[int] = Field(default=None, ge=0)
 
 
 class MiniProgramUserCreate(BaseModel):
@@ -106,6 +121,7 @@ class MiniProgramUserOut(BaseModel):
     can_recommend_spot: bool = True
     can_like_comment: bool = True
     can_share: bool = True
+    food_policy_id: Optional[int] = None
     checkin_warning_count: int = 0
     checkin_suspicious_count: int = 0
     checkin_watch_count: int = 0

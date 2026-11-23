@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { tab: 'eco', page: 1, total: 0, rows: [], policies: [], selected: new Set(), userPage: 1, editing: null };
+const state = { tab: 'eco', page: 1, total: 0, rows: [], editing: null };
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 const statuses = { pending: '待审核', approved: '通过', rejected: '不通过' };
 async function api(path, method = 'GET', data) {
@@ -13,11 +13,6 @@ async function api(path, method = 'GET', data) {
 const fail = (error) => { $('#message').textContent = error.message; };
 async function load() {
   $('#message').textContent = '';
-  if (state.tab === 'policies') {
-    state.policies = await api('/food-policies');
-    $('#policyRows').innerHTML = state.policies.map((row) => `<tr><td>${row.id}</td><td>${escape(row.name)}</td><td>${row.all_users ? '所有用户' : row.user_ids.length + ' 位指定用户'}</td><td>${row.is_active ? '启用' : '停用'}</td><td>${row.reward_points}</td><td><button data-policy="${row.id}">编辑新版本</button></td></tr>`).join('');
-    return;
-  }
   const params = new URLSearchParams(new FormData($('#filters')));
   for (const [key, value] of [...params]) if (!value) params.delete(key);
   params.set('page', state.page);
@@ -29,53 +24,16 @@ async function load() {
   $('#previous').disabled = state.page === 1;
   $('#next').disabled = state.page * 20 >= data.total;
 }
-async function loadUsers(reset = false) {
-  if (reset) state.userPage = 1;
-  const users = await api(`/users?q=${encodeURIComponent($('#userSearch').value)}&page=${state.userPage}`);
-  $('#users').innerHTML = users.map((user) => `<label><input type="checkbox" data-bind-user="${user.id}" ${state.selected.has(user.id) ? 'checked' : ''}>${escape(user.nickname)} #${user.id}</label>`).join('') || '暂无用户';
-  $('#selectedCount').textContent = `已选择 ${state.selected.size} 位用户`;
-  $('#moreUsers').disabled = users.length < 100;
-}
 document.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => {
   state.tab = button.dataset.tab; state.page = 1;
   document.querySelectorAll('[data-tab]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
-  $('#policies').hidden = state.tab !== 'policies'; $('#reviews').hidden = state.tab === 'policies';
+  $('#reviews').hidden = false;
   load().catch(fail);
-  if (state.tab === 'policies') loadUsers(true).catch(fail);
 }));
 $('#filters').addEventListener('submit', (event) => { event.preventDefault(); state.page = 1; load().catch(fail); });
 $('#filters').addEventListener('reset', () => setTimeout(() => { state.page = 1; load().catch(fail); }, 0));
 $('#previous').onclick = () => { state.page--; load().catch(fail); };
 $('#next').onclick = () => { state.page++; load().catch(fail); };
-$('#searchUsers').onclick = () => loadUsers(true).catch(fail);
-$('#moreUsers').onclick = () => { state.userPage++; loadUsers().catch(fail); };
-$('#users').onchange = (event) => {
-  const id = Number(event.target.dataset.bindUser);
-  if (!id) return;
-  if (event.target.checked) state.selected.add(id); else state.selected.delete(id);
-  $('#selectedCount').textContent = `已选择 ${state.selected.size} 位用户`;
-};
-$('#policyForm').elements.all_users.onchange = () => { $('#userPicker').hidden = $('#policyForm').elements.all_users.value === 'true'; };
-$('#policyForm').onsubmit = async (event) => {
-  event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('[type=submit]'); button.disabled = true;
-  try {
-    const data = Object.fromEntries(new FormData(form));
-    ['min_photos','max_photos','max_width','max_height','max_video_seconds','reward_points'].forEach((key) => { data[key] = Number(data[key]); });
-    data.max_image_bytes = Math.round(Number(data.image_mb) * 1048576); delete data.image_mb;
-    data.all_users = data.all_users === 'true'; data.is_active = form.elements.is_active.checked; data.video_required = form.elements.video_required.checked;
-    data.user_ids = data.all_users ? [] : [...state.selected];
-    await api('/food-policies', 'POST', data); await load(); $('#message').textContent = '规则已保存并绑定';
-  } catch (error) { fail(error); } finally { button.disabled = false; }
-};
-$('#policyRows').onclick = (event) => {
-  const button = event.target.closest('[data-policy]'); if (!button) return;
-  const policy = state.policies.find((row) => row.id === Number(button.dataset.policy));
-  const form = $('#policyForm');
-  Object.entries(policy).forEach(([key, value]) => { if (form.elements[key]) { if (form.elements[key].type === 'checkbox') form.elements[key].checked = value; else form.elements[key].value = String(value); } });
-  form.elements.image_mb.value = policy.max_image_bytes / 1048576;
-  state.selected = new Set(policy.user_ids); $('#userPicker').hidden = policy.all_users;
-  loadUsers(true).catch(fail); form.scrollIntoView();
-};
 $('#rows').onclick = async (event) => {
   try {
     const user = event.target.closest('[data-user]');

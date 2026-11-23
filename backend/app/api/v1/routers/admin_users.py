@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -7,14 +9,16 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.archive import ArchiveRequirement
 from app.models.content import CommentLike, ContentMedia, SpotLike, SpotRecommendation, TravelNote, UserComment
+from app.models.community import FoodPolicy, FoodPolicyUser
 from app.models.user import CheckinRecord, MiniProgramUser, PointLedger, ShareEvent, UserMembership
 from app.schemas.pagination import Page
-from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate
+from app.schemas.user import MiniProgramUserCreate, MiniProgramUserOut, MiniProgramUserUpdate, UserPermissionBatchUpdate
 from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url
 from app.services.pagination import paginated_scalars
 from app.services.memberships import sync_user_membership_by_points
 from app.services.safety_levels import apply_safety_level_policy
 from app.services.benefits import adjust_benefit_points_for_admin, backfill_legacy_benefit_points
+from app.services.community import food_policy
 
 
 router = APIRouter()
@@ -32,7 +36,9 @@ USER_PERMISSION_FIELDS = (
 
 def user_to_out(db: Session, user: MiniProgramUser) -> MiniProgramUserOut:
     result = MiniProgramUserOut.model_validate(user)
-    return result.model_copy(update={"avatar_url": get_media_display_url(db, user.avatar_url)})
+    policy = food_policy(db, user.id)
+    policy_id = policy.id if policy else None
+    return result.model_copy(update={"avatar_url": get_media_display_url(db, user.avatar_url), "food_policy_id": policy_id})
 
 
 @router.get("", response_model=Page[MiniProgramUserOut])
@@ -41,6 +47,15 @@ def list_admin_users(
     include_inactive: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
+    safety_level: Optional[str] = Query(default=None),
+    is_member: Optional[bool] = Query(default=None),
+    checkin_risk_level: Optional[str] = Query(default=None),
+    min_explore_points: Optional[int] = Query(default=None, ge=0),
+    max_explore_points: Optional[int] = Query(default=None, ge=0),
+    min_benefit_points: Optional[int] = Query(default=None, ge=0),
+    max_benefit_points: Optional[int] = Query(default=None, ge=0),
+    min_eco_credit: Optional[int] = Query(default=None, ge=0),
+    max_eco_credit: Optional[int] = Query(default=None, ge=0),
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> Page[MiniProgramUserOut]:
@@ -56,6 +71,24 @@ def list_admin_users(
                 MiniProgramUser.phone.like(like_keyword),
             )
         )
+    if safety_level:
+        statement = statement.where(MiniProgramUser.safety_level == safety_level)
+    if is_member is not None:
+        statement = statement.where(MiniProgramUser.is_member.is_(is_member))
+    if checkin_risk_level:
+        statement = statement.where(MiniProgramUser.checkin_risk_level == checkin_risk_level)
+    if min_explore_points is not None:
+        statement = statement.where(MiniProgramUser.explore_points >= min_explore_points)
+    if max_explore_points is not None:
+        statement = statement.where(MiniProgramUser.explore_points <= max_explore_points)
+    if min_benefit_points is not None:
+        statement = statement.where(MiniProgramUser.benefit_points >= min_benefit_points)
+    if max_benefit_points is not None:
+        statement = statement.where(MiniProgramUser.benefit_points <= max_benefit_points)
+    if min_eco_credit is not None:
+        statement = statement.where(MiniProgramUser.eco_credit >= min_eco_credit)
+    if max_eco_credit is not None:
+        statement = statement.where(MiniProgramUser.eco_credit <= max_eco_credit)
     result = paginated_scalars(db, statement, page, page_size)
     return Page(
         items=[user_to_out(db, user) for user in result.items],
@@ -64,6 +97,53 @@ def list_admin_users(
         page_size=result.page_size,
         pages=result.pages,
     )
+
+
+def _set_food_policy_binding(db: Session, user_id: int, policy_id: int) -> None:
+    db.query(FoodPolicyUser).filter(FoodPolicyUser.user_id == user_id).delete(synchronize_session=False)
+    if policy_id:
+        policy = db.get(FoodPolicy, policy_id)
+        if policy is None or not policy.is_active:
+            raise HTTPException(status_code=400, detail="美食规则不存在或已停用")
+        db.add(FoodPolicyUser(policy_id=policy_id, user_id=user_id))
+
+
+@router.get("/permissions/options")
+def permission_options(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    policies = db.scalars(select(FoodPolicy).order_by(FoodPolicy.id.desc()).limit(100)).all()
+    return {"food_policies": [{"id": item.id, "name": item.name, "is_active": item.is_active, "all_users": item.all_users} for item in policies]}
+
+
+@router.post("/permissions/batch")
+def batch_update_permissions(
+    payload: UserPermissionBatchUpdate,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    fields = [field for field in USER_PERMISSION_FIELDS if field in payload.model_fields_set]
+    if not fields and "food_policy_id" not in payload.model_fields_set:
+        raise HTTPException(status_code=400, detail="请至少选择一项权限或美食规则")
+    if "food_policy_id" in payload.model_fields_set and payload.food_policy_id:
+        policy = db.get(FoodPolicy, payload.food_policy_id)
+        if policy is None or not policy.is_active:
+            raise HTTPException(status_code=400, detail="美食规则不存在或已停用")
+    updated = []
+    failed = []
+    for user_id in dict.fromkeys(payload.user_ids):
+        user = db.get(MiniProgramUser, user_id)
+        if user is None:
+            failed.append({"user_id": user_id, "reason": "用户不存在"})
+            continue
+        for field in fields:
+            setattr(user, field, getattr(payload, field))
+        if "food_policy_id" in payload.model_fields_set:
+            _set_food_policy_binding(db, user.id, payload.food_policy_id or 0)
+        updated.append(user_id)
+    db.commit()
+    return {"updated_count": len(updated), "failed_count": len(failed), "updated_user_ids": updated, "failed": failed}
 
 
 @router.get("/{user_id}", response_model=MiniProgramUserOut)
@@ -131,6 +211,7 @@ def update_admin_user(
     previous_explore_points = user.explore_points
     previous_benefit_points = user.benefit_points
     update_data = payload.model_dump(exclude_unset=True)
+    food_policy_id = update_data.pop("food_policy_id", None) if "food_policy_id" in update_data else None
     for field, value in update_data.items():
         setattr(user, field, value)
 
@@ -146,6 +227,8 @@ def update_admin_user(
         sync_user_membership_by_points(db, user)
     if "safety_level" in update_data and not any(field in update_data for field in USER_PERMISSION_FIELDS):
         apply_safety_level_policy(db, user)
+    if "food_policy_id" in payload.model_fields_set:
+        _set_food_policy_binding(db, user.id, food_policy_id or 0)
     db.add(user)
     db.commit()
     db.refresh(user)

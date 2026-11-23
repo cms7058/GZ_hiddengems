@@ -37,8 +37,10 @@ def role_permissions(role: Optional[AdminRole], admin: AdminUser) -> list[str]:
 
 def permission_for_request(path: str, method: str) -> Optional[str]:
     resource = None
-    if "/admin/community" in path:
-        resource = "growth" if "/food-policies" in path else "checkins"
+    if "/admin/community/food-policies" in path:
+        resource = "users"
+    elif "/admin/community" in path:
+        resource = "checkins"
     elif "/admin/spots" in path or "/admin/content/spots/" in path or "/admin/content/spot-images" in path:
         resource = "spots"
     elif "/admin/users" in path:
