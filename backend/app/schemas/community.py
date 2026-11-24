@@ -14,6 +14,14 @@ class EcoReview(BaseModel):
     note: str = Field(min_length=1, max_length=512)
 
 
+class EcoAIConfigUpdate(BaseModel):
+    provider: str = Field(default="", max_length=128)
+    api_base: str = Field(default="", max_length=512)
+    model: str = Field(default="", max_length=128)
+    api_key: str = Field(default="", max_length=2048)
+    enabled: bool = False
+
+
 class FoodPolicyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     all_users: bool = False

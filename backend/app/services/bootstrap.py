@@ -118,6 +118,9 @@ def ensure_runtime_columns() -> None:
         "membership_plans": {
             "required_explore_points": "INT NOT NULL DEFAULT 0",
         },
+        "eco_submissions": {
+            "ai_recommendation": "VARCHAR(24) NOT NULL DEFAULT 'manual_review'",
+        },
         "scenic_spots": {
             "checkin_enabled": "BOOLEAN NOT NULL DEFAULT 0",
             "spot_code": "VARCHAR(8) NULL",

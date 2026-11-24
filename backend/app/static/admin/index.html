@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>贵州秘境管理后台</title>
-    <link rel="stylesheet" href="/admin/static/styles.css?v=20260722-checkin-risk-levels" />
+    <link rel="stylesheet" href="/admin/static/styles.css?v=20261123-permission-dialog" />
   </head>
   <body>
     <main id="loginView" class="login-shell">
@@ -731,14 +731,14 @@
       </form>
     </dialog>
 
-    <dialog id="permissionDialog" class="dialog wide-dialog">
+    <dialog id="permissionDialog" class="dialog wide-dialog permission-dialog">
       <section class="dialog-body permission-manager">
         <header>
           <div>
             <h2>用户权限管理</h2>
             <p class="muted">按用户条件筛选后，批量开启权限；未勾选的权限保持原状态。</p>
           </div>
-          <button type="button" class="icon-btn" data-close-dialog="permissionDialog">×</button>
+          <button type="button" class="icon-btn" aria-label="关闭权限管理" title="关闭" data-close-dialog="permissionDialog">×</button>
         </header>
         <form id="permissionFilterForm" class="form-grid permission-filter-grid">
           <label><span>用户名 / OpenID</span><input name="keyword" placeholder="模糊查询" /></label>
@@ -788,6 +788,9 @@
           </form>
           <div class="table-wrap"><table><thead><tr><th>版本</th><th>规则名称</th><th>范围</th><th>状态</th><th>奖励积分</th></tr></thead><tbody id="permissionPolicyRows"></tbody></table></div>
         </section>
+        <footer class="permission-manager-footer">
+          <button type="button" class="secondary-btn" data-close-dialog="permissionDialog">关闭</button>
+        </footer>
       </section>
     </dialog>
 
@@ -1057,6 +1060,6 @@
     </dialog>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/admin/static/app.js?v=20260908-checkin-switch"></script>
+    <script src="/admin/static/app.js?v=20261123-permission-close"></script>
   </body>
 </html>

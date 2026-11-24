@@ -26,5 +26,16 @@ dialog::backdrop { background: #172b2466; } .dialog-head { display: flex; align-
 #aiResult, #details, #userSummary { white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
 #auditFields label { margin: 14px 0; } textarea { min-height: 90px; width: 100%; }
 #penaltyHint { font-size: 13px; color: #8b4d19; }
+.ai-config-panel { margin: 18px 0; padding: 16px; border: 1px solid #cbd8d0; border-radius: 6px; background: #fff; }
+.ai-config-panel h2 { margin: 0 0 6px; font-size: 17px; }
+.ai-config-panel p { margin: 0 0 14px; color: #5e6c64; font-size: 13px; }
+.ai-config-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 12px; }
+.ai-enabled { flex-direction: row; align-items: center; gap: 8px; min-height: 39px; }
+.ai-enabled input { width: 18px; height: 18px; }
+.ai-config-actions { display: flex; grid-column: span 3; justify-content: flex-end; align-items: center; gap: 12px; }
+#ecoAiConfigMessage { color: #52655a; font-size: 13px; }
+.ai-summary { min-width: 220px; max-width: 460px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-summary small { display: block; margin-top: 4px; color: #58675f; line-height: 1.45; }
 [hidden] { display: none !important; }
-@media(max-width:600px) { main, header { padding: 16px; } nav { flex-wrap: wrap; } .fields { grid-template-columns: 1fr; } }
+@media(max-width:900px) { .ai-config-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ai-config-actions { grid-column: 1 / -1; } }
+@media(max-width:600px) { main, header { padding: 16px; } nav { flex-wrap: wrap; } .fields, .ai-config-form { grid-template-columns: 1fr; } .ai-config-actions { grid-column: auto; } }

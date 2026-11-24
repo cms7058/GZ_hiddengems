@@ -33,6 +33,7 @@ class EcoSubmission(Base):
     review_note = Column(String(512), nullable=False, default="")
     reviewer_id = Column(Integer, ForeignKey("admin_users.id"), nullable=True)
     ai_status = Column(String(24), nullable=False, default="not_required")
+    ai_recommendation = Column(String(24), nullable=False, default="manual_review")
     ai_note = Column(Text, nullable=False, default="")
     penalized = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)

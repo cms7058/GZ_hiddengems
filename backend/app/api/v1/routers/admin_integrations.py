@@ -206,6 +206,8 @@ def update_integration_settings(
     db: Session = Depends(get_db),
     current_admin: AdminUser = Depends(get_current_admin),
 ) -> IntegrationGroupOut:
+    if group not in GROUP_META:
+        raise HTTPException(status_code=404, detail="Integration group not found")
     rows = db.scalars(select(IntegrationSetting).where(IntegrationSetting.group == group)).all()
     by_key = {row.key: row for row in rows}
     if group == "mini_program":

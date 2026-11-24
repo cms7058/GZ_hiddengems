@@ -10,6 +10,7 @@ from PIL import Image
 from sqlalchemy import func, select
 
 from tests.test_api import ApiTest
+from app.models.admin import AdminRole, AdminUser
 from app.models.community import CommunityUpload, EcoCredit, EcoMilestone, EcoSubmission, EcoWarning, FoodSubmission
 from app.models.spot import ScenicSpot
 from app.models.user import BenefitPointLedger, MiniProgramUser, UserSpotUnlock
@@ -43,8 +44,10 @@ class CommunityTest(unittest.TestCase):
 
     def upload(self, purpose="eco", media_type="video", user_id=1, **kwargs):
         with self.db() as db:
-            row = CommunityUpload(user_id=user_id, purpose=purpose, media_type=media_type, media_url="/media/community/test.mp4", duration=3 if media_type == "video" else 0,
-                                  width=320, height=240, size_bytes=100, frames_json="[]", **kwargs)
+            values = {"media_url": "/media/community/test.mp4", "duration": 3 if media_type == "video" else 0,
+                      "width": 320, "height": 240, "size_bytes": 100, "frames_json": "[]"}
+            values.update(kwargs)
+            row = CommunityUpload(user_id=user_id, purpose=purpose, media_type=media_type, **values)
             db.add(row)
             db.commit()
             return row.id
@@ -128,16 +131,64 @@ class CommunityTest(unittest.TestCase):
         self.assertEqual(self.client.get("/api/v1/mini/community/summary", headers=self.mini).json()["warning_count"], 1)
 
     def test_a_ai_is_advisory_and_failure_keeps_pending(self):
+        upload_id = self.upload(frames_json=json.dumps(["data:image/jpeg;base64,dGVzdA=="] * 6))
+        config_payload = {
+            "provider": "test provider", "api_base": "https://ai.example.test/v1", "model": "test-model",
+            "api_key": "test-secret", "enabled": True,
+        }
+        configured = self.client.put("/api/v1/admin/community/eco-ai/config", headers=self.admin, json=config_payload)
+        self.assertEqual(configured.status_code, 200, configured.text)
+        self.assertTrue(configured.json()["enabled"])
+        self.assertNotIn("test-secret", configured.text)
         with patch("app.api.v1.routers.community.run_eco_ai") as task:
-            response = self.submit(self.spot(), "A")
+            response = self.submit(self.spot(), "A", upload_id)
             self.assertEqual(response.status_code, 201)
             task.assert_called_once_with(response.json()["id"])
-        with patch("app.db.session.SessionLocal", self.db), patch("app.services.integrations.get_group_config", return_value={}):
+        ai_settings = {
+            "ECO_AI_ENABLED": "true", "ECO_AI_PROVIDER": "test provider", "ECO_AI_API_BASE": "https://ai.example.test/v1",
+            "ECO_AI_MODEL": "test-model", "ECO_AI_API_KEY": "test-secret",
+        }
+        with patch("app.db.session.SessionLocal", self.db), \
+             patch("app.services.integrations.get_group_config", return_value=ai_settings), \
+             patch("app.services.admin_assistant.call_ai", return_value='{"recommendation":"qualified","analysis":"可见垃圾袋投入垃圾桶"}'):
             run_eco_ai(response.json()["id"])
         with self.db() as db:
             row = db.get(EcoSubmission, response.json()["id"])
             self.assertEqual(row.status, "pending")
-            self.assertEqual(row.ai_status, "manual_required")
+            self.assertEqual(row.ai_status, "completed")
+            self.assertEqual(row.ai_recommendation, "qualified")
+            self.assertIn("垃圾袋投入垃圾桶", row.ai_note)
+        admin_list = self.client.get("/api/v1/admin/community/eco?status=pending", headers=self.admin).json()
+        self.assertEqual(admin_list["items"][0]["ai_recommendation"], "qualified")
+        self.assertIn("垃圾袋投入垃圾桶", admin_list["items"][0]["ai_note"])
+
+    def test_eco_ai_config_is_super_admin_only_and_disabled_by_default(self):
+        config_url = "/api/v1/admin/community/eco-ai/config"
+        initial = self.client.get(config_url, headers=self.admin)
+        self.assertEqual(initial.status_code, 200)
+        self.assertFalse(initial.json()["enabled"])
+        invalid = self.client.put(config_url, headers=self.admin, json={
+            "provider": "provider", "api_base": "", "model": "model", "api_key": "key", "enabled": True,
+        })
+        self.assertEqual(invalid.status_code, 400)
+        with self.db() as db:
+            role = AdminRole(code="eco_reviewer", name="环保审核员", permissions_json=json.dumps(["checkins:read", "checkins:update"]))
+            admin = AdminUser(username="eco-reviewer", password_hash="unused", role=role.code)
+            db.add(role); db.add(admin); db.commit(); reviewer_id = admin.id
+        reviewer = {"Authorization": "Bearer " + create_access_token(str(reviewer_id))}
+        self.assertEqual(self.client.get(config_url, headers=reviewer).status_code, 403)
+        denied = self.client.put(config_url, headers=reviewer, json={"enabled": False})
+        self.assertEqual(denied.status_code, 403)
+
+    def test_a_video_waits_for_human_when_eco_ai_is_disabled(self):
+        with patch("app.api.v1.routers.community.run_eco_ai") as task:
+            response = self.submit(self.spot(), "A")
+        self.assertEqual(response.status_code, 201)
+        task.assert_not_called()
+        admin_list = self.client.get("/api/v1/admin/community/eco?status=pending", headers=self.admin).json()
+        self.assertEqual(admin_list["items"][0]["ai_status"], "manual_required")
+        self.assertIn("尚未启用", admin_list["items"][0]["ai_note"])
+        self.assertNotIn("ai_recommendation", response.json())
 
     def test_food_binding_snapshot_limits_and_exactly_once_reward(self):
         summary = self.client.get("/api/v1/mini/community/summary", headers=self.mini).json()

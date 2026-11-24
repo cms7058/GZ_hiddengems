@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from typing import Literal, Optional
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
@@ -12,10 +13,12 @@ from app.db.session import get_db
 from app.models.admin import AdminUser
 from app.models.community import CommunityUpload, EcoSubmission, EcoWarning, FoodPolicy, FoodPolicyUser, FoodSubmission
 from app.models.spot import ScenicSpot
+from app.models.integration import IntegrationSetting
 from app.models.user import BenefitPointLedger, MiniProgramUser, PointLedger
-from app.schemas.community import EcoCreate, EcoReview, FoodCreate, FoodPolicyCreate, FoodReview
+from app.schemas.community import EcoAIConfigUpdate, EcoCreate, EcoReview, FoodCreate, FoodPolicyCreate, FoodReview
 from app.services.community import eco_summary, food_policy, lock_user, policy_out, review_eco
 from app.services.community_media import inspect_media, run_eco_ai
+from app.services.integrations import get_group_config
 from app.services.media_storage import MediaStorageError, delete_media, get_media_display_url, save_media
 from app.services.pass_levels import get_active_pass_settings_by_level, get_spot_unlock_state
 from app.services.security import decode_access_token
@@ -40,14 +43,16 @@ def media_out(db, upload):
             "duration": upload.duration, "width": upload.width, "height": upload.height, "size_bytes": upload.size_bytes}
 
 
-def submission_out(db, item, eco=True):
+def submission_out(db, item, eco=True, include_ai=False):
     user = db.get(MiniProgramUser, item.user_id)
     result = {"id": item.id, "user_id": item.user_id, "nickname": user.nickname if user else "", "status": item.status,
               "review_note": item.review_note, "created_at": item.created_at, "reviewed_at": item.reviewed_at}
     if eco:
         spot = db.get(ScenicSpot, item.spot_id)
         result.update(spot_id=item.spot_id, spot_name=spot.name_zh if spot else "", level=item.level, category=item.category,
-                      ai_status=item.ai_status, ai_note=item.ai_note, verdict=item.verdict, media=[media_out(db, db.get(CommunityUpload, item.upload_id))])
+                      verdict=item.verdict, media=[media_out(db, db.get(CommunityUpload, item.upload_id))])
+        if include_ai:
+            result.update(ai_status=item.ai_status, ai_recommendation=item.ai_recommendation, ai_note=item.ai_note)
     else:
         result.update(title=item.title, content=item.content, reward_points=item.reward_points, policy=json.loads(item.policy_json),
                       media=[media_out(db, db.get(CommunityUpload, value)) for value in json.loads(item.upload_ids_json)])
@@ -59,6 +64,70 @@ def require_upload(db, user, upload_id, purpose):
     if not upload or upload.user_id != user.id or upload.purpose != purpose or upload.used or not upload.media_url:
         raise HTTPException(400, "上传文件不存在、已使用或不属于当前用户")
     return upload
+
+
+def require_super_admin(admin: AdminUser) -> None:
+    if admin.role != "super_admin":
+        raise HTTPException(403, "仅超级管理员可以配置环保视频 AI 初审")
+
+
+def eco_ai_config_out(db: Session) -> dict:
+    config = get_group_config(db, "eco_ai")
+    return {
+        "provider": config.get("ECO_AI_PROVIDER", ""),
+        "api_base": config.get("ECO_AI_API_BASE", ""),
+        "model": config.get("ECO_AI_MODEL", ""),
+        "api_key_configured": bool(config.get("ECO_AI_API_KEY", "").strip()),
+        "enabled": config.get("ECO_AI_ENABLED", "").lower() in ("true", "1"),
+    }
+
+
+@admin_router.get("/eco-ai/config")
+def get_eco_ai_config(admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    require_super_admin(admin)
+    return eco_ai_config_out(db)
+
+
+@admin_router.put("/eco-ai/config")
+def update_eco_ai_config(payload: EcoAIConfigUpdate, admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    require_super_admin(admin)
+    api_base = payload.api_base.strip().rstrip("/")
+    provider = payload.provider.strip()
+    model = payload.model.strip()
+    api_key = payload.api_key.strip()
+    existing = get_group_config(db, "eco_ai")
+    if payload.enabled:
+        parsed_url = urlsplit(api_base)
+        if parsed_url.scheme not in ("http", "https") or not parsed_url.netloc:
+            raise HTTPException(400, "启用 AI 初审时，请填写有效的 HTTP/HTTPS API 地址")
+        if not provider or not model or not (api_key or existing.get("ECO_AI_API_KEY", "").strip()):
+            raise HTTPException(400, "启用 AI 初审需要服务商、模型名称和 API Key")
+    values = {
+        "ECO_AI_PROVIDER": provider,
+        "ECO_AI_API_BASE": api_base,
+        "ECO_AI_MODEL": model,
+        "ECO_AI_ENABLED": "true" if payload.enabled else "false",
+    }
+    if api_key:
+        values["ECO_AI_API_KEY"] = api_key
+    labels = {
+        "ECO_AI_PROVIDER": ("环保视频 AI 服务商", "Eco Video AI Provider", "text", False, 10),
+        "ECO_AI_API_BASE": ("环保视频 AI API 地址", "Eco Video AI API Base URL", "text", False, 20),
+        "ECO_AI_MODEL": ("环保视频 AI 模型名称", "Eco Video AI Model", "text", False, 30),
+        "ECO_AI_API_KEY": ("环保视频 AI API Key", "Eco Video AI API Key", "password", True, 40),
+        "ECO_AI_ENABLED": ("启用环保视频 AI 初审", "Enable Eco Video AI Review", "checkbox", False, 50),
+    }
+    rows = {row.key: row for row in db.query(IntegrationSetting).filter(IntegrationSetting.group == "eco_ai").all()}
+    for key, value in values.items():
+        row = rows.get(key)
+        if row is None:
+            label_zh, label_en, input_type, is_secret, sort_order = labels[key]
+            row = IntegrationSetting(group="eco_ai", key=key, label_zh=label_zh, label_en=label_en,
+                                     input_type=input_type, is_secret=is_secret, sort_order=sort_order)
+        row.value = value
+        db.add(row)
+    db.commit()
+    return eco_ai_config_out(db)
 
 
 @mini_router.post("/uploads")
@@ -120,8 +189,14 @@ def submit_eco(payload: EcoCreate, tasks: BackgroundTasks, user: MiniProgramUser
     if upload.media_type != "video" or not 2.5 <= upload.duration <= 3.5:
         raise HTTPException(400, "请录制3秒视频")
     upload.used = True
+    eco_ai_config = get_group_config(db, "eco_ai") if payload.category == "A" else {}
+    eco_ai_enabled = (
+        eco_ai_config.get("ECO_AI_ENABLED", "").lower() in ("true", "1")
+        and all(eco_ai_config.get(key, "").strip() for key in ("ECO_AI_API_BASE", "ECO_AI_API_KEY", "ECO_AI_MODEL"))
+    )
     item = EcoSubmission(user_id=user.id, spot_id=spot.id, level=spot.recommendation_level, category=payload.category, upload_id=upload.id,
-                         ai_status="pending" if payload.category == "A" else "not_required")
+                         ai_status=("pending" if eco_ai_enabled else "manual_required") if payload.category == "A" else "not_required",
+                         ai_note="" if eco_ai_enabled or payload.category != "A" else "环保视频 AI 初审尚未启用，等待人工审核")
     db.add(item)
     db.flush()
     old_upload = db.get(CommunityUpload, previous.upload_id) if previous else None
@@ -137,7 +212,7 @@ def submit_eco(payload: EcoCreate, tasks: BackgroundTasks, user: MiniProgramUser
             # A storage outage must not roll back an accepted submission.
             import logging
             logging.getLogger(__name__).exception("Old eco video cleanup failed: upload %s", old_upload.id)
-    if payload.category == "A":
+    if payload.category == "A" and eco_ai_enabled:
         tasks.add_task(run_eco_ai, item.id)
     return submission_out(db, item)
 
@@ -229,7 +304,7 @@ def submissions(kind: Literal["eco", "food"], status: Optional[Literal["pending"
         stmt = stmt.where(model.user_id == user_id)
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = db.scalars(stmt.order_by(model.id.desc()).offset((page - 1) * 20).limit(20))
-    return {"items": [submission_out(db, row, kind == "eco") for row in rows], "total": total, "page": page}
+    return {"items": [submission_out(db, row, kind == "eco", include_ai=kind == "eco") for row in rows], "total": total, "page": page}
 
 
 @admin_router.post("/eco/{item_id}/ai")
@@ -237,7 +312,12 @@ def retry_ai(item_id: int, tasks: BackgroundTasks, db: Session = Depends(get_db)
     item = db.get(EcoSubmission, item_id)
     if not item or item.category != "A" or item.status != "pending":
         raise HTTPException(400, "仅待审核A类视频可以重试AI初审")
+    config = get_group_config(db, "eco_ai")
+    if config.get("ECO_AI_ENABLED", "").lower() not in ("true", "1") or not all(config.get(key, "").strip() for key in ("ECO_AI_API_BASE", "ECO_AI_API_KEY", "ECO_AI_MODEL")):
+        raise HTTPException(409, "环保视频 AI 初审尚未启用或接口配置不完整")
     item.ai_status = "pending"
+    item.ai_recommendation = "manual_review"
+    item.ai_note = "AI 初审处理中"
     db.commit()
     tasks.add_task(run_eco_ai, item.id)
     return {"status": "pending"}
@@ -252,7 +332,7 @@ def audit_eco(item_id: int, payload: EcoReview, admin: AdminUser = Depends(get_c
     db.refresh(item)
     review_eco(db, item, payload.verdict, payload.note, admin.id)
     db.commit()
-    return submission_out(db, item)
+    return submission_out(db, item, include_ai=True)
 
 
 @admin_router.patch("/food/{item_id}")

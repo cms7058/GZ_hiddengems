@@ -2687,6 +2687,10 @@ $$("[data-close-dialog]").forEach((button) => {
   });
 });
 
+$("#permissionDialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+
 function initializeAssistantFloatingPosition() {
   const button = $("#adminAssistantToggle");
   if (!button) return;
